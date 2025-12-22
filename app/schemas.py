@@ -68,7 +68,10 @@ class LeadBase(BaseModel):
     mco_id: Optional[int] = None
     authorization_received: bool = False
     care_status: Optional[str] = None  # "Care Start" or "Not Start"
+<<<<<<< HEAD
     priority: Optional[str] = "Medium"  # "High", "Medium", "Low"
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     soc_date: Optional[date] = None  # Start of Care date
     phone: str
     city: Optional[str] = None
@@ -81,11 +84,14 @@ class LeadBase(BaseModel):
     last_contact_status: str = "Initial Call"
     last_contact_date: Optional[datetime] = None
     comments: Optional[str] = None
+<<<<<<< HEAD
     
     # New fields
     ssn: Optional[str] = None
     email: Optional[str] = None
     custom_user_id: Optional[str] = None  # Required in UI, optional in base for flexibility
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 
 class LeadCreate(LeadBase):
@@ -110,7 +116,10 @@ class LeadUpdate(BaseModel):
     mco_id: Optional[int] = None
     authorization_received: Optional[bool] = None
     care_status: Optional[str] = None
+<<<<<<< HEAD
     priority: Optional[str] = None
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     soc_date: Optional[date] = None
     phone: Optional[str] = None
     city: Optional[str] = None
@@ -123,9 +132,12 @@ class LeadUpdate(BaseModel):
     last_contact_status: Optional[str] = None
     last_contact_date: Optional[datetime] = None
     comments: Optional[str] = None
+<<<<<<< HEAD
     ssn: Optional[str] = None
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 
 class LeadRead(LeadBase):

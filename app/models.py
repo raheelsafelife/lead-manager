@@ -79,7 +79,10 @@ class Lead(Base):
     # Authorization tracking
     authorization_received = Column(Boolean, nullable=False, default=False)  # Whether authorization was received
     care_status = Column(String(50), nullable=True)  # "Care Start" or "Not Start"
+<<<<<<< HEAD
     priority = Column(String(50), nullable=True, default="Medium")  # "High", "Medium", "Low"
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     soc_date = Column(Date, nullable=True)  # Start of Care date
 
     # contact info
@@ -105,6 +108,7 @@ class Lead(Base):
     # free text notes
     comments = Column(Text, nullable=True)
 
+<<<<<<< HEAD
     # New fields
     ssn = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
@@ -117,6 +121,8 @@ class Lead(Base):
     address = Column(Text, nullable=True)  # Full address from form
     state = Column(String(2), nullable=True)  # 2-letter state code
 
+=======
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 class Event(Base):
     __tablename__ = "events"

@@ -237,7 +237,12 @@ Supervisor/Coordinator: {ccu_coordinator}
 Please follow up with this referral.
 
 Reminder Schedule:
+<<<<<<< HEAD
 - All Referrals: Every 6 hours until Care Start
+=======
+- Interim Referrals: Every 6 hours for 2 days
+- Regular Referrals: Every 24 hours for 7 days
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 Best regards,
 Lead Manager System
@@ -340,7 +345,11 @@ Lead Manager System
             <div style="margin-top: 20px; padding: 15px; background-color: #f6ffed; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #389e0d;">
                     <strong>Reminder Schedule:</strong><br>
+<<<<<<< HEAD
                     <strong>All Referrals:</strong> Every 6 hours until Care Start
+=======
+                    {"<strong>Interim:</strong> Every 6 hours for 2 days" if referral_type == "Interim" else "<strong>Regular:</strong> Every 24 hours for 7 days"}
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
                 </p>
             </div>
             
@@ -444,7 +453,11 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
             <div style="margin-top: 20px; padding: 15px; background-color: #fff7e6; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 14px; color: #d46b08;">
                     <strong>⚠️ Care Start Reminder:</strong><br>
+<<<<<<< HEAD
                     <strong>Care Start Reminder:</strong> Every 6 hours until Care Start
+=======
+                    {"<strong>Interim:</strong> Every 6 hours for 2 days from authorization" if referral_type == "Interim" else "<strong>Regular:</strong> Every 24 hours for 7 days from authorization"}
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
                 </p>
             </div>
 
@@ -459,11 +472,19 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
 
     try:
         # Debug logging
+<<<<<<< HEAD
         print(f"[INFO] Attempting to send authorization email to {recipient_email}")
         print(f"[INFO] SMTP Config: Server={SMTP_SERVER}, Port={SMTP_PORT}, User={SMTP_USERNAME}")
 
         if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
             print("[ERROR] Missing SMTP configuration!")
+=======
+        print(f"📧 Attempting to send authorization email to {recipient_email}")
+        print(f"📧 SMTP Config: Server={SMTP_SERVER}, Port={SMTP_PORT}, User={SMTP_USERNAME}")
+
+        if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
+            print("❌ Missing SMTP configuration!")
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
             return False
 
         msg = MIMEMultipart('alternative')
@@ -479,11 +500,19 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
         server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
         server.quit()
 
+<<<<<<< HEAD
         print(f"[SUCCESS] Authorization confirmation email sent to {recipient_email} for {name}")
         return True
 
     except Exception as e:
         print(f"[ERROR] Failed to send authorization confirmation email to {recipient_email}: {e}")
+=======
+        print(f"✅ Authorization confirmation email sent to {recipient_email} for {name}")
+        return True
+
+    except Exception as e:
+        print(f"❌ Failed to send authorization confirmation email to {recipient_email}: {e}")
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
         import traceback
         traceback.print_exc()
         return False

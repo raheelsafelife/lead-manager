@@ -8,18 +8,30 @@ from .utils.activity_logger import log_activity
 
 
 # ------- CREATE -------
+<<<<<<< HEAD
 def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user_id: Optional[int] = None) -> models.Lead:
     """Create a new lead with activity logging"""
     lead = models.Lead(**lead_in.dict())
     # The user wanted to use lead_in.staff_name, which is fine for the record
     lead.created_by = lead_in.staff_name
     lead.updated_by = lead_in.staff_name
+=======
+def create_lead(db: Session, lead_in: LeadCreate, username: str, user_id: Optional[int] = None) -> models.Lead:
+    """Create a new lead with activity logging"""
+    lead = models.Lead(**lead_in.dict())
+    lead.created_by = username
+    lead.updated_by = username
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     
     db.add(lead)
     db.commit()
     db.refresh(lead)
     
+<<<<<<< HEAD
     # Log the activity - use the passed in username/user_id or defaults
+=======
+    # Log the activity
+>>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     log_activity(
         db=db,
         user_id=user_id,
