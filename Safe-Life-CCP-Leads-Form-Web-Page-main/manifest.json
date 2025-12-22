@@ -1,0 +1,20 @@
+{
+  "name": "Safe Life Lead Form",
+  "short_name": "Safe Life",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#004a68",
+  "theme_color": "#004a68",
+  "icons": [
+    {
+      "src": "icon1.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon1.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

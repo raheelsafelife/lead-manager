@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#004a68">
+  <link rel="apple-touch-icon" href="icon1.png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safe Life Home Care Form</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+
+<body>
+  <!-- Header -->
+  <header class="page-header">
+    <img src="icon.png" alt="Safe Life Logo" class="logo">
+  </header>
+
+  <!-- Quote -->
+  <div class="quote-container">
+    Keeping You Home, Keeping You Safe!
+  </div>
+  <!-- Form Container -->
+  <main class="container">
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <p class="step-indicator" id="stepIndicator">Step 1 of 5</p>
+
+    <h2>Safe Life Home Care Information Form</h2>
+
+    <form id="leadForm">
+      <!-- Step 1: Staff Identification (0) -->
+      <div class="step active">
+        <label>Staff Name <span class="required-label">(required)</span></label>
+        <input type="text" name="staff_name" id="staff_name" placeholder="Enter your staff name" required>
+        <p class="error-message" id="staffNameError"></p>
+
+        <label>Staff ID <span class="required-label">(required)</span></label>
+        <input type="text" name="user_id" id="user_id" placeholder="Enter your staff ID" required>
+        <p class="error-message" id="userIdError"></p>
+
+        <label>Source <span class="required-label">(required)</span></label>
+        <select name="source" id="source" required>
+          <option value="">-- Please select source --</option>
+          <option value="Home Health Notify">Home Health Notify</option>
+          <option value="Web">Web</option>
+          <option value="External Referral">External Referral</option>
+          <option value="Event">Event</option>
+          <option value="Word of Mouth">Word of Mouth</option>
+          <option value="Transfer">Transfer</option>
+          <option value="Other">Other</option>
+        </select>
+        <p class="error-message" id="sourceError"></p>
+
+        <div id="socDateContainer" style="display:none; margin-top: 15px;">
+          <label>SOC Date (Start of Care) <span class="required-label">(required)</span></label>
+          <input type="date" name="soc_date" id="soc_date">
+          <p class="error-message" id="socDateError"></p>
+        </div>
+
+        <div id="otherSourceContainer" style="display:none; margin-top: 15px;">
+          <label>Specify Other Source <span class="required-label">(required)</span></label>
+          <input type="text" name="other_source" id="other_source" placeholder="Enter source name">
+          <p class="error-message" id="otherSourceError"></p>
+        </div>
+
+        <button type="button" onclick="validateStep(0)">Next</button>
+      </div>
+
+      <!-- Step 2: Client Info (Name, Relation, Priority) (1) -->
+      <div class="step">
+        <label>Client Name <span class="required-label">(required)</span></label>
+        <input type="text" name="name" id="name" placeholder="Enter client's full name" required>
+        <p class="error-message" id="nameError"></p>
+
+        <label>Your Relation with the Client <span class="required-label">(required)</span></label>
+        <input type="text" name="relation" id="relation" placeholder="e.g., Daughter, Friend" required>
+        <p class="error-message" id="relationError"></p>
+
+        <div class="button-group">
+          <button type="button" class="back-btn" onclick="prevStep()">Back</button>
+          <button type="button" onclick="validateStep(1)">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Client Details (Birthdate, Medicaid, Phone/Email) (2) -->
+      <div class="step">
+        <label>Do you know the Birthdate of the Client? <span class="required-label">(required)</span></label>
+        <select name="know_birthdate" id="know_birthdate" onchange="toggleBirthOrAgeField()" required>
+          <option value="">-- Please select --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <p class="error-message" id="knowBirthdateError"></p>
+
+        <div id="birthdateContainer" style="display:none; margin-top: 20px;">
+          <label>Birthdate (mm/dd/yyyy)</label>
+          <input type="text" name="birthdate" id="birthdate" placeholder="mm/dd/yyyy">
+          <p class="error-message" id="birthdateError"></p>
+        </div>
+
+        <div id="ageContainer" style="display:none; margin-top: 20px;">
+          <label>How old is the Client?</label>
+          <input type="number" name="age" id="age" placeholder="Enter age (in years)">
+          <p class="error-message" id="ageError"></p>
+        </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+        <label>Does the Client have Medicaid? <span class="required-label">(required)</span></label>
+        <select name="medicaid" id="medicaid" onchange="toggleMedicaidField()" required>
+          <option value="" disabled selected>-- Please select --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <p class="error-message" id="medicaidError"></p>
+        <div id="medicaidNumberContainer" style="display:none; margin-top:20px;">
+          <label>Medicaid Number (if known)</label>
+          <input type="text" name="medicaid_number" placeholder="Enter Medicaid number">
+        </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+
+        <label>Phone</label>
+        <input type="tel" name="phone" id="phone" placeholder="e.g., 123-456-7890">
+        <p class="error-message" id="phoneError"></p>
+
+        <label>Email</label>
+        <input type="email" name="email" id="email" placeholder="your@email.com">
+        <p class="error-message" id="emailError"></p>
+
+        <div class="button-group">
+          <button type="button" class="back-btn" onclick="prevStep()">Back</button>
+          <button type="button" onclick="validateStep(2)">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Address (3) -->
+      <div class="step">
+        <label for="provide_address">
+          Do you want to provide your Address?
+          <span class="required-label">(required)</span>
+        </label>
+        <select name="provide_address" id="provide_address" required>
+          <option value="" disabled selected>-- Please select --</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+        <span id="provideAddressError" class="error-message"></span>
+
+        <!-- If Yes: full address -->
+        <div id="addressFields" style="display:none; margin-top:20px;">
+          <label for="address_line1">Address Line 1 <span class="required-label">(required)</span></label>
+          <input type="text" id="address_line1" name="address_line1" placeholder="Enter address line 1">
+          <span id="addressLine1Error" class="error-message"></span>
+
+          <label for="address_line2">Address Line 2</label>
+          <input type="text" id="address_line2" name="address_line2" placeholder="Enter address line 2">
+
+          <label for="city_yes">City <span class="required-label">(required)</span></label>
+          <input type="text" id="city_yes" name="city" placeholder="Enter city">
+          <span id="cityYesError" class="error-message"></span>
+
+          <label for="state">State <span class="required-label">(required)</span></label>
+          <input type="text" id="state" name="state" placeholder="State (e.g., IL)" maxlength="2">
+          <span id="stateError" class="error-message"></span>
+
+          <label for="zip_yes">Zip Code <span class="required-label">(required)</span></label>
+          <input type="text" id="zip_yes" name="zip" placeholder="Enter zip code">
+          <span id="zipYesError" class="error-message"></span>
+        </div>
+
+        <!-- If No: minimal fields -->
+        <div id="countyCityZipContainer" style="display:none; margin-top:20px;">
+          <label for="city_no">Which City does the client live in? <span
+              class="required-label">(required)</span></label>
+          <input type="text" id="city_no" name="city" placeholder="Enter city">
+          <span id="cityNoError" class="error-message"></span>
+
+          <label for="zip_no">Zip Code <span class="required-label">(required)</span></label>
+          <input type="text" id="zip_no" name="zip" placeholder="Enter zip code">
+          <span id="zipNoError" class="error-message"></span>
+        </div>
+
+        <div class="button-group">
+          <button type="button" class="back-btn" onclick="prevStep()">Back</button>
+          <button type="button" onclick="validateStep(3)">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Additional Info (4) -->
+      <div class="step">
+        <label>Any other related info</label>
+        <textarea name="info" rows="4"
+          placeholder="If you want us to know anything else, please write it here"></textarea>
+        <div class="button-group">
+          <button type="button" class="back-btn" onclick="prevStep()">Back</button>
+          <button type="submit">Submit</button>
+        </div>
+      </div>
+
+      <!-- Thank You Step -->
+      <div class="step" id="thankYouStep">
+        <h3>Your responses have been recorded.<br>Thank you!</h3>
+        <button type="button" class="restart-btn" onclick="restartForm()">Start Another Response</button>
+      </div>
+    </form>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Safe Life Home Health Care</p>
+    <p>101 W 22<sup>nd</sup> St, STE 202, Lombard, IL 60148</p>
+    <p>Ph: (855) 723-3440 | Fax: (630) 406-8342</p>
+  </footer>
+
+</body>
+
+</html>

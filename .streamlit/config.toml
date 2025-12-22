@@ -1,0 +1,6 @@
+[theme]
+base = "light"
+primaryColor = "#3CA5AA"            # SafeLife Aqua - for charts and primary elements
+backgroundColor = "#F9F9F9"         # Soft Gray background
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111827"               # Near-black for readability

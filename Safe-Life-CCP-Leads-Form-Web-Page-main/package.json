@@ -1,0 +1,26 @@
+{
+    "name": "lead-form",
+    "version": "1.0.0",
+    "dependencies": {
+        "node-fetch": "^3.3.2",
+        "twilio": "^5.8.0"
+    },
+    "description": "",
+    "main": "script.js",
+    "devDependencies": {},
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Asadali242/Safe-Life-CCP-Leads-Form-Web-Page.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "bugs": {
+        "url": "https://github.com/Asadali242/Safe-Life-CCP-Leads-Form-Web-Page/issues"
+    },
+    "homepage": "https://github.com/Asadali242/Safe-Life-CCP-Leads-Form-Web-Page#readme"
+}
