@@ -1,0 +1,8 @@
+streamlit
+pandas
+sqlalchemy
+passlib
+bcrypt
+python-dotenv
+plotly
+pydantic

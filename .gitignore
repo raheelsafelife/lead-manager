@@ -1,1 +1,12 @@
 .env
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+*.db
+*.log
+.DS_Store
+.streamlit/
+! .streamlit/config.toml
