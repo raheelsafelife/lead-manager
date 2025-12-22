@@ -1,1 +1,1 @@
-web: python create_db.py && streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+web: bash start.sh
