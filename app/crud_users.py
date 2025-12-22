@@ -1,21 +1,14 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from typing import Optional
-<<<<<<< HEAD
 import bcrypt
-=======
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 from . import models
 from .schemas import UserCreate
 from .utils.activity_logger import log_activity
 
-<<<<<<< HEAD
 # Use PBKDF2 as primary scheme for stability on Python 3.14/Windows
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-=======
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 
 # -------- Password Helpers --------
@@ -24,7 +17,6 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-<<<<<<< HEAD
     # Check if this is a legacy bcrypt hash (starts with $2b$)
     if hashed_password and hashed_password.startswith("$2b$"):
         try:
@@ -39,9 +31,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
     except Exception:
         return False
-=======
-    return pwd_context.verify(plain_password, hashed_password)
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 
 # -------- CRUD Operations --------
@@ -396,10 +385,6 @@ def admin_update_email(db: Session, user_id: int, new_email: str, admin_username
 
 
 
-<<<<<<< HEAD
-    return user
-
-
 def admin_update_user_id(db: Session, user_id: int, new_user_id: str, admin_username: str, admin_id: int):
     """Admin updates a user's User ID (Employee ID) with logging"""
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -432,10 +417,6 @@ def admin_update_user_id(db: Session, user_id: int, new_user_id: str, admin_user
     )
     
     return user
-
-
-=======
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 def admin_update_user(db: Session, user_id: int, username: str = None, password: str = None, admin_username: str = None, admin_id: int = None):
     """Deprecated wrapper for backward compatibility"""
     if username:

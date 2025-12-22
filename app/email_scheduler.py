@@ -31,7 +31,6 @@ def should_send_reminder(lead, last_reminder_time):
     hours_since_created = (datetime.utcnow() - lead.created_at).total_seconds() / 3600
 
     # Different schedules based on referral type
-<<<<<<< HEAD
     # Different schedules based on referral type
     if lead.active_client:  # Is a referral
         # Stop if Care Start 
@@ -41,24 +40,6 @@ def should_send_reminder(lead, last_reminder_time):
         # Updated: Every 6 hours for ALL referrals until Care Start
         # This replaces previous logic of 48h for Interim and 7 days for Regular
         return hours_since_last >= 6
-=======
-    if lead.active_client:  # Is a referral
-        if lead.referral_type == "Interim":
-            # Interim: Every 6 hours for 2 days (48 hours total)
-            if hours_since_created > 48:  # Stop after 2 days
-                return False
-            return hours_since_last >= 6
-        elif lead.referral_type == "Regular":
-            # Regular: Every 7 days until authorization received
-            if lead.authorization_received:  # Stop when authorization is received
-                return False
-            return hours_since_last >= 168  # Every 7 days
-        else:
-            # Unknown referral type, default to Regular schedule (until authorization received)
-            if lead.authorization_received:  # Stop when authorization is received
-                return False
-            return hours_since_last >= 168
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
     else:
         # Non-referral lead: Every 48 hours until inactive
         return hours_since_last >= 48
@@ -83,26 +64,8 @@ def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time
     hours_since_auth = (datetime.utcnow() - auth_received_time).total_seconds() / 3600
 
     # Different schedules based on referral type
-<<<<<<< HEAD
     # Updated: Every 6 hours for ALL authorized referrals until Care Start
     return hours_since_last >= 6
-=======
-    if lead.referral_type == "Interim":
-        # Interim: Every 6 hours for 2 days (48 hours total) from authorization
-        if hours_since_auth > 48:  # Stop after 2 days from authorization
-            return False
-        return hours_since_last >= 6
-    elif lead.referral_type == "Regular":
-        # Regular: Every 24 hours for 7 days (168 hours total) from authorization
-        if hours_since_auth > 168:  # Stop after 7 days from authorization
-            return False
-        return hours_since_last >= 24
-    else:
-        # Unknown referral type, default to Regular schedule
-        if hours_since_auth > 168:
-            return False
-        return hours_since_last >= 24
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
 
 def send_lead_reminders():
@@ -215,15 +178,9 @@ def send_lead_reminders():
                         
                         if success:
                             reminder_type = f"[{referral_info['referral_type']}]" if lead.active_client else "[Lead]"
-<<<<<<< HEAD
                             print(f"[SUCCESS] Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
                         else:
                             print(f"[ERROR] Failed to send reminder for lead {lead.id}")
-=======
-                            print(f"✅ Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
-                        else:
-                            print(f"❌ Failed to send reminder for lead {lead.id}")
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
                         
                         # Small delay to avoid overwhelming email server
                         time.sleep(1)
@@ -344,15 +301,9 @@ def send_lead_reminders():
                         )
 
                         if success:
-<<<<<<< HEAD
                             print(f"[SUCCESS] Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
                         else:
                             print(f"[ERROR] Failed to send Care Start reminder for lead {lead.id}")
-=======
-                            print(f"✅ Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
-                        else:
-                            print(f"❌ Failed to send Care Start reminder for lead {lead.id}")
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
 
                         # Small delay to avoid overwhelming email server
                         time.sleep(1)
@@ -381,8 +332,4 @@ def start_scheduler():
     """Start the background scheduler thread"""
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
-<<<<<<< HEAD
     print("[SUCCESS] Email reminder scheduler started")
-=======
-    print("✅ Email reminder scheduler started")
->>>>>>> 3877e88bb4b78e4133e1abf9a7b9f6258c629c6c
