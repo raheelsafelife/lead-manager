@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from . import models
-from .utils.activity_logger import log_activity
+from .. import models
+from ..utils.activity_logger import log_activity
 
 
 def create_reminder(

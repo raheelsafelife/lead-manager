@@ -6,7 +6,8 @@ import pandas as pd
 from datetime import datetime, date
 import json
 from app.db import SessionLocal
-from app import crud_users, crud_leads, services_stats, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app import services_stats
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -169,7 +170,7 @@ def view_referrals():
     
     # CCU Filter
     st.write("**Filter by CCU:**")
-    from app import crud_ccus
+    from app.crud import crud_ccus
     
     ccus = crud_ccus.get_all_ccus(db)
     
@@ -470,7 +471,7 @@ def view_referrals():
                             edit_agency_id = None
                             edit_ccu_id = None
                             if lead.active_client:
-                                from app import crud_ccus
+                                from app.crud import crud_ccus
                                 agencies = crud_agencies.get_all_agencies(db)
                                 agency_options = {a.name: a.id for a in agencies}
                                 current_agency_name = lead.agency.name if lead.agency else "None"
@@ -483,7 +484,7 @@ def view_referrals():
                                 # Payor Suboption Selection (if agency selected)
                                 edit_agency_suboption_id = None
                                 if edit_agency_id:
-                                    from app import crud_agency_suboptions
+                                    from app.crud import crud_agency_suboptions
                                     suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=edit_agency_id)
                                     
                                     if suboptions:

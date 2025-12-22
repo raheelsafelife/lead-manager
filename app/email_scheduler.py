@@ -9,8 +9,8 @@ Different schedules based on lead type:
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app import crud_leads, crud_users, crud_email_reminders
-from app.crud_email_reminders import create_care_start_reminder, get_care_start_reminders_by_lead
+from app.crud import crud_leads, crud_users, crud_email_reminders
+from app.crud.crud_email_reminders import create_care_start_reminder, get_care_start_reminders_by_lead
 from app.utils.email_service import send_simple_lead_email, send_referral_reminder_email
 import time
 import threading
@@ -96,13 +96,13 @@ def send_lead_reminders():
                             agency_name = "N/A"
                             agency_suboption = ""
                             if lead.agency_id:
-                                from app.crud_agencies import get_agency
+                                from app.crud.crud_agencies import get_agency
                                 agency = get_agency(db, lead.agency_id)
                                 if agency:
                                     agency_name = agency.name
                             
                             if lead.agency_suboption_id:
-                                from app.crud_agency_suboptions import get_suboption_by_id
+                                from app.crud.crud_agency_suboptions import get_suboption_by_id
                                 suboption = get_suboption_by_id(db, lead.agency_suboption_id)
                                 if suboption:
                                     agency_suboption = suboption.name
@@ -115,7 +115,7 @@ def send_lead_reminders():
                             ccu_address = "N/A"
                             ccu_coordinator = "N/A"
                             if lead.ccu_id:
-                                from app.crud_ccus import get_ccu_by_id
+                                from app.crud.crud_ccus import get_ccu_by_id
                                 ccu = get_ccu_by_id(db, lead.ccu_id)
                                 if ccu:
                                     ccu_name = ccu.name
@@ -194,7 +194,7 @@ def send_lead_reminders():
             # Find when authorization was received
             auth_received_time = None
             try:
-                from app.crud_activity_logs import get_lead_history
+                from app.crud.crud_activity_logs import get_lead_history
                 import json
                 history_logs = get_lead_history(db, lead.id)
                 for log in history_logs:
@@ -234,13 +234,13 @@ def send_lead_reminders():
                         agency_name = "N/A"
                         agency_suboption = ""
                         if lead.agency_id:
-                            from app.crud_agencies import get_agency
+                            from app.crud.crud_agencies import get_agency
                             agency = get_agency(db, lead.agency_id)
                             if agency:
                                 agency_name = agency.name
 
                         if lead.agency_suboption_id:
-                            from app.crud_agency_suboptions import get_suboption_by_id
+                            from app.crud.crud_agency_suboptions import get_suboption_by_id
                             suboption = get_suboption_by_id(db, lead.agency_suboption_id)
                             if suboption:
                                 agency_suboption = suboption.name
@@ -253,7 +253,7 @@ def send_lead_reminders():
                         ccu_address = "N/A"
                         ccu_coordinator = "N/A"
                         if lead.ccu_id:
-                            from app.crud_ccus import get_ccu_by_id
+                            from app.crud.crud_ccus import get_ccu_by_id
                             ccu = get_ccu_by_id(db, lead.ccu_id)
                             if ccu:
                                 ccu_name = ccu.name

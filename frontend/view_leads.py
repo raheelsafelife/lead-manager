@@ -6,7 +6,8 @@ import pandas as pd
 from datetime import datetime, date
 import json
 from app.db import SessionLocal
-from app import crud_users, crud_leads, services_stats, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app import services_stats
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -490,7 +491,7 @@ def mark_referral_page():
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-    from app import crud_ccus
+    from app.crud import crud_ccus
     ccus = crud_ccus.get_all_ccus(db)
     ccu_options = {c.name: c.id for c in ccus}
     

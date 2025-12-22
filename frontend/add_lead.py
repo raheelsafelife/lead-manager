@@ -6,7 +6,8 @@ import pandas as pd
 from datetime import datetime, date
 import json
 from app.db import SessionLocal
-from app import crud_users, crud_leads, services_stats, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app import services_stats
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -48,7 +49,7 @@ def add_lead():
     
     elif source == "Event":
         # Get all events from database
-        from app import crud_events
+        from app.crud import crud_events
         events = crud_events.get_all_events(db)
         event_names = [e.event_name for e in events]
         
@@ -128,7 +129,7 @@ def add_lead():
     
     elif source == "External Referral":
         # Get all agencies from database
-        from app import crud_ccus
+        from app.crud import crud_ccus
         agencies = crud_agencies.get_all_agencies(db)
         agency_names = [a.name for a in agencies]
         
@@ -203,7 +204,7 @@ def add_lead():
         
         # Payor Suboption Selection (if agency selected and agency_id exists)
         if agency_id:
-            from app import crud_agency_suboptions
+            from app.crud import crud_agency_suboptions
             suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency_id)
             
             if suboptions:
@@ -303,6 +304,18 @@ def add_lead():
         other_source_type = st.text_input("Specify Source Type", value="", key="other_type_input", label_visibility="collapsed")
     
     st.divider()
+
+    # Priority Selection (Outside form for dynamic updates)
+    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Priority</h4>", unsafe_allow_html=True)
+    col_p1, col_p2 = st.columns([1, 2])
+    with col_p1:
+        st.markdown('**Set Priority** <span class="required-star">*</span>', unsafe_allow_html=True)
+        priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1, label_visibility="collapsed", key="priority_outside_form")
+    with col_p2:
+        st.markdown('<div style="margin-top: 5px;"></div>', unsafe_allow_html=True)
+        st.markdown(get_priority_tag(priority), unsafe_allow_html=True)
+    
+    st.divider()
     
     # Main form with other fields
     with st.form("add_lead_form"):
@@ -344,9 +357,6 @@ def add_lead():
             medicaid_no = st.text_input("**Medicaid Number**")
             e_contact_name = st.text_input("**Emergency Contact Name**")
             e_contact_phone = st.text_input("**Emergency Contact Phone**")
-            st.markdown('**Priority** <span class="required-star">*</span>', unsafe_allow_html=True)
-            priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1, label_visibility="collapsed")
-            st.markdown(get_priority_tag(priority), unsafe_allow_html=True)
             
             comments = st.text_area("**Comments**")
         
@@ -442,7 +452,7 @@ def add_lead():
                                             agency_name = agency.name
                                     
                                     if lead.agency_suboption_id:
-                                        from app.crud_agency_suboptions import get_suboption_by_id
+                                        from app.crud.crud_agency_suboptions import get_suboption_by_id
                                         suboption = get_suboption_by_id(db, lead.agency_suboption_id)
                                         if suboption:
                                             agency_suboption = suboption.name

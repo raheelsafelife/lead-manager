@@ -1,5 +1,5 @@
 from app.db import SessionLocal
-from app import crud_leads, schemas
+from app.crud import crud_leads, schemas
 from datetime import date, datetime
 
 db = SessionLocal()

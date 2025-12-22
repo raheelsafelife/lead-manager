@@ -3,9 +3,9 @@ from passlib.context import CryptContext
 from typing import Optional
 import bcrypt
 
-from . import models
-from .schemas import UserCreate
-from .utils.activity_logger import log_activity
+from .. import models
+from ..schemas import UserCreate
+from ..utils.activity_logger import log_activity
 
 # Use PBKDF2 as primary scheme for stability on Python 3.14/Windows
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")

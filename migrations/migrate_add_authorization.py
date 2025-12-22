@@ -20,9 +20,9 @@ def migrate():
             ALTER TABLE leads 
             ADD COLUMN authorization_received BOOLEAN NOT NULL DEFAULT 0
         """)
-        print("✅ authorization_received column added")
+        print(" authorization_received column added")
     else:
-        print("⏭️ authorization_received column already exists")
+        print("⏭authorization_received column already exists")
     
     # Add care_status column if not exists
     if 'care_status' not in existing_columns:
@@ -31,9 +31,9 @@ def migrate():
             ALTER TABLE leads 
             ADD COLUMN care_status VARCHAR(50) NULL
         """)
-        print("✅ care_status column added")
+        print(" care_status column added")
     else:
-        print("⏭️ care_status column already exists")
+        print("⏭ care_status column already exists")
     
     # Add soc_date column if not exists
     if 'soc_date' not in existing_columns:
@@ -42,13 +42,13 @@ def migrate():
             ALTER TABLE leads 
             ADD COLUMN soc_date DATE NULL
         """)
-        print("✅ soc_date column added")
+        print("soc_date column added")
     else:
-        print("⏭️ soc_date column already exists")
+        print("⏭soc_date column already exists")
     
     conn.commit()
     conn.close()
-    print("\n🎉 Migration completed successfully!")
+    print("\n Migration completed successfully!")
 
 if __name__ == "__main__":
     migrate()

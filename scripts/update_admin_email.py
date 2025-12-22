@@ -1,7 +1,7 @@
 
 
 from app.db import SessionLocal
-from app import crud_users
+from app.crud import crud_users
 
 db = SessionLocal()
 

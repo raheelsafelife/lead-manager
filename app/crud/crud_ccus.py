@@ -5,7 +5,7 @@ CRUD operations for CCUs (Community Care Units)
 from sqlalchemy.orm import Session
 from app.models import CCU
 from datetime import datetime
-from app import crud_activity_logs
+from app.crud import crud_activity_logs
 
 
 def get_all_ccus(db: Session):

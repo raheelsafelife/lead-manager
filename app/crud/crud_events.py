@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional
-from . import models
-from .utils.activity_logger import log_activity
+from .. import models
+from ..utils.activity_logger import log_activity
 
 
 def create_event(db: Session, event_name: str, created_by: str, user_id: Optional[int] = None):

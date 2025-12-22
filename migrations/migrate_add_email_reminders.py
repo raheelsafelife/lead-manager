@@ -41,7 +41,7 @@ def migrate():
     
     conn.commit()
     conn.close()
-    print("✅ Migration complete: email_reminders table created")
+    print(" Migration complete: email_reminders table created")
 
 if __name__ == "__main__":
     migrate()

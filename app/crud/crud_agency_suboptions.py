@@ -5,7 +5,7 @@ CRUD operations for Agency Suboptions
 from sqlalchemy.orm import Session
 from app.models import AgencySuboption
 from datetime import datetime
-from app import crud_activity_logs
+from app.crud import crud_activity_logs
 
 
 def get_all_suboptions(db: Session, agency_id: int = None):

@@ -6,7 +6,7 @@ Professional helpers for logging activities with beautiful formatting
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app import crud_activity_logs
+from app.crud import crud_activity_logs
 import json
 
 

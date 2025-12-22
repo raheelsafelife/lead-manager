@@ -3,7 +3,7 @@ Authentication pages: Login, Signup, Forgot Password
 """
 import streamlit as st
 from app.db import SessionLocal
-from app import crud_users, crud_activity_logs
+from app.crud import crud_users, crud_activity_logs
 from app.schemas import UserCreate
 
 

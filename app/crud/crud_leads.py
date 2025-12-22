@@ -2,9 +2,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
 
-from . import models
-from .schemas import LeadCreate, LeadUpdate
-from .utils.activity_logger import log_activity
+from .. import models
+from ..schemas import LeadCreate, LeadUpdate
+from ..utils.activity_logger import log_activity
 
 
 # ------- CREATE -------

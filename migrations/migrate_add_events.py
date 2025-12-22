@@ -9,7 +9,7 @@ from app.models import Event  # Import the new Event model
 def migrate():
     print("Creating events table...")
     Base.metadata.create_all(bind=engine, tables=[Event.__table__])
-    print("✅ Events table created successfully!")
+    print(" Events table created successfully!")
 
 if __name__ == "__main__":
     migrate()

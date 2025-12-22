@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, date
 from app.db import SessionLocal
-from app import crud_leads, crud_users
+from app.crud import crud_leads, crud_users
 from app.schemas import LeadCreate
 import os
 

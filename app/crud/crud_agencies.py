@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from . import models
-from .utils.activity_logger import log_activity
+from .. import models
+from ..utils.activity_logger import log_activity
 
 def create_agency(db: Session, name: str, username: str, user_id: Optional[int] = None) -> models.Agency:
     """Create a new agency"""
