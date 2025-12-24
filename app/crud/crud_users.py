@@ -214,6 +214,32 @@ def reject_user(db: Session, user_id: int, admin_username: str, admin_id: int):
     return True
 
 
+def delete_user(db: Session, user_id: int, admin_username: str, admin_id: int):
+    """Delete an approved user with logging"""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        return None
+    
+    username = user.username
+    db.delete(user)
+    db.commit()
+    
+    # Log activity
+    log_activity(
+        db=db,
+        user_id=admin_id,
+        username=admin_username,
+        action_type="USER_DELETED",
+        entity_type="User",
+        entity_id=user_id,
+        entity_name=username,
+        description=f"User '{username}' deleted by admin",
+        keywords="user,delete,admin"
+    )
+    
+    return True
+
+
 def get_user_by_email(db: Session, email: str):
     """Get user by email"""
     return db.query(models.User).filter(models.User.email == email).first()
