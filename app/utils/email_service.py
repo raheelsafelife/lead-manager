@@ -12,60 +12,17 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# SendGrid Configuration (preferred for production/Railway)
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-
-# SMTP Configuration (fallback for local development)
+# SMTP Configuration
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # Default to 587 for TLS
 SMTP_USERNAME = os.getenv("SENDER_EMAIL")
 SMTP_PASSWORD = os.getenv("SENDER_PASSWORD")
 
-# Try to import SendGrid (optional dependency)
-try:
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail, Email, To, Content
-    SENDGRID_AVAILABLE = True
-    logger.info("SendGrid library loaded successfully")
-except ImportError:
-    SENDGRID_AVAILABLE = False
-    logger.warning("SendGrid library not available, will use SMTP fallback")
 
-
-def send_email_via_sendgrid(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
+def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
     """
-    Send email using SendGrid API (works on Railway)
-    """
-    try:
-        if not SENDGRID_API_KEY or not SENDER_EMAIL:
-            logger.error("SendGrid API key or sender email not configured")
-            return False
-        
-        # Create SendGrid message
-        message = Mail(
-            from_email=SENDER_EMAIL,
-            to_emails=to_email,
-            subject=subject,
-            plain_text_content=body,
-            html_content=html_body if html_body else body
-        )
-        
-        # Send via SendGrid
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)
-        
-        logger.info(f"✓ Email sent via SendGrid to {to_email} (status: {response.status_code})")
-        return True
-        
-    except Exception as e:
-        logger.error(f"✗ SendGrid error: {e}")
-        return False
-
-
-def send_email_via_smtp(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
-    """
-    Send email using SMTP (for local development)
+    Send email using SMTP
+    Supports both TLS (port 587) and SSL (port 465)
     """
     try:
         # Get credentials from environment variables
@@ -110,7 +67,7 @@ def send_email_via_smtp(to_email: str, subject: str, body: str, html_body: str =
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
             
-        logger.info(f"✓ Email sent via SMTP to {to_email}")
+        logger.info(f"✓ Email sent successfully to {to_email}")
         return True
         
     except smtplib.SMTPAuthenticationError as e:
@@ -121,27 +78,8 @@ def send_email_via_smtp(to_email: str, subject: str, body: str, html_body: str =
         logger.error(f"✗ SMTP error occurred: {e}")
         return False
     except Exception as e:
-        logger.error(f"✗ Failed to send email via SMTP: {e}")
+        logger.error(f"✗ Failed to send email: {e}")
         return False
-
-
-def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
-    """
-    Send an email using SendGrid (preferred) or SMTP (fallback)
-    - SendGrid: Works on Railway and production environments
-    - SMTP: Works for local development
-    """
-    # Try SendGrid first if available and configured
-    if SENDGRID_AVAILABLE and SENDGRID_API_KEY:
-        logger.info("Attempting to send email via SendGrid...")
-        result = send_email_via_sendgrid(to_email, subject, body, html_body)
-        if result:
-            return True
-        logger.warning("SendGrid failed, falling back to SMTP...")
-    
-    # Fall back to SMTP
-    logger.info("Attempting to send email via SMTP...")
-    return send_email_via_smtp(to_email, subject, body, html_body)
 
 
 
