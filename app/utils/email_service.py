@@ -12,25 +12,71 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# SMTP Configuration from environment variables
+# SendGrid Configuration (preferred for production/Railway)
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")
+
+# SMTP Configuration (fallback for local development)
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # Default to 587 for TLS
 SMTP_USERNAME = os.getenv("SENDER_EMAIL")
 SMTP_PASSWORD = os.getenv("SENDER_PASSWORD")
 
-def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
+# Try to import SendGrid (optional dependency)
+try:
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+    SENDGRID_AVAILABLE = True
+    logger.info("SendGrid library loaded successfully")
+except ImportError:
+    SENDGRID_AVAILABLE = False
+    logger.warning("SendGrid library not available, will use SMTP fallback")
+
+
+def send_email_via_sendgrid(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
     """
-    Send an email using SMTP credentials from .env
+    Send email using SendGrid API (works on Railway)
+    """
+    try:
+        if not SENDGRID_API_KEY or not SENDER_EMAIL:
+            logger.error("SendGrid API key or sender email not configured")
+            return False
+        
+        # Create SendGrid message
+        message = Mail(
+            from_email=SENDER_EMAIL,
+            to_emails=to_email,
+            subject=subject,
+            plain_text_content=body,
+            html_content=html_body if html_body else body
+        )
+        
+        # Send via SendGrid
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        
+        logger.info(f"✓ Email sent via SendGrid to {to_email} (status: {response.status_code})")
+        return True
+        
+    except Exception as e:
+        logger.error(f"✗ SendGrid error: {e}")
+        return False
+
+
+def send_email_via_smtp(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
+    """
+    Send email using SMTP (for local development)
     """
     try:
         # Get credentials from environment variables
         smtp_server = os.getenv("SMTP_SERVER")
-        smtp_port = int(os.getenv("SMTP_PORT", 465))
+        smtp_port = int(os.getenv("SMTP_PORT", 587))  # Default to 587 for TLS
         sender_email = os.getenv("SENDER_EMAIL")
         sender_password = os.getenv("SENDER_PASSWORD")
         
         if not all([smtp_server, smtp_port, sender_email, sender_password]):
-            logger.error("Missing email configuration in .env")
+            logger.error("Missing SMTP configuration in .env")
+            logger.error(f"SMTP_SERVER: {smtp_server}, SMTP_PORT: {smtp_port}, SENDER_EMAIL: {sender_email}, SENDER_PASSWORD: {'***' if sender_password else 'None'}")
             return False
         
         # Create message
@@ -47,17 +93,56 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
             part2 = MIMEText(html_body, "html")
             msg.attach(part2)
         
-        # Connect and send
-        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, to_email, msg.as_string())
+        # Connect and send based on port
+        if smtp_port == 465:
+            # Use SSL for port 465
+            logger.info(f"Connecting to {smtp_server}:{smtp_port} using SSL")
+            with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+                server.login(sender_email, sender_password)
+                server.sendmail(sender_email, to_email, msg.as_string())
+        else:
+            # Use TLS for port 587 (and other ports)
+            logger.info(f"Connecting to {smtp_server}:{smtp_port} using STARTTLS")
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.ehlo()  # Identify ourselves to the server
+                server.starttls()  # Secure the connection
+                server.ehlo()  # Re-identify ourselves over TLS connection
+                server.login(sender_email, sender_password)
+                server.sendmail(sender_email, to_email, msg.as_string())
             
-        logger.info(f"Email sent successfully to {to_email}")
+        logger.info(f"✓ Email sent via SMTP to {to_email}")
         return True
         
-    except Exception as e:
-        logger.error(f"Failed to send email: {e}")
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"✗ SMTP Authentication failed: {e}")
+        logger.error("Check your email and password. For Gmail, you may need an App Password if 2FA is enabled.")
         return False
+    except smtplib.SMTPException as e:
+        logger.error(f"✗ SMTP error occurred: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"✗ Failed to send email via SMTP: {e}")
+        return False
+
+
+def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
+    """
+    Send an email using SendGrid (preferred) or SMTP (fallback)
+    - SendGrid: Works on Railway and production environments
+    - SMTP: Works for local development
+    """
+    # Try SendGrid first if available and configured
+    if SENDGRID_AVAILABLE and SENDGRID_API_KEY:
+        logger.info("Attempting to send email via SendGrid...")
+        result = send_email_via_sendgrid(to_email, subject, body, html_body)
+        if result:
+            return True
+        logger.warning("SendGrid failed, falling back to SMTP...")
+    
+    # Fall back to SMTP
+    logger.info("Attempting to send email via SMTP...")
+    return send_email_via_smtp(to_email, subject, body, html_body)
+
 
 
 def send_simple_lead_email(lead_info: dict, recipient_email: str) -> bool:
@@ -474,14 +559,32 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
         part = MIMEText(html_content, 'html')
         msg.attach(part)
 
-        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
-        server.quit()
+        # Use appropriate SMTP method based on port
+        if SMTP_PORT == 465:
+            # Use SSL for port 465
+            print(f"[INFO] Connecting using SSL on port {SMTP_PORT}")
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
+            server.quit()
+        else:
+            # Use TLS for port 587 (and other ports)
+            print(f"[INFO] Connecting using STARTTLS on port {SMTP_PORT}")
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
+            server.quit()
 
         print(f"[SUCCESS] Authorization confirmation email sent to {recipient_email} for {name}")
         return True
 
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"[ERROR] SMTP Authentication failed: {e}")
+        print("[ERROR] Check your email and password. For Gmail, you may need an App Password if 2FA is enabled.")
+        return False
     except Exception as e:
         print(f"[ERROR] Failed to send authorization confirmation email to {recipient_email}: {e}")
         import traceback
