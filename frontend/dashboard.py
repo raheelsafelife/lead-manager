@@ -158,7 +158,7 @@ def dashboard():
             st.markdown(f"""
             <div class="stat-card">
                 <div class="stat-number">{active_leads}</div>
-                <div class="stat-label">Your Referral s</div>
+                <div class="stat-label">Your Referrals</div>
             </div>
             """, unsafe_allow_html=True)
     
@@ -166,7 +166,7 @@ def dashboard():
         st.markdown(f"""
         <div class="stat-card">
             <div class="stat-number">{active_leads}</div>
-            <div class="stat-label">Referral s</div>
+            <div class="stat-label">Referrals</div>
         </div>
         """, unsafe_allow_html=True)
     
@@ -1040,16 +1040,7 @@ def discovery_tool():
     if not df_all_leads.empty and '_sa_instance_state' in df_all_leads.columns:
         df_all_leads = df_all_leads.drop('_sa_instance_state', axis=1)
 
-    st.markdown("""
-    <div style="background: linear-gradient(90deg, #00506b 0%, #3CA5AA 100%); 
-                padding: 15px; 
-                border-radius: 12px; 
-                margin-bottom: 20px;">
-        <h2 style="text-align: center; color: #FFFFFF; margin-bottom: 0px; letter-spacing:0.05em; text-transform:uppercase; font-weight: 700;">
-            Lead Discovery Tool
-        </h2>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="main-header">LEAD DISCOVERY TOOL</div>', unsafe_allow_html=True)
     
     st.info("💡 **Discover Hidden Patterns:** Select any two features to cross-reference and analyze your leads.")
     

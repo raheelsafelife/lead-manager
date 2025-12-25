@@ -9,3 +9,4 @@ pydantic
 fastapi
 uvicorn
 extra-streamlit-components
+psycopg2-binary

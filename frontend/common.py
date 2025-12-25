@@ -262,6 +262,41 @@ GLOBAL_CSS = """
     .priority-high { background-color: #FF4B4B !important; }
     .priority-medium { background-color: #FFD700 !important; color: #000000 !important; }
     .priority-low { background-color: #28A745 !important; }
+
+    /* Plotly Modebar Styling - Pill/Capsule shape for icons (RHS look) */
+    .modebar-btn {
+        border-radius: 20px !important;
+        padding: 4px 15px !important;
+        margin: 2px 6px !important;
+        background-color: #00506b !important;
+        transition: all 0.2s ease !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: auto !important;
+    }
+    
+    .modebar-btn:hover {
+        background-color: #3CA5AA !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    }
+    
+    .modebar-btn path {
+        fill: #FFFFFF !important;
+    }
+
+    .modebar-group {
+        background-color: transparent !important;
+        padding: 5px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    
+    /* Ensure Plotly chart areas don't clip the modebar */
+    .plot-container .modebar {
+        padding-top: 5px !important;
+        padding-right: 5px !important;
+    }
 </style>
 """
 
