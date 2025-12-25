@@ -266,8 +266,8 @@ GLOBAL_CSS = """
     /* Plotly Modebar Styling - Pill/Capsule shape for icons (RHS look) */
     .modebar-btn {
         border-radius: 20px !important;
-        padding: 4px 15px !important;
-        margin: 2px 6px !important;
+        padding: 4px 10px !important;
+        margin: 2px 2px !important;
         background-color: #00506b !important;
         transition: all 0.2s ease !important;
         display: inline-flex !important;
