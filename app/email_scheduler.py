@@ -177,7 +177,10 @@ def send_lead_reminders():
                         )
                         
                         if success:
-                            reminder_type = f"[{referral_info['referral_type']}]" if lead.active_client else "[Lead]"
+                            if lead.active_client:
+                                reminder_type = f"[{referral_info['referral_type']}]"
+                            else:
+                                reminder_type = "[Lead]"
                             print(f"[SUCCESS] Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
                         else:
                             print(f"[ERROR] Failed to send reminder for lead {lead.id}")

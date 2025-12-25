@@ -8,5 +8,3 @@ ENV/
 *.db
 *.log
 .DS_Store
-.streamlit/
-! .streamlit/config.toml

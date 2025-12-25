@@ -140,6 +140,10 @@ def login():
                 st.session_state.user_role = user.role
                 st.session_state.user_id = user.id
                 
+                # Save to cookies for persistence
+                from frontend.common import save_login_to_cookies
+                save_login_to_cookies(user.id, user.username, user.role)
+                
                 crud_activity_logs.create_activity_log(
                     db=db,
                     user_id=user.id,

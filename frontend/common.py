@@ -4,6 +4,14 @@ Common utilities, CSS styles, and shared functions for Lead Manager.
 import streamlit as st
 from app.db import SessionLocal
 from app.utils.activity_logger import utc_to_local
+import extra_streamlit_components as pyc
+
+
+# Initialize CookieManager
+def get_cookie_manager():
+    if 'cookie_manager' not in st.session_state:
+        st.session_state.cookie_manager = pyc.CookieManager()
+    return st.session_state.cookie_manager
 
 
 # Global CSS styles (SafeLife UI theme)
@@ -260,8 +268,25 @@ GLOBAL_CSS = """
 
 def init_session_state():
     """Initialize all session state variables"""
+    cookie_manager = get_cookie_manager()
+    
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
+        
+        # Check for persistent session in cookies
+        auth_cookie = cookie_manager.get(cookie='lead_manager_auth')
+        if auth_cookie:
+            try:
+                import json
+                user_data = json.loads(auth_cookie)
+                st.session_state.authenticated = True
+                st.session_state.username = user_data.get('username')
+                st.session_state.user_role = user_data.get('role')
+                st.session_state.user_id = user_data.get('user_id')
+                # Optional: Refresh scheduler if newly logged in via cookie
+            except Exception:
+                pass
+
     if 'username' not in st.session_state:
         st.session_state.username = None
     if 'user_role' not in st.session_state:
@@ -280,12 +305,32 @@ def init_session_state():
     # Start email scheduler (runs once per session)
     if 'email_scheduler_started' not in st.session_state:
         st.session_state.email_scheduler_started = False
-        try:
-            from app.email_scheduler import start_scheduler
-            start_scheduler()
-            st.session_state.email_scheduler_started = True
-        except Exception as e:
-            pass  # Scheduler error won't break the app
+        if st.session_state.authenticated:
+            try:
+                from app.email_scheduler import start_scheduler
+                start_scheduler()
+                st.session_state.email_scheduler_started = True
+            except Exception as e:
+                pass  # Scheduler error won't break the app
+
+
+def save_login_to_cookies(user_id, username, role):
+    """Save user login info to browser cookies for persistence"""
+    cookie_manager = get_cookie_manager()
+    import json
+    user_data = {
+        'user_id': user_id,
+        'username': username,
+        'role': role
+    }
+    # Set cookie for 7 days
+    cookie_manager.set('lead_manager_auth', json.dumps(user_data), max_age=60*60*24*7)
+
+
+def clear_login_cookies():
+    """Clear login cookies on logout"""
+    cookie_manager = get_cookie_manager()
+    cookie_manager.delete('lead_manager_auth')
 
 
 def inject_custom_css():

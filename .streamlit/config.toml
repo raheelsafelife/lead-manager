@@ -1,6 +1,20 @@
+[server]
+headless = true
+port = 8501
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = false
+toolbarMode = "minimal"
+
 [theme]
 base = "light"
-primaryColor = "#3CA5AA"            # SafeLife Aqua - for charts and primary elements
-backgroundColor = "#F9F9F9"         # Soft Gray background
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#111827"               # Near-black for readability
+primaryColor = "#00506b"
+backgroundColor = "#F9F9F9"
+secondaryBackgroundColor = "#B5E8F7"
+textColor = "#111827"
+font = "sans serif"
