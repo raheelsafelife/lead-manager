@@ -1,0 +1,12 @@
+streamlit
+pandas
+sqlalchemy
+passlib
+bcrypt
+python-dotenv
+plotly
+pydantic
+extra-streamlit-components
+psycopg2-binary
+st-js
+streamlit-cookies-manager
