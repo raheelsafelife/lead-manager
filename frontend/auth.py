@@ -121,20 +121,21 @@ def login():
     
     with st.form("login_form"):
         st.markdown('<label style="font-weight: 700; color: #000000; font-size: 0.95rem;">Username<span class="required-star">*</span></label>', unsafe_allow_html=True)
-        username = st.text_input("Username", label_visibility="collapsed")
+        username = st.text_input("Username", label_visibility="collapsed").strip()
         
         st.markdown('<label style="font-weight: 700; color: #000000; font-size: 0.95rem;">Password<span class="required-star">*</span></label>', unsafe_allow_html=True)
-        password = st.text_input("Password", type="password", label_visibility="collapsed")
+        password = st.text_input("Password", type="password", label_visibility="collapsed").strip()
         
         submit = st.form_submit_button("Login", use_container_width=True)
         
         if submit:
-            db = SessionLocal()
-            user = crud_users.authenticate_user(db, username, password)
-            
-            if user == "pending":
-                st.warning("Your account is pending admin approval.")
-            elif user:
+            try:
+                db = SessionLocal()
+                user = crud_users.authenticate_user(db, username, password)
+                
+                if user == "pending":
+                    st.warning("Your account is pending admin approval. Please contact an admin.")
+                elif user:
                 st.session_state.authenticated = True
                 st.session_state.username = user.username
                 st.session_state.user_role = user.role
@@ -159,9 +160,14 @@ def login():
                 st.success("Login successful.")
                 st.rerun()
             else:
-                st.error("Invalid credentials")
+                st.error("Invalid credentials. Please check your username and password.")
             
-            db.close()
+            except Exception as e:
+                st.error(f"❌ Database connection error: {str(e)}")
+                st.info("Check if Railway Volume is correctly mounted at /app/data")
+            finally:
+                if 'db' in locals():
+                    db.close()
     
     st.divider()
     col1, col2 = st.columns(2)
