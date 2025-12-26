@@ -7,7 +7,7 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_mcos, crud_agency_suboptions
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -374,9 +374,7 @@ def admin_panel():
             st.write(f"**Total Agencies: {len(agencies)}**")
             st.divider()
             
-            from app.crud import crud_ccus, crud_mcos
             
-            from app.crud import crud_agency_suboptions
             
             for agency in agencies:
                 col1, col2 = st.columns([4, 1])

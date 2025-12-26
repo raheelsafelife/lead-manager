@@ -136,31 +136,31 @@ def login():
                 if user == "pending":
                     st.warning("Your account is pending admin approval. Please contact an admin.")
                 elif user:
-                st.session_state.authenticated = True
-                st.session_state.username = user.username
-                st.session_state.user_role = user.role
-                st.session_state.user_id = user.id
-                
-                # Save to cookies for persistence
-                from frontend.common import save_login_to_cookies
-                save_login_to_cookies(user.id, user.username, user.role)
-                
-                crud_activity_logs.create_activity_log(
-                    db=db,
-                    user_id=user.id,
-                    username=user.username,
-                    action_type="USER_LOGIN",
-                    entity_type="User",
-                    entity_id=user.id,
-                    entity_name=user.username,
-                    description=f"User '{user.username}' logged in",
-                    keywords="auth,login"
-                )
-                
-                st.success("Login successful.")
-                st.rerun()
-            else:
-                st.error("Invalid credentials. Please check your username and password.")
+                    st.session_state.authenticated = True
+                    st.session_state.username = user.username
+                    st.session_state.user_role = user.role
+                    st.session_state.user_id = user.id
+                    
+                    # Save to cookies for persistence
+                    from frontend.common import save_login_to_cookies
+                    save_login_to_cookies(user.id, user.username, user.role)
+                    
+                    crud_activity_logs.create_activity_log(
+                        db=db,
+                        user_id=user.id,
+                        username=user.username,
+                        action_type="USER_LOGIN",
+                        entity_type="User",
+                        entity_id=user.id,
+                        entity_name=user.username,
+                        description=f"User '{user.username}' logged in",
+                        keywords="auth,login"
+                    )
+                    
+                    st.success("Login successful.")
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials. Please check your username and password.")
             
             except Exception as e:
                 st.error(f"❌ Database connection error: {str(e)}")
