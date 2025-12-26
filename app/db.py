@@ -26,12 +26,13 @@ engine = create_engine(
     connect_args=connect_args,
 )
 
-# Enable WAL mode for SQLite to prevent "database is locked" errors on Railway
+# Enable stability pragmas for SQLite
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     if DATABASE_URL.startswith("sqlite"):
         cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
+        # WAL mode is not recommended on Network Filesystems (like Railway Volumes)
+        # We will use DELETE mode (default) but keep a high busy_timeout
         cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
 
