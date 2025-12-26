@@ -3,16 +3,17 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 # Database configuration
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Railway Volume is mounted at /app/data
-# Using /app/data/leads.db ensures data persists across redeploys
 SQLITE_VOLUME_PATH = "/app/data/leads.db"
 
-# For local development, check if the volume directory exists
-if os.path.exists("/app/data") or os.environ.get("RAILWAY_ENVIRONMENT"):
+# Check for Railway environment or the existence of the volume mount
+if os.environ.get("RAILWAY_ENVIRONMENT") or os.path.exists("/app/data"):
     DATABASE_URL = f"sqlite:///{SQLITE_VOLUME_PATH}"
 else:
-    # Fallback to current directory for local dev if /app/data is not available
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./leads.db")
+    # Use absolute path locally to avoid ambiguity
+    DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'leads.db')}")
 
 # Adjust URL for SQLAlchemy if it's Postgres (staying compatible)
 if DATABASE_URL.startswith("postgres://"):
