@@ -432,6 +432,7 @@ def prepare_lead_data_for_email(lead, db):
     return lead_data
 
 
+
 def get_priority_tag(priority):
     """Returns HTML for a color-coded priority tag"""
     p_class = "priority-medium"
@@ -441,3 +442,24 @@ def get_priority_tag(priority):
         p_class = "priority-low"
     
     return f'<span class="priority-tag {p_class}">{priority}</span>'
+
+
+def render_api_status():
+    """Diagnostic tool to check if the FastAPI backend is running internally"""
+    import urllib.request
+    import json
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 系统诊断 (Diagnostics)")
+    
+    try:
+        # Ping the local FastAPI health endpoint
+        # Using a timeout to prevent hanging the UI
+        with urllib.request.urlopen("http://localhost:8000/health", timeout=2) as response:
+            if response.getcode() == 200:
+                st.sidebar.success("Backend API: 🟢 LIVE")
+            else:
+                st.sidebar.error(f"Backend API: 🔴 Status {response.getcode()}")
+    except Exception:
+        st.sidebar.error("Backend API: 🔴 DOWN/OFFLINE")
+        st.sidebar.info("Internal API on port 8000 is not responding.")

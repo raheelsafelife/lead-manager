@@ -92,6 +92,10 @@ def main():
             
             st.divider()
             render_historian()
+            
+            # API Health Check Diagnostic
+            from frontend.common import render_api_status
+            render_api_status()
         
         # Route to selected page
         # Check for hidden pages first (not in navigation)
