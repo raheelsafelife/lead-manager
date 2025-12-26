@@ -14,25 +14,21 @@ if __name__ == "__main__":
             os.makedirs(db_dir, exist_ok=True)
             print(f"Created directory: {db_dir}")
 
-    # Create tables
-    Base.metadata.create_all(bind=engine)
-    print(f"Database initialized successfully at: {DATABASE_URL}")
-
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()
-    print(f"--- Starting Seeding Checklist ---")
+    print(f"--- 🛠️ SECURE ADMIN SEEDING START 🛠️ ---", flush=True)
     try:
         from app.models import User
-        from app.crud.crud_users import hash_password, verify_password
+        from app.crud.crud_users import hash_password
         
         target_username = "Safelife"
         target_password = "123456"
         
-        # 1. Search for existing admin
+        print(f"Checking for existing admin: {target_username}...", flush=True)
         admin_user = db.query(User).filter(User.username == target_username).first()
         
         if not admin_user:
-            print(f"1. Admin '{target_username}' not found. Creating fresh...")
+            print(f"Creating NEW admin account '{target_username}'...", flush=True)
             admin_in = UserCreate(
                 username=target_username,
                 user_id="ADMIN001",
@@ -40,30 +36,28 @@ if __name__ == "__main__":
                 email="admin@safelife.local",
                 role="admin"
             )
+            # Create user then force override fields
             user = create_user(db, admin_in)
             user.is_approved = True
             db.commit()
-            print(f"   ✓ Created admin: {target_username} with password {target_password}")
+            print(f"✅ SUCCESSFULLY CREATED: {target_username} / {target_password}", flush=True)
         else:
-            print(f"1. Admin '{target_username}' found. Checking password validity...")
-            
-            # 2. Check if current password works
-            if not verify_password(target_password, admin_user.hashed_password):
-                print(f"2. Password mismatch. Force-resetting password to '{target_password}'...")
-                admin_user.hashed_password = hash_password(target_password)
-            else:
-                print(f"2. Password is already correct.")
-            
-            # 3. Ensure role and approval
+            print(f"Account '{target_username}' found. Force-resetting for access recovery...", flush=True)
+            # FORCE RE-SYNC EVERYTHING to ensure the user can get in
+            admin_user.hashed_password = hash_password(target_password)
             admin_user.role = "admin"
             admin_user.is_approved = True
+            # Also ensure optional fields aren't blocking anything
+            if not admin_user.email:
+                admin_user.email = "admin@safelife.local"
+            
             db.commit()
-            print(f"3. ✓ Account {target_username} is verified and READY.")
+            print(f"✅ SUCCESSFULLY RECOVERY: {target_username} is now ACTIVE with password {target_password}", flush=True)
 
     except Exception as e:
-        print(f"❌ Error during seeding: {e}")
+        print(f"❌ CRITICAL ERROR DURING SEEDING: {e}", flush=True)
         import traceback
         traceback.print_exc()
     finally:
         db.close()
-        print(f"--- Seeding Checklist Complete ---")
+        print(f"--- 🏁 SECURE ADMIN SEEDING COMPLETE 🏁 ---", flush=True)

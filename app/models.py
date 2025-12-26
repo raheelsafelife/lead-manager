@@ -89,6 +89,7 @@ class Lead(Base):
 
     # extra details
     dob = Column(Date, nullable=True)
+    age = Column(Integer, nullable=True)
     medicaid_no = Column(String(100), nullable=True)
 
     # emergency contact

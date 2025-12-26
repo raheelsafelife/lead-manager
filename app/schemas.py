@@ -74,6 +74,7 @@ class LeadBase(BaseModel):
     city: Optional[str] = None
     zip_code: Optional[str] = None
     dob: Optional[date] = None
+    age: Optional[int] = None
     medicaid_no: Optional[str] = None
     e_contact_name: Optional[str] = None
     e_contact_relation: Optional[str] = None
@@ -115,6 +116,7 @@ class LeadUpdate(BaseModel):
     city: Optional[str] = None
     zip_code: Optional[str] = None
     dob: Optional[date] = None
+    age: Optional[int] = None
     medicaid_no: Optional[str] = None
     e_contact_name: Optional[str] = None
     e_contact_relation: Optional[str] = None

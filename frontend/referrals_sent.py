@@ -248,6 +248,8 @@ def view_referrals():
                     st.write(f"**Staff:** {lead.staff_name}")
                     st.write(f"**Source:** {lead.source}")
                     st.write(f"**Phone:** {lead.phone}")
+                    if lead.age:
+                        st.write(f"**Age:** {lead.age}")
                     st.markdown(f"**Priority:** {p_tag}", unsafe_allow_html=True)
                     st.write(f"**City:** {lead.city or 'N/A'}")
                 
@@ -457,9 +459,13 @@ def view_referrals():
                             edit_staff_name = st.text_input("**Staff Name** *", value=lead.staff_name)
                             edit_first_name = st.text_input("**First Name** *", value=lead.first_name)
                             edit_last_name = st.text_input("**Last Name** *", value=lead.last_name)
+                            
+                            edit_age = st.number_input("**Age**", min_value=0, max_value=120, value=int(lead.age or 0))
+                            
+                            source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
                             edit_source = st.selectbox("**Source** *", 
-                                                      ["HHN", "Web", "Referral", "Event", "Other"],
-                                                      index=["HHN", "Web", "Referral", "Event", "Other"].index(lead.source) if lead.source in ["HHN", "Web", "Referral", "Event", "Other"] else 0)
+                                                      source_options,
+                                                      index=source_options.index(lead.source) if lead.source in source_options else source_options.index("Other"))
                             edit_phone = st.text_input("**Phone** *", value=lead.phone)
                             edit_priority = st.selectbox("**Priority**", ["High", "Medium", "Low"], 
                                                         index=["High", "Medium", "Low"].index(lead.priority) if lead.priority in ["High", "Medium", "Low"] else 1)
@@ -529,6 +535,7 @@ def view_referrals():
                                 last_name=edit_last_name,
                                 source=edit_source,
                                 phone=edit_phone,
+                                age=edit_age if edit_age > 0 else None,
                                 city=edit_city or None,
                                 zip_code=edit_zip_code or None,
                                 active_client=True,  # Keep as referral
