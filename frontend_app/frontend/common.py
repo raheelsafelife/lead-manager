@@ -1,6 +1,13 @@
 """
 Common utilities, CSS styles, and shared functions for Lead Manager.
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 from app.db import SessionLocal
 from app.utils.activity_logger import utc_to_local
@@ -23,9 +30,16 @@ GLOBAL_CSS = """
     html, body, [class^="css"], .stApp  {
         font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI',
                      Arial, 'Source Sans Pro', system-ui, sans-serif;
-        background-color: #F9F9F9 !important;
+        background-color: #FFFFFF !important;
         color: #111827 !important;
     }
+
+    /* Hide Streamlit header (Deploy button, Rerun status) and footer */
+    header { visibility: hidden !important; }
+    #MainMenu { visibility: hidden !important; }
+    footer { visibility: hidden !important; }
+    .stDeployButton { display: none !important; }
+    [data-testid="stHeader"] { display: none !important; }
 
     /* Primary brand colors */
     :root {
@@ -35,7 +49,7 @@ GLOBAL_CSS = """
         --safelife-soft-gray: #F9F9F9;
         --safelife-blue-light: #B5E8F7;
         --safelife-blue-extra-light: #DFF8FF;
-        --required-star-pink: #59B976;
+        --required-star-pink: #3CA5AA;
     }
     
     /* Square alerts/info boxes */
@@ -82,7 +96,7 @@ GLOBAL_CSS = """
         letter-spacing: 0.04em;
         text-transform: uppercase;
         text-align: center;
-        background: linear-gradient(90deg, var(--safelife-deep-blue), var(--safelife-aqua));
+        background-color: var(--safelife-aqua);
         padding: 1.5rem 2rem;
         border-radius: 0.75rem;
     }
@@ -140,31 +154,37 @@ GLOBAL_CSS = """
         color: #000000 !important;
     }
 
-    /* Buttons – larger, high-contrast CTAs */
+    /* Buttons – aqua background with white text */
     button, .stButton > button, .stForm button, .stForm button[type="submit"] {
         font-family: 'Montserrat', sans-serif;
         font-weight: 700;
         border-radius: 10px;
         border: none;
         padding: 0.75rem 2.0rem;
-        background: var(--safelife-deep-blue) !important;
+        background: var(--safelife-aqua) !important;
         color: #FFFFFF !important;
-        box-shadow: 0 3px 10px rgba(0, 74, 107, 0.35);
+        box-shadow: 0 3px 10px rgba(60, 165, 170, 0.35);
         font-size: 1.05rem;
         letter-spacing: 0.03em;
     }
     
     /* Ensure all button text is white */
-    button *, .stButton > button *, .stForm button *, .stForm button[type="submit"] *, button p, .stButton > button p {
+    button *, .stButton > button *, .stForm button *, .stForm button[type="submit\"] *, button p, .stButton > button p {
         color: #FFFFFF !important;
     }
 
-    /* Primary buttons (active/selected state) - blue background with white text */
+    /* Primary buttons (active/selected state) - deep blue background with white text */
     .stButton > button[kind="primary"],
     .stForm button[kind="primary"] {
         background: var(--safelife-deep-blue) !important;
         color: #FFFFFF !important;
         border: none !important;
+    }
+    
+    /* Ensure primary button text stays white */
+    .stButton > button[kind="primary"] *,
+    .stForm button[kind="primary"] * {
+        color: #FFFFFF !important;
     }
 
     /* Secondary buttons - aqua background with white text */
@@ -176,17 +196,94 @@ GLOBAL_CSS = """
         box-shadow: 0 3px 10px rgba(60, 165, 170, 0.35);
     }
 
-    /* Form fields + selectboxes */
+    /* Form fields + selectboxes - WHITE backgrounds with BLACK text (Professional Look) */
     .stTextInput input,
     .stPasswordInput input,
     .stTextArea textarea,
-    .stSelectbox div[data-baseweb="select"] > div {
+    .stNumberInput input,
+    .stDateInput input,
+    .stTimeInput input,
+    .stSelectbox div[data-baseweb="select"] > div,
+    .stSelectbox select,
+    div[data-baseweb="base-input"],
+    div[data-baseweb="input"],
+    .stTextInput > div,
+    .stNumberInput > div,
+    .stTextArea > div,
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="email"],
+    input[type="date"],
+    textarea,
+    select {
         border-radius: 0.6rem !important;
-        border: 1px solid #E5E7EB !important;
+        border: 1px solid var(--safelife-aqua) !important;
         background-color: #FFFFFF !important;
         color: #111827 !important;
         box-shadow: none !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Ensure no double borders or inner borders */
+    [data-baseweb="base-input"] input,
+    [data-baseweb="input"] input {
+        border: none !important;
+    }
+    
+    /* Input placeholder text - subtle gray */
+    .stTextInput input::placeholder,
+    .stPasswordInput input::placeholder,
+    .stTextArea textarea::placeholder,
+    input::placeholder,
+    textarea::placeholder {
+        color: #9CA3AF !important;
+    }
+    
+    /* Date picker calendar - white background with aqua header */
+    .stDateInput div[data-baseweb="popover"],
+    [data-baseweb="popover"],
+    div[data-baseweb="calendar"] {
+        background-color: #FFFFFF !important;
+        background: #FFFFFF !important;
+        border-radius: 8px !important;
+        color: #111827 !important;
+    }
+    
+    /* Target the calendar days and grid */
+    [data-baseweb="calendar"] div,
+    [data-baseweb="calendar"] button,
+    [data-baseweb="calendar"] *:not(.aqua-header) {
+        background-color: #FFFFFF !important;
+        color: #111827 !important;
+    }
+    
+    /* Ensure the header navigation stays aqua/professional */
+    div[data-baseweb="calendar"] > div:first-child,
+    div[data-baseweb="calendar"] > div:first-child * {
+        background-color: var(--safelife-aqua) !important;
+        color: white !important;
+    }
+    
+    /* Fix for the black squares in the grid */
+    [data-baseweb="calendar"] [aria-roledescription="button"] {
+        background-color: #FFFFFF !important;
+        border: 1px solid #F3F4F6 !important;
+    }
+    
+    /* Selected day - deep blue background */
+    [data-baseweb="calendar"] [aria-selected="true"] {
+        background-color: var(--safelife-deep-blue) !important;
+        color: #FFFFFF !important;
+    }
+    
+    /* Dropdown menus - white background with high contrast */
+    .stSelectbox ul,
+    .stSelectbox li,
+    [role="listbox"],
+    [role="option"] {
+        background-color: #FFFFFF !important;
+        color: #111827 !important;
     }
 
     /* Dataframes / tables */
@@ -200,6 +297,16 @@ GLOBAL_CSS = """
     section[data-testid="stSidebar"] {
         background-color: #FFFFFF;
         border-right: 1px solid #E5E7EB;
+    }
+    
+    /* Sidebar navigation links - black text */
+    section[data-testid="stSidebar"] a,
+    section[data-testid="stSidebar"] button,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] * {
+        color: #000000 !important;
     }
 
     /* General titles/subheaders - all headings black and bold */

@@ -1,6 +1,13 @@
 """
 Dashboard page: Main dashboard view and user dashboards
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -178,7 +185,7 @@ def dashboard():
     if show_cumulative:
         # Show all staff data (cumulative view)
         with col1:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Leads by Staff</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Staff</h4>", unsafe_allow_html=True)
             staff_data = services_stats.leads_by_staff(db)
             if staff_data:
                 df_staff = pd.DataFrame(staff_data)
@@ -188,6 +195,10 @@ def dashboard():
                 # Style modebar: white bg, aqua icons
                 fig_staff.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -203,13 +214,17 @@ def dashboard():
                 st.info("No data available")
 
         with col2:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Leads by Source</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Source</h4>", unsafe_allow_html=True)
             source_data = services_stats.leads_by_source(db)
             if source_data:
                 df_source = pd.DataFrame(source_data)
                 fig_source = px.bar(df_source, x='source', y='count', color_discrete_sequence=['#00506b'])
                 fig_source.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -226,13 +241,17 @@ def dashboard():
     else:
         # Regular user sees their own comprehensive data
         with col1:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Your Monthly Leads</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Monthly Leads</h4>", unsafe_allow_html=True)
             monthly_data = services_stats.leads_by_month_for_user(db, st.session_state.username)
             if monthly_data:
                 df_monthly = pd.DataFrame(monthly_data)
                 fig_monthly = px.line(df_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
                 fig_monthly.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -253,13 +272,17 @@ def dashboard():
                 st.info("No leads yet")
 
         with col2:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Your Leads by Source</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Leads by Source</h4>", unsafe_allow_html=True)
             source_data = services_stats.leads_by_source_for_user(db, st.session_state.username)
             if source_data:
                 df_source = pd.DataFrame(source_data)
                 fig_source_ind = px.bar(df_source, x='source', y='count', color_discrete_sequence=['#00506b'])
                 fig_source_ind.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -280,7 +303,7 @@ def dashboard():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Leads by Status</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Status</h4>", unsafe_allow_html=True)
         try:
             if show_cumulative:
                 status_data = services_stats.leads_by_status(db)
@@ -299,6 +322,10 @@ def dashboard():
                 fig_status = px.bar(df_status, x='status', y='count', color_discrete_sequence=['#00506b'])
                 fig_status.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -322,10 +349,10 @@ def dashboard():
 
     with col2:
         if show_cumulative:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Monthly Leads (All)</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Monthly Leads (All)</h4>", unsafe_allow_html=True)
             monthly_data = services_stats.monthly_leads(db)
         else:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Your Monthly Trend</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Monthly Trend</h4>", unsafe_allow_html=True)
             monthly_data = services_stats.leads_by_month_for_user(db, st.session_state.username)
 
         if monthly_data:
@@ -333,6 +360,10 @@ def dashboard():
             fig_monthly_trend = px.line(df_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
             fig_monthly_trend.update_layout(
                 clickmode='event+select',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
             )
             
@@ -357,7 +388,7 @@ def dashboard():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Event Leads</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Event Leads</h4>", unsafe_allow_html=True)
         if show_cumulative:
             event_data = services_stats.leads_by_event(db)
         else:
@@ -376,6 +407,10 @@ def dashboard():
             fig_event = px.bar(df_events, x='event_name', y='count', color_discrete_sequence=['#00506b'])
             fig_event.update_layout(
                 clickmode='event+select',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
             )
             
@@ -396,7 +431,7 @@ def dashboard():
             st.info("No event leads yet")
 
     with col2:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Word of Mouth Breakdown</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Word of Mouth Breakdown</h4>", unsafe_allow_html=True)
         if show_cumulative:
             wom_data = services_stats.word_of_mouth_breakdown(db)
         else:
@@ -415,6 +450,10 @@ def dashboard():
             fig_wom = px.bar(df_wom, x='type', y='count', color_discrete_sequence=['#00506b'])
             fig_wom.update_layout(
                 clickmode='event+select',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
             )
             
@@ -497,13 +536,17 @@ def dashboard():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Your Referral Trend</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Referral Trend</h4>", unsafe_allow_html=True)
             referral_monthly = services_stats.referrals_by_month_for_user(db, st.session_state.username)
             if referral_monthly:
                 df_ref_monthly = pd.DataFrame(referral_monthly)
                 fig_ref_monthly = px.line(df_ref_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
                 fig_ref_monthly.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -522,13 +565,17 @@ def dashboard():
                 st.info("No referrals yet")
 
         with col2:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Referral Status</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referral Status</h4>", unsafe_allow_html=True)
             ref_status_data = services_stats.referrals_by_status_for_user(db, st.session_state.username)
             if ref_status_data:
                 df_ref_status = pd.DataFrame(ref_status_data)
                 fig_ref_status = px.bar(df_ref_status, x='status', y='count', color_discrete_sequence=['#00506b'])
                 fig_ref_status.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -557,6 +604,10 @@ def dashboard():
                 fig_auth = px.bar(df_auth, x='authorized', y='count', color_discrete_sequence=['#00506b'])
                 fig_auth.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -578,13 +629,17 @@ def dashboard():
                 st.info("No authorization data")
 
         with col2:
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Care Status</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Care Status</h4>", unsafe_allow_html=True)
             care_data = services_stats.referrals_by_care_status_for_user(db, st.session_state.username)
             if care_data:
                 df_care = pd.DataFrame(care_data)
                 fig_care = px.bar(df_care, x='care_status', y='count', color_discrete_sequence=['#00506b'])
                 fig_care.update_layout(
                     clickmode='event+select',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
+                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
                 )
                 
@@ -606,7 +661,7 @@ def dashboard():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Referral Status</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referral Status</h4>", unsafe_allow_html=True)
         if show_cumulative:
             # Show all referrals by status
             referral_status_data = services_stats.referral_status_breakdown(db)
@@ -626,6 +681,10 @@ def dashboard():
             fig_ref_status_shared = px.bar(df_ref_status, x='status', y='count', color_discrete_sequence=['#00506b'])
             fig_ref_status_shared.update_layout(
                 clickmode='event+select',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
             )
             
@@ -645,7 +704,7 @@ def dashboard():
             st.info("No referral data yet")
 
     with col2:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Authorization Status</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Authorization Status</h4>", unsafe_allow_html=True)
         if show_cumulative:
             # Show authorization status for all referrals
             auth_results = (
@@ -674,6 +733,10 @@ def dashboard():
             fig_auth_shared = px.bar(df_auth, x='status', y='count', color_discrete_sequence=['#00506b'])
             fig_auth_shared.update_layout(
                 clickmode='event+select',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
             )
             
@@ -786,8 +849,8 @@ def dashboard():
                         x=0.5,
                         font=dict(size=12)
                     ),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='#FFFFFF',
+                    plot_bgcolor='#FFFFFF',
                     margin=dict(t=20, b=60, l=20, r=20),
                     height=350,
                     modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
@@ -871,7 +934,7 @@ def dashboard():
                     border-radius: 12px;
                     border: 1px solid #3CA5AA;
                     box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);">
-            <h3 style="color: #00506b; text-align: center; margin-bottom: 10px;">
+            <h3 style="color: #111827; text-align: center; margin-bottom: 10px;">
                  Lead Conversion
             </h3>
                 <p style="color: #6B7280; text-align: center; font-size: 12px;">
@@ -907,8 +970,8 @@ def dashboard():
                     x=0.5,
                     font=dict(size=12)
                 ),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
                 margin=dict(t=20, b=60, l=20, r=20),
                 height=350,
                 modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
@@ -985,7 +1048,7 @@ def dashboard():
             st.markdown(f"""
             <div style="display: flex; justify-content: space-around; margin-top: 10px;">
                 <div style="text-align: center;">
-                    <span style="color: #00506b; font-size: 24px; font-weight: bold;">{care_start}</span>
+                    <span style="color: #111827; font-size: 24px; font-weight: bold;">{care_start}</span>
                     <br><span style="color: #4B5563; font-size: 12px; font-weight: 500;">Care Start</span>
                 </div>
                 <div style="text-align: center;">
@@ -1015,7 +1078,7 @@ def dashboard():
                     box-shadow: 0 4px 10px rgba(15,23,42,0.04);">
             <div style="display: flex; justify-content: space-around; text-align: center;">
                 <div style="flex: 1; padding: 15px; border-right: 1px solid #E5E7EB;">
-                    <span style="color: #00506b; font-size: 32px; font-weight: bold;">{confirmation_rate:.1f}%</span>
+                    <span style="color: #111827; font-size: 32px; font-weight: bold;">{confirmation_rate:.1f}%</span>
                     <br><span style="color: #4B5563; font-size: 14px;">Confirmation Rate</span>
                     <br><span style="color: #6B7280; font-size: 11px;">Leads → Referrals</span>
                 </div>
@@ -1137,6 +1200,16 @@ def discovery_tool():
             color_discrete_sequence=px.colors.qualitative.Prism,
             labels={col_x: feature_x_label, col_color: feature_color_label}
         )
+        
+        fig.update_layout(
+            clickmode='event+select',
+            paper_bgcolor='#FFFFFF',
+            plot_bgcolor='#FFFFFF',
+            xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5)
+        )
     else:
         # Simple aggregation
         agg_data = plot_df.groupby(col_x).size().reset_index(name='Lead Count')
@@ -1151,11 +1224,13 @@ def discovery_tool():
 
         fig.update_layout(
             clickmode='event+select',
+            paper_bgcolor='#FFFFFF',
+            plot_bgcolor='#FFFFFF',
+            xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
             legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-            margin=dict(t=20, b=80, l=20, r=20),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+            margin=dict(t=20, b=80, l=20, r=20)
         )
 
     selection = st.plotly_chart(fig, width="stretch", on_select="rerun", selection_mode="points", key="discovery_chart_main", config=chart_config)
@@ -1262,7 +1337,7 @@ def view_all_user_dashboards():
             st.divider()
             
             # --- PIE CHARTS FOR USER ---
-            st.markdown("<h4 style='text-align: center; color: #00506b;'>Pipeline Performance</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='text-align: center; color: #111827;'>Pipeline Performance</h4>", unsafe_allow_html=True)
             
             col_p1, col_p2 = st.columns(2)
             
@@ -1293,8 +1368,10 @@ def view_all_user_dashboards():
                         showlegend=True,
                         margin=dict(t=0, b=0, l=0, r=0),
                         height=250,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='#FFFFFF',
+                        plot_bgcolor='#FFFFFF',
+                        xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                        yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         clickmode='event+select',
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
                         legend=dict(orientation="h", y=-0.1)
@@ -1361,8 +1438,10 @@ def view_all_user_dashboards():
                         showlegend=True,
                         margin=dict(t=0, b=0, l=0, r=0),
                         height=250,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='#FFFFFF',
+                        plot_bgcolor='#FFFFFF',
+                        xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                        yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         clickmode='event+select',
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
                         legend=dict(orientation="h", y=-0.1)
@@ -1440,8 +1519,10 @@ def view_all_user_dashboards():
                     fig_monthly = px.line(df_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
                     fig_monthly.update_layout(
                         clickmode='event+select',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='#FFFFFF',
+                        plot_bgcolor='#FFFFFF',
+                        xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                        yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         height=250,
                         margin=dict(t=10, b=10, l=10, r=10),
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
@@ -1466,8 +1547,10 @@ def view_all_user_dashboards():
                     fig_source = px.bar(df_source, x='source', y='count', color_discrete_sequence=['#00506b'])
                     fig_source.update_layout(
                         clickmode='event+select',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='#FFFFFF',
+                        plot_bgcolor='#FFFFFF',
+                        xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+                        yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         height=250,
                         margin=dict(t=10, b=10, l=10, r=10),
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')

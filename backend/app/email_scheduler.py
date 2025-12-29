@@ -71,6 +71,7 @@ def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time
 def send_lead_reminders():
     """Check all active leads and send reminders if needed"""
     db = SessionLocal()
+    print(f"[{datetime.now()}] Starting lead reminder scan...")
     try:
         # Get all leads that are not inactive
         all_leads = crud_leads.list_leads(db, limit=10000)
@@ -79,19 +80,171 @@ def send_lead_reminders():
             if lead.last_contact_status != "Inactive"
         ]
         
+        print(f"[INFO] Found {len(active_leads)} active/follow-up leads to check.")
+        
         for lead in active_leads:
-            # Get the last reminder sent for this lead
-            reminders = crud_email_reminders.get_reminders_by_lead(db, lead.id)
-            last_reminder_time = reminders[0].sent_at if reminders else None
-            
-            if should_send_reminder(lead, last_reminder_time):
-                # Get the lead creator's email
-                if lead.created_by:
-                    user = crud_users.get_user_by_username(db, lead.created_by)
-                    if user and user.email:
-                        
-                        # Check if this is a referral or regular lead
-                        if lead.active_client:  # Is a referral
+            try:
+                # Get the last reminder sent for this lead
+                reminders = crud_email_reminders.get_reminders_by_lead(db, lead.id)
+                last_reminder_time = reminders[0].sent_at if reminders else None
+                
+                if should_send_reminder(lead, last_reminder_time):
+                    # Get the lead creator's email
+                    if lead.created_by:
+                        user = crud_users.get_user_by_username(db, lead.created_by)
+                        if user and user.email:
+                            print(f"[DEBUG] Condition met for Lead ID {lead.id} ({lead.first_name}). Sending email to {user.email}...")
+                            
+                            # Check if this is a referral or regular lead
+                            if lead.active_client:  # Is a referral
+                                # Get agency (payor) information
+                                agency_name = "N/A"
+                                agency_suboption = ""
+                                if lead.agency_id:
+                                    from app.crud.crud_agencies import get_agency
+                                    agency = get_agency(db, lead.agency_id)
+                                    if agency:
+                                        agency_name = agency.name
+                                
+                                if lead.agency_suboption_id:
+                                    from app.crud.crud_agency_suboptions import get_suboption_by_id
+                                    suboption = get_suboption_by_id(db, lead.agency_suboption_id)
+                                    if suboption:
+                                        agency_suboption = suboption.name
+                                
+                                # Get CCU information
+                                ccu_name = "N/A"
+                                ccu_phone = "N/A"
+                                ccu_fax = "N/A"
+                                ccu_email = "N/A"
+                                ccu_address = "N/A"
+                                ccu_coordinator = "N/A"
+                                if lead.ccu_id:
+                                    from app.crud.crud_ccus import get_ccu_by_id
+                                    ccu = get_ccu_by_id(db, lead.ccu_id)
+                                    if ccu:
+                                        ccu_name = ccu.name
+                                        ccu_phone = ccu.phone if ccu.phone else "N/A"
+                                        ccu_fax = ccu.fax if ccu.fax else "N/A"
+                                        ccu_email = ccu.email if ccu.email else "N/A"
+                                        ccu_address = ccu.address if ccu.address else "N/A"
+                                        ccu_coordinator = ccu.care_coordinator_name if ccu.care_coordinator_name else "N/A"
+                                
+                                # Prepare referral-specific data
+                                referral_info = {
+                                    'name': f"{lead.first_name} {lead.last_name}",
+                                    'phone': lead.phone,
+                                    'dob': str(lead.dob) if lead.dob else 'N/A',
+                                    'creator': lead.created_by,
+                                    'created_date': lead.created_at.strftime('%m/%d/%Y'),
+                                    'status': lead.last_contact_status,
+                                    'referral_type': lead.referral_type if lead.referral_type else 'Regular',
+                                    'payor_name': agency_name,
+                                    'payor_suboption': agency_suboption,
+                                    'ccu_name': ccu_name,
+                                    'ccu_phone': ccu_phone,
+                                    'ccu_fax': ccu_fax,
+                                    'ccu_email': ccu_email,
+                                    'ccu_address': ccu_address,
+                                    'ccu_coordinator': ccu_coordinator
+                                }
+                                
+                                # Send referral email
+                                success = send_referral_reminder_email(referral_info, user.email)
+                                subject = f"Referral Reminder [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
+                                
+                            else:  # Regular non-referral lead
+                                # Prepare simple lead data
+                                lead_info = {
+                                    'name': f"{lead.first_name} {lead.last_name}",
+                                    'phone': lead.phone,
+                                    'creator': lead.created_by,
+                                    'dob': str(lead.dob) if lead.dob else 'N/A',
+                                    'source': lead.source,
+                                    'status': lead.last_contact_status,
+                                    'created_date': lead.created_at.strftime('%m/%d/%Y')
+                                }
+                                
+                                # Send simple email
+                                success = send_simple_lead_email(lead_info, user.email)
+                                subject = f"Lead Reminder: {lead.first_name} {lead.last_name}"
+                            
+                            # Record the reminder
+                            status = "sent" if success else "failed"
+                            crud_email_reminders.create_reminder(
+                                db=db,
+                                lead_id=lead.id,
+                                recipient_email=user.email,
+                                subject=subject,
+                                sent_by="system",
+                                status=status,
+                                error_message=None if success else "Email service error"
+                            )
+                            
+                            if success:
+                                if lead.active_client:
+                                    reminder_type = f"[{referral_info['referral_type']}]"
+                                else:
+                                    reminder_type = "[Lead]"
+                                print(f"[SUCCESS] Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
+                            else:
+                                print(f"[ERROR] Failed to send reminder for lead {lead.id}")
+                            
+                            # Small delay to avoid overwhelming email server
+                            time.sleep(1)
+                        else:
+                            print(f"[WARN] No user email found for lead creator: {lead.created_by} (Lead ID: {lead.id})")
+                else:
+                    # Optional tracking of why skipped
+                    pass
+            except Exception as inner_e:
+                print(f"[ERROR] Error processing Lead ID {lead.id}: {inner_e}")
+
+        # Now check for care start reminders for authorized referrals
+        print(f"[INFO] Checking authorized referrals for Care Start reminders...")
+        for lead in active_leads:
+            try:
+                # Only check referrals with authorization received but no care started
+                if not lead.active_client or not lead.authorization_received or lead.care_status == "Care Start":
+                    continue
+
+                # Find when authorization was received
+                auth_received_time = None
+                try:
+                    from app.crud.crud_activity_logs import get_lead_history
+                    import json
+                    history_logs = get_lead_history(db, lead.id)
+                    for log in history_logs:
+                        if log.old_value and log.new_value:
+                            try:
+                                old_val = json.loads(log.old_value) if isinstance(log.old_value, str) else log.old_value
+                                new_val = json.loads(log.new_value) if isinstance(log.new_value, str) else log.new_value
+
+                                # Check if authorization_received changed from False to True
+                                if (isinstance(old_val, dict) and isinstance(new_val, dict) and
+                                    old_val.get('authorization_received') == False and
+                                    new_val.get('authorization_received') == True):
+                                    auth_received_time = log.timestamp
+                                    break
+                            except (json.JSONDecodeError, TypeError):
+                                continue
+                except Exception:
+                    pass
+
+                if not auth_received_time:
+                    continue  # Skip if we can't determine when authorization was received
+
+                # Get the last care start reminder sent for this lead
+                care_start_reminders = get_care_start_reminders_by_lead(db, lead.id)
+                last_care_reminder_time = care_start_reminders[0].sent_at if care_start_reminders else None
+
+                if should_send_care_start_reminder(lead, last_care_reminder_time, auth_received_time):
+                    # Get the lead creator's email
+                    if lead.created_by:
+                        user = crud_users.get_user_by_username(db, lead.created_by)
+                        if user and user.email:
+                            print(f"[DEBUG] Care Start condition met for authorized Lead ID {lead.id}. Sending...")
+                            
                             # Get agency (payor) information
                             agency_name = "N/A"
                             agency_suboption = ""
@@ -100,13 +253,13 @@ def send_lead_reminders():
                                 agency = get_agency(db, lead.agency_id)
                                 if agency:
                                     agency_name = agency.name
-                            
+
                             if lead.agency_suboption_id:
                                 from app.crud.crud_agency_suboptions import get_suboption_by_id
                                 suboption = get_suboption_by_id(db, lead.agency_suboption_id)
                                 if suboption:
                                     agency_suboption = suboption.name
-                            
+
                             # Get CCU information
                             ccu_name = "N/A"
                             ccu_phone = "N/A"
@@ -124,9 +277,9 @@ def send_lead_reminders():
                                     ccu_email = ccu.email if ccu.email else "N/A"
                                     ccu_address = ccu.address if ccu.address else "N/A"
                                     ccu_coordinator = ccu.care_coordinator_name if ccu.care_coordinator_name else "N/A"
-                            
-                            # Prepare referral-specific data
-                            referral_info = {
+
+                            # Prepare comprehensive care start reminder data
+                            care_start_info = {
                                 'name': f"{lead.first_name} {lead.last_name}",
                                 'phone': lead.phone,
                                 'dob': str(lead.dob) if lead.dob else 'N/A',
@@ -141,191 +294,53 @@ def send_lead_reminders():
                                 'ccu_fax': ccu_fax,
                                 'ccu_email': ccu_email,
                                 'ccu_address': ccu_address,
-                                'ccu_coordinator': ccu_coordinator
+                                'ccu_coordinator': ccu_coordinator,
+                                'auth_received_date': auth_received_time.strftime('%m/%d/%Y'),
+                                'days_since_auth': int((datetime.utcnow() - auth_received_time).total_seconds() / 86400)
                             }
-                            
-                            # Send referral email
-                            success = send_referral_reminder_email(referral_info, user.email)
-                            subject = f"Referral Reminder [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
-                            
-                        else:  # Regular non-referral lead
-                            # Prepare simple lead data
-                            lead_info = {
-                                'name': f"{lead.first_name} {lead.last_name}",
-                                'phone': lead.phone,
-                                'creator': lead.created_by,
-                                'dob': str(lead.dob) if lead.dob else 'N/A',
-                                'source': lead.source,
-                                'status': lead.last_contact_status,
-                                'created_date': lead.created_at.strftime('%m/%d/%Y')
-                            }
-                            
-                            # Send simple email
-                            success = send_simple_lead_email(lead_info, user.email)
-                            subject = f"Lead Reminder: {lead.first_name} {lead.last_name}"
-                        
-                        # Record the reminder
-                        status = "sent" if success else "failed"
-                        crud_email_reminders.create_reminder(
-                            db=db,
-                            lead_id=lead.id,
-                            recipient_email=user.email,
-                            subject=subject,
-                            sent_by="system",
-                            status=status,
-                            error_message=None if success else "Email service error"
-                        )
-                        
-                        if success:
-                            if lead.active_client:
-                                reminder_type = f"[{referral_info['referral_type']}]"
+
+                            # Send care start reminder email
+                            success = send_referral_reminder_email(care_start_info, user.email)
+                            subject = f"⚠️ Care Start Reminder [{care_start_info['referral_type']}]: {lead.first_name} {lead.last_name} - {care_start_info['days_since_auth']} days since authorization"
+
+                            # Record the care start reminder
+                            status = "sent" if success else "failed"
+                            create_care_start_reminder(
+                                db=db,
+                                lead_id=lead.id,
+                                recipient_email=user.email,
+                                subject=subject,
+                                sent_by="system",
+                                status=status,
+                                error_message=None if success else "Email service error"
+                            )
+
+                            if success:
+                                print(f"[SUCCESS] Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
                             else:
-                                reminder_type = "[Lead]"
-                            print(f"[SUCCESS] Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
-                        else:
-                            print(f"[ERROR] Failed to send reminder for lead {lead.id}")
-                        
-                        # Small delay to avoid overwhelming email server
-                        time.sleep(1)
+                                print(f"[ERROR] Failed to send Care Start reminder for lead {lead.id}")
 
-        # Now check for care start reminders for authorized referrals
-        for lead in active_leads:
-            # Only check referrals with authorization received but no care started
-            if not lead.active_client or not lead.authorization_received or lead.care_status == "Care Start":
-                continue
-
-            # Find when authorization was received
-            auth_received_time = None
-            try:
-                from app.crud.crud_activity_logs import get_lead_history
-                import json
-                history_logs = get_lead_history(db, lead.id)
-                for log in history_logs:
-                    if log.old_value and log.new_value:
-                        try:
-                            old_val = json.loads(log.old_value) if isinstance(log.old_value, str) else log.old_value
-                            new_val = json.loads(log.new_value) if isinstance(log.new_value, str) else log.new_value
-
-                            # Check if authorization_received changed from False to True
-                            if (isinstance(old_val, dict) and isinstance(new_val, dict) and
-                                old_val.get('authorization_received') == False and
-                                new_val.get('authorization_received') == True):
-                                auth_received_time = log.timestamp
-                                break
-                        except (json.JSONDecodeError, TypeError):
-                            continue
-            except Exception:
-                pass
-
-            if not auth_received_time:
-                continue  # Skip if we can't determine when authorization was received
-
-            # Get the last care start reminder sent for this lead
-            care_start_reminders = get_care_start_reminders_by_lead(db, lead.id)
-            last_care_reminder_time = care_start_reminders[0].sent_at if care_start_reminders else None
-
-            if should_send_care_start_reminder(lead, last_care_reminder_time, auth_received_time):
-                # Get the lead creator's email
-                if lead.created_by:
-                    user = crud_users.get_user_by_username(db, lead.created_by)
-                    if user and user.email:
-
-                        # Prepare comprehensive care start reminder data
-                        from app.utils.email_service import send_referral_reminder_email
-
-                        # Get agency (payor) information
-                        agency_name = "N/A"
-                        agency_suboption = ""
-                        if lead.agency_id:
-                            from app.crud.crud_agencies import get_agency
-                            agency = get_agency(db, lead.agency_id)
-                            if agency:
-                                agency_name = agency.name
-
-                        if lead.agency_suboption_id:
-                            from app.crud.crud_agency_suboptions import get_suboption_by_id
-                            suboption = get_suboption_by_id(db, lead.agency_suboption_id)
-                            if suboption:
-                                agency_suboption = suboption.name
-
-                        # Get CCU information
-                        ccu_name = "N/A"
-                        ccu_phone = "N/A"
-                        ccu_fax = "N/A"
-                        ccu_email = "N/A"
-                        ccu_address = "N/A"
-                        ccu_coordinator = "N/A"
-                        if lead.ccu_id:
-                            from app.crud.crud_ccus import get_ccu_by_id
-                            ccu = get_ccu_by_id(db, lead.ccu_id)
-                            if ccu:
-                                ccu_name = ccu.name
-                                ccu_phone = ccu.phone if ccu.phone else "N/A"
-                                ccu_fax = ccu.fax if ccu.fax else "N/A"
-                                ccu_email = ccu.email if ccu.email else "N/A"
-                                ccu_address = ccu.address if ccu.address else "N/A"
-                                ccu_coordinator = ccu.care_coordinator_name if ccu.care_coordinator_name else "N/A"
-
-                        # Prepare comprehensive care start reminder data
-                        care_start_info = {
-                            'name': f"{lead.first_name} {lead.last_name}",
-                            'phone': lead.phone,
-                            'dob': str(lead.dob) if lead.dob else 'N/A',
-                            'creator': lead.created_by,
-                            'created_date': lead.created_at.strftime('%m/%d/%Y'),
-                            'status': lead.last_contact_status,
-                            'referral_type': lead.referral_type if lead.referral_type else 'Regular',
-                            'payor_name': agency_name,
-                            'payor_suboption': agency_suboption,
-                            'ccu_name': ccu_name,
-                            'ccu_phone': ccu_phone,
-                            'ccu_fax': ccu_fax,
-                            'ccu_email': ccu_email,
-                            'ccu_address': ccu_address,
-                            'ccu_coordinator': ccu_coordinator,
-                            'auth_received_date': auth_received_time.strftime('%m/%d/%Y'),
-                            'days_since_auth': int((datetime.utcnow() - auth_received_time).total_seconds() / 86400)
-                        }
-
-                        # Send care start reminder email
-                        success = send_referral_reminder_email(care_start_info, user.email)
-                        subject = f"⚠️ Care Start Reminder [{care_start_info['referral_type']}]: {lead.first_name} {lead.last_name} - {care_start_info['days_since_auth']} days since authorization"
-
-                        # Record the care start reminder
-                        status = "sent" if success else "failed"
-                        create_care_start_reminder(
-                            db=db,
-                            lead_id=lead.id,
-                            recipient_email=user.email,
-                            subject=subject,
-                            sent_by="system",
-                            status=status,
-                            error_message=None if success else "Email service error"
-                        )
-
-                        if success:
-                            print(f"[SUCCESS] Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
-                        else:
-                            print(f"[ERROR] Failed to send Care Start reminder for lead {lead.id}")
-
-                        # Small delay to avoid overwhelming email server
-                        time.sleep(1)
+                            # Small delay to avoid overwhelming email server
+                            time.sleep(1)
+            except Exception as inner_e:
+                 print(f"[ERROR] Error processing Care Start reminder for Lead ID {lead.id}: {inner_e}")
 
     except Exception as e:
-        print(f"Error in send_lead_reminders: {e}")
+        print(f"[CRITICAL] Error in send_lead_reminders: {e}")
     finally:
         db.close()
+        print(f"[{datetime.now()}] Lead reminder scan complete.")
 
 
 def run_scheduler():
     """Run the scheduler in background - checks every hour"""
+    print(f"[{datetime.now()}] Scheduler continuous loop started.")
     while True:
         try:
-            print(f"[{datetime.now()}] Running lead reminder check...")
             send_lead_reminders()
-            print(f"[{datetime.now()}] Reminder check complete. Next check in 1 hour.")
+            print(f"[{datetime.now()}] Waiting 1 hour for next check...")
         except Exception as e:
-            print(f"Error in scheduler: {e}")
+            print(f"[CRITICAL] Error in scheduler loop: {e}")
         
         # Wait 1 hour before next check
         time.sleep(3600)
@@ -333,6 +348,9 @@ def run_scheduler():
 
 def start_scheduler():
     """Start the background scheduler thread"""
-    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-    scheduler_thread.start()
-    print("[SUCCESS] Email reminder scheduler started")
+    try:
+        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+        scheduler_thread.start()
+        print("[SUCCESS] Email reminder background thread spawned.")
+    except Exception as e:
+        print(f"[ERROR] Failed to spawn scheduler thread: {e}")

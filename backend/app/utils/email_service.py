@@ -21,19 +21,18 @@ SMTP_PASSWORD = os.getenv("SENDER_PASSWORD")
 
 def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
     """
-    Send email using SMTP
-    Supports both TLS (port 587) and SSL (port 465)
+    Core SMTP sending function. 
+    Consolidated to handle all email communications in the system.
     """
     try:
         # Get credentials from environment variables
         smtp_server = os.getenv("SMTP_SERVER")
-        smtp_port = int(os.getenv("SMTP_PORT", 587))  # Default to 587 for TLS
+        smtp_port = int(os.getenv("SMTP_PORT", 587))
         sender_email = os.getenv("SENDER_EMAIL")
         sender_password = os.getenv("SENDER_PASSWORD")
         
         if not all([smtp_server, smtp_port, sender_email, sender_password]):
-            logger.error("Missing SMTP configuration in .env")
-            logger.error(f"SMTP_SERVER: {smtp_server}, SMTP_PORT: {smtp_port}, SENDER_EMAIL: {sender_email}, SENDER_PASSWORD: {'***' if sender_password else 'None'}")
+            logger.error(f"Missing SMTP configuration. Server: {smtp_server}, Port: {smtp_port}, User: {sender_email}")
             return False
         
         # Create message
@@ -43,42 +42,28 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
         msg["To"] = to_email
         
         # Attach bodies
-        part1 = MIMEText(body, "plain")
-        msg.attach(part1)
-        
+        msg.attach(MIMEText(body, "plain"))
         if html_body:
-            part2 = MIMEText(html_body, "html")
-            msg.attach(part2)
+            msg.attach(MIMEText(html_body, "html"))
         
-        # Connect and send based on port
+        # Connect and send
         if smtp_port == 465:
-            # Use SSL for port 465
-            logger.info(f"Connecting to {smtp_server}:{smtp_port} using SSL")
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
         else:
-            # Use TLS for port 587 (and other ports)
-            logger.info(f"Connecting to {smtp_server}:{smtp_port} using STARTTLS")
             with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.ehlo()  # Identify ourselves to the server
-                server.starttls()  # Secure the connection
-                server.ehlo()  # Re-identify ourselves over TLS connection
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
             
         logger.info(f"✓ Email sent successfully to {to_email}")
         return True
         
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"✗ SMTP Authentication failed: {e}")
-        logger.error("Check your email and password. For Gmail, you may need an App Password if 2FA is enabled.")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"✗ SMTP error occurred: {e}")
-        return False
     except Exception as e:
-        logger.error(f"✗ Failed to send email: {e}")
+        logger.error(f"✗ Failed to send email to {to_email}: {e}")
         return False
 
 
@@ -480,54 +465,7 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
     </html>
     """
 
-    try:
-        # Debug logging
-        print(f"[INFO] Attempting to send authorization email to {recipient_email}")
-        print(f"[INFO] SMTP Config: Server={SMTP_SERVER}, Port={SMTP_PORT}, User={SMTP_USERNAME}")
-
-        if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
-            print("[ERROR] Missing SMTP configuration!")
-            return False
-
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = SMTP_USERNAME
-        msg['To'] = recipient_email
-
-        part = MIMEText(html_content, 'html')
-        msg.attach(part)
-
-        # Use appropriate SMTP method based on port
-        if SMTP_PORT == 465:
-            # Use SSL for port 465
-            print(f"[INFO] Connecting using SSL on port {SMTP_PORT}")
-            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
-            server.quit()
-        else:
-            # Use TLS for port 587 (and other ports)
-            print(f"[INFO] Connecting using STARTTLS on port {SMTP_PORT}")
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.sendmail(SMTP_USERNAME, recipient_email, msg.as_string())
-            server.quit()
-
-        print(f"[SUCCESS] Authorization confirmation email sent to {recipient_email} for {name}")
-        return True
-
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"[ERROR] SMTP Authentication failed: {e}")
-        print("[ERROR] Check your email and password. For Gmail, you may need an App Password if 2FA is enabled.")
-        return False
-    except Exception as e:
-        print(f"[ERROR] Failed to send authorization confirmation email to {recipient_email}: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    return send_email(recipient_email, subject, "Authorization Confirmed", html_content)
 
 
 def send_lead_reminder_email(lead_data: dict, recipient_email: str) -> bool:
@@ -817,104 +755,4 @@ Lead Manager System
     return send_email(recipient_email, subject, body, html_body)
 
 
-def send_referral_reminder(to_email: str, user_name: str, lead_name: str, lead_id: int, 
-                           payor_name: str = None, payor_suboption: str = None, 
-                           phone: str = None, source: str = None,
-                           ccu_name: str = None, ccu_address: str = None, 
-                           ccu_email: str = None, ccu_fax: str = None,
-                           ccu_phone: str = None, ccu_coordinator: str = None) -> bool:
-    """
-    Send a specific reminder email for a referral follow-up with detailed info
-    (Legacy function - use send_lead_reminder_email for comprehensive reminders)
-    """
-    subject = f"🔔 Reminder: Follow up with Referral {lead_name}"
-    
-    # Build payor display with suboption if available
-    payor_display = payor_name or 'N/A'
-    if payor_name and payor_suboption:
-        payor_display = f"{payor_name} - {payor_suboption}"
-    
-    # Plain text body
-    body = f"""
-    Hi {user_name},
-    
-    This is a reminder to follow up with your new referral: {lead_name}.
-    
-    Lead Details:
-    - ID: {lead_id}
-    - Name: {lead_name}
-    - Phone: {phone or 'N/A'}
-    - Source: {source or 'N/A'}
-    {f'- Payor: {payor_display}' if payor_name else ''}
-    
-    CCU Information:
-    {f'- CCU Name: {ccu_name}' if ccu_name else '- CCU Name: N/A'}
-    {f'- Address: {ccu_address}' if ccu_address else ''}
-    {f'- Email: {ccu_email}' if ccu_email else ''}
-    {f'- Fax: {ccu_fax}' if ccu_fax else ''}
-    {f'- Phone: {ccu_phone}' if ccu_phone else ''}
-    {f'- Contact Person: {ccu_coordinator}' if ccu_coordinator else ''}
-    
-    Please log in to the Lead Manager to view details and update the status.
-    
-    Best regards,
-    Lead Manager System
-    """
-    
-    # HTML Body
-    html_body = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; color: #333;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-            <h2 style="color: #2c3e50;">🔔 Referral Follow-up Reminder</h2>
-            <p>Hi <b>{user_name}</b>,</p>
-            <p>This is a reminder to follow up with your new referral.</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><b>Lead Name</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{lead_name}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><b>Lead ID</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{lead_id}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><b>Phone</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{phone or 'N/A'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><b>Source</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{source or 'N/A'}</td>
-                </tr>
-                {f'''
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><b>Payor</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{payor_display}</td>
-                </tr>
-                ''' if payor_name else ''}
-            </table>
-            
-            <!-- CCU Information Section -->
-            <h3 style="color: #2980b9; margin-top: 25px;">🏥 CCU Information</h3>
-            <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-                <tr style="background-color: #f8f9fa;">
-                    <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>CCU Name</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{ccu_name or 'N/A'}</td>
-                </tr>
-                {f"<tr><td style='padding: 10px; border: 1px solid #ddd;'><b>Address</b></td><td style='padding: 10px; border: 1px solid #ddd;'>{ccu_address}</td></tr>" if ccu_address else ""}
-                {f"<tr style='background-color: #f8f9fa;'><td style='padding: 10px; border: 1px solid #ddd;'><b>Email</b></td><td style='padding: 10px; border: 1px solid #ddd;'>{ccu_email}</td></tr>" if ccu_email else ""}
-                {f"<tr><td style='padding: 10px; border: 1px solid #ddd;'><b>Fax</b></td><td style='padding: 10px; border: 1px solid #ddd;'>{ccu_fax}</td></tr>" if ccu_fax else ""}
-                {f"<tr style='background-color: #f8f9fa;'><td style='padding: 10px; border: 1px solid #ddd;'><b>Phone</b></td><td style='padding: 10px; border: 1px solid #ddd;'>{ccu_phone}</td></tr>" if ccu_phone else ""}
-                {f"<tr><td style='padding: 10px; border: 1px solid #ddd;'><b>Contact Person</b></td><td style='padding: 10px; border: 1px solid #ddd;'>{ccu_coordinator}</td></tr>" if ccu_coordinator else ""}
-            </table>
-            
-            <p>Please log in to the Lead Manager to view details and update the status.</p>
-            <br>
-            <p style="font-size: 12px; color: #777;">Best regards,<br>Lead Manager System</p>
-        </div>
-      </body>
-    </html>
-    """
-    
-    return send_email(to_email, subject, body, html_body)
+    pass

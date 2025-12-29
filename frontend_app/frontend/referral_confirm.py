@@ -1,6 +1,13 @@
 """
 Referral Confirm page: Handle authorized referrals
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -168,7 +175,7 @@ def display_referral_confirm(lead, db, highlight=False):
         # History View - Show last 5 updates only
         if st.session_state.get(f'show_confirm_history_{lead.id}', False):
             st.divider()
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Last 5 Updates</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Last 5 Updates</h4>", unsafe_allow_html=True)
             history_logs = crud_activity_logs.get_lead_history(db, lead.id)
 
             if history_logs:
@@ -224,7 +231,7 @@ def referral_confirm():
             del st.session_state['referral_confirm_lead_id']
 
             st.divider()
-            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>All Other Authorized Referrals</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>All Other Authorized Referrals</h4>", unsafe_allow_html=True)
 
             # Remove the specific lead from the list to avoid duplication
             authorized_referrals = [l for l in authorized_referrals if l.id != specific_lead_id]

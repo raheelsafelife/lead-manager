@@ -1,6 +1,13 @@
 """
 User Management page: Admin panel, password updates, historian
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -82,7 +89,7 @@ def admin_panel():
     ])
     
     with tab1:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Pending User Approvals</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Pending User Approvals</h4>", unsafe_allow_html=True)
         pending_users = crud_users.get_pending_users(db)
         
         if pending_users:
@@ -112,7 +119,7 @@ def admin_panel():
             st.info("No pending user approvals")
     
     with tab2:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Password Reset Requests</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Password Reset Requests</h4>", unsafe_allow_html=True)
         reset_requests = crud_users.get_password_reset_requests(db)
         
         if reset_requests:
@@ -148,7 +155,7 @@ def admin_panel():
             st.info("No password reset requests")
     
     with tab3:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Approved Users</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Approved Users</h4>", unsafe_allow_html=True)
         approved_users = crud_users.get_approved_users(db)
         
         if approved_users:
@@ -228,7 +235,7 @@ def admin_panel():
             st.info("No approved users found")
     
     with tab4:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Create New User</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Create New User</h4>", unsafe_allow_html=True)
         st.info(" Users created here are automatically approved and can login immediately.")
         
         with st.form("create_user_form"):
@@ -298,7 +305,7 @@ def admin_panel():
                         st.error(f" Error creating user: {e}")
     
     with tab5:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Change My Password</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Change My Password</h4>", unsafe_allow_html=True)
         st.write(f"Updating password for: **{st.session_state.username}**")
         
         with st.form("admin_update_password_form"):
@@ -341,7 +348,7 @@ def admin_panel():
                         st.error(f" Error: {e}")
     
     with tab6:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Manage Payor</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Manage Payor</h4>", unsafe_allow_html=True)
         st.write("Add, edit, or delete payors that users can select when creating external referrals.")
         
         # Add new agency
@@ -399,7 +406,7 @@ def admin_panel():
             st.info("No agencies found. Add your first agency above.")
     
     with tab7:
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Manage CCUs</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Manage CCUs</h4>", unsafe_allow_html=True)
         st.write("Add, edit, or delete CCUs that users can select when creating referrals.")
         
         # Add new CCU
@@ -519,11 +526,11 @@ def admin_panel():
 
 def render_historian():
     """Render the Historian widget in the sidebar"""
-    # Professional header with blue+white gradient
+    # Professional header with solid aqua background
     st.markdown(
         """
-        <div style="background: linear-gradient(90deg, #00506b, #3CA5AA); padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-            <div class="white-header-text" style="font-size: 1.5rem; font-weight: 700; margin: 0; text-align: center; text-transform: uppercase; letter-spacing: 0.05em;">Historian</div>
+        <div style="background: #3CA5AA; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+            <div class="white-header-text" style="font-size: 1.5rem; font-weight: 700; margin: 0; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; color: #FFFFFF;">Historian</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -541,7 +548,7 @@ def render_historian():
         # Professional box container        # Display the historian box
         st.markdown("""
         <div style="border-radius: 0.5rem; overflow: hidden; margin-top: 0.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);">
-            <div style="background-color: #00506b; padding: 10px 15px;">
+            <div style="background-color: #3CA5AA; padding: 10px 15px; border-radius: 0.35rem 0.35rem 0 0;">
                 <div class="white-header-text" style="margin: 0; font-size: 1.2rem; font-weight: bold;">Recent Activity</div>
             </div>
             <div style="background-color: #FFFFFF; padding: 1rem;">
@@ -599,6 +606,6 @@ def render_historian():
     except Exception as e:
         st.error(f"Error loading historian: {str(e)}")
         # Fallback empty container
-        st.markdown('<div style="background: #FFFFFF; border: 2px solid #00506b; border-radius: 0.5rem; padding: 1rem; margin-top: 0.5rem;">Error loading data</div>', unsafe_allow_html=True)
+        st.markdown('<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-left: 5px solid #EF4444; border-radius: 0.5rem; padding: 1rem; margin-top: 0.5rem;">Error loading data</div>', unsafe_allow_html=True)
     finally:
         db.close()

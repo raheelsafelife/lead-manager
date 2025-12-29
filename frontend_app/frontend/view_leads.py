@@ -1,6 +1,13 @@
 """
 View Leads page: View and manage leads, mark referral
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -35,7 +42,7 @@ def view_leads():
     
     # Toggle buttons for regular users to switch between My Leads and All Leads
     if st.session_state.user_role != "admin":
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>View Mode</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>View Mode</h4>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -59,7 +66,7 @@ def view_leads():
         st.divider()
     
     # Contact Status Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
     col1, col2, col3, col5, col6 = st.columns(5)
     
     with col1:
@@ -93,7 +100,7 @@ def view_leads():
             st.rerun()
     
     # Priority Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Filter by Priority</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
     p_col1, p_col2, p_col3, p_col4 = st.columns([1, 1, 1, 1])
     
     with p_col1:
@@ -122,11 +129,11 @@ def view_leads():
     # Search and filter
     col1, col2, col3 = st.columns(3)
     with col1:
-        search_name = st.text_input("**Search by name**")
+        search_name = st.text_input("Search by name")
     with col2:
-        filter_staff = st.text_input("**Filter by staff**")
+        filter_staff = st.text_input("Filter by staff")
     with col3:
-        filter_source = st.text_input("**Filter by source**")
+        filter_source = st.text_input("Filter by source")
     
     # Get leads
     leads = crud_leads.list_leads(db, limit=100)
@@ -274,7 +281,7 @@ def view_leads():
                 # Edit form (shown when Edit button is clicked)
                 if st.session_state.get(f'editing_{lead.id}', False):
                     st.divider()
-                    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Edit Lead</h4>", unsafe_allow_html=True)
+                    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Edit Lead</h4>", unsafe_allow_html=True)
                     
                     with st.form(f"edit_form_{lead.id}"):
                         col1, col2 = st.columns(2)
@@ -387,7 +394,7 @@ def mark_referral_page():
     st.divider()
     
     # Show lead details
-    st.markdown(f"<h4 style='font-weight: bold; color: #00506b;'>{lead.first_name} {lead.last_name}</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='font-weight: bold; color: #111827;'>{lead.first_name} {lead.last_name}</h4>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -416,7 +423,7 @@ def mark_referral_page():
         return
     
     # Referral Type Selection
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Select Referral Type and Payor</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Referral Type and Payor</h4>", unsafe_allow_html=True)
     
     col_t1, col_t2 = st.columns([1, 2])
     with col_t1:

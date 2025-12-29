@@ -1,6 +1,13 @@
 """
 Add Lead page: Add new lead form
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -22,8 +29,8 @@ def add_lead():
     db = SessionLocal()
     
     # Source Selection OUTSIDE form for dynamic updates
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Lead Source</h4>", unsafe_allow_html=True)
-    st.markdown('**Source** <span class="required-star">*</span>', unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Lead Source</h4>", unsafe_allow_html=True)
+    st.markdown('Source <span class="required-star">*</span>', unsafe_allow_html=True)
     source = st.selectbox("Source", [
         "Home Health Notify",
         "Web",
@@ -44,7 +51,7 @@ def add_lead():
     soc_date = None
     
     if source == "Transfer":
-        st.markdown('**SOC Date (Start of Care)** <span class="required-star">*</span>', unsafe_allow_html=True)
+        st.markdown('SOC Date (Start of Care) <span class="required-star">*</span>', unsafe_allow_html=True)
         soc_date = st.date_input("SOC Date", value=date.today(), key="transfer_soc_date", label_visibility="collapsed")
     
     elif source == "Event":
@@ -62,7 +69,7 @@ def add_lead():
         agency_id = None
         agency_suboption_id = None
         
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Select Payor</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Payor</h4>", unsafe_allow_html=True)
         
         if not agency_names:
             st.warning(" No payors available.")

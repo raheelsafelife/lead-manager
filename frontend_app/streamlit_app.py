@@ -2,6 +2,13 @@
 Lead Manager - Main Application Entry Point (Brain)
 This file serves as the router and imports page modules from frontend folder.
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path for importing backend modules
+backend_path = Path(__file__).parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 
 # Page configuration - must be first Streamlit command

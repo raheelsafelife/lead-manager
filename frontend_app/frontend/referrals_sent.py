@@ -1,6 +1,13 @@
 """
 Referrals Sent page: View and manage referrals
 """
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -31,7 +38,7 @@ def view_referrals():
     
     # Toggle buttons for regular users to switch between My Referrals and All Referrals
     if st.session_state.user_role != "admin":
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>View Mode</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>View Mode</h4>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         
         with col1:
@@ -55,7 +62,7 @@ def view_referrals():
         st.divider()
     
     # Contact Status Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
     col1, col2, col3, col5, col6 = st.columns(5)
     
     with col1:
@@ -93,11 +100,11 @@ def view_referrals():
     # Search and filter
     col1, col2, col3 = st.columns(3)
     with col1:
-        search_name = st.text_input("**Search by name**")
+        search_name = st.text_input("Search by name")
     with col2:
-        filter_staff = st.text_input("**Filter by staff**")
+        filter_staff = st.text_input("Filter by staff")
     with col3:
-        filter_source = st.text_input("**Filter by source**")
+        filter_source = st.text_input("Filter by source")
         
     # Referral Type Filter Buttons
     st.write("**Filter by Referral Type:**")
@@ -123,7 +130,7 @@ def view_referrals():
             st.rerun()
     
     # Priority Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Filter by Priority</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
     p_col1, p_col2, p_col3, p_col4 = st.columns([1, 1, 1, 1])
     
     # Initialize priority filter
@@ -450,7 +457,7 @@ def view_referrals():
                 # Edit form (shown when Edit button is clicked)
                 if st.session_state.get(f'editing_{lead.id}', False):
                     st.divider()
-                    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Edit Referral</h4>", unsafe_allow_html=True)
+                    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Edit Referral</h4>", unsafe_allow_html=True)
                     
                     with st.form(f"edit_ref_form_{lead.id}"):
                         col1, col2 = st.columns(2)
