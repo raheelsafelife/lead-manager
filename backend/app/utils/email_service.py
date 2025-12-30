@@ -755,4 +755,20 @@ Lead Manager System
     return send_email(recipient_email, subject, body, html_body)
 
 
-    pass
+def send_referral_reminder(recipient_email, username, client_name, lead_id, payor_name=None, payor_suboption=None, phone=None, source=None, **kwargs):
+    """
+    Legacy wrapper for send_referral_reminder_email to maintain compatibility with frontend.
+    """
+    referral_info = {
+        'name': client_name,
+        'phone': phone or 'N/A',
+        'creator': username,
+        'payor_name': payor_name or 'N/A',
+        'payor_suboption': payor_suboption or '',
+        'referral_type': 'Regular', # Default for legacy calls
+    }
+    # Add CCU details if provided via kwargs
+    if kwargs:
+        referral_info.update(kwargs)
+    
+    return send_referral_reminder_email(referral_info, recipient_email)
