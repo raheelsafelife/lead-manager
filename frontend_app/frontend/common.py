@@ -101,7 +101,43 @@ GLOBAL_CSS = """
         border-radius: 0.75rem;
     }
     
-    /* Signup and Forgot Password headers - black text */
+    /* Fix Expanders (Leads, Payors, CCUs) - Ensure headers are NEVER black */
+    [data-testid="stExpander"], .stExpander {
+        border: 1px solid var(--safelife-aqua) !important;
+        border-radius: 0.75rem !important;
+        background-color: #FFFFFF !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    /* Header/Summary of the expander */
+    [data-testid="stExpander"] > details > summary,
+    [data-testid="stExpander"] > div:first-child,
+    .stExpander > div:first-child {
+        background-color: #F9FAFB !important;
+        color: #111827 !important;
+        border-radius: 0.75rem 0.75rem 0 0 !important;
+    }
+
+    /* Ensure NO BLACK background on hover or selection */
+    [data-testid="stExpander"] > details > summary:hover,
+    [data-testid="stExpander"] > details[open] > summary {
+        background-color: var(--safelife-blue-extra-light) !important;
+        color: var(--safelife-deep-blue) !important;
+    }
+
+    /* Icon and Text colors inside expander headers */
+    [data-testid="stExpander"] svg,
+    [data-testid="stExpander"] p,
+    [data-testid="stExpander"] span {
+        color: #111827 !important;
+        fill: #111827 !important;
+    }
+    
+    /* Force Aqua for the border even when open */
+    [data-testid="stExpander"] > details {
+        border: none !important;
+    }
+
     .main-header-signup,
     .main-header-forgot {
         color: #000000 !important;
@@ -196,6 +232,48 @@ GLOBAL_CSS = """
         box-shadow: 0 3px 10px rgba(60, 165, 170, 0.35);
     }
 
+    /* GLOBAL RADIO BUTTON STYLING (Professional Overrides) */
+    
+    /* 1. Base circle styling (Solid Aqua for unselected) */
+    [data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child {
+        border-color: var(--safelife-aqua) !important;
+        background-color: var(--safelife-aqua) !important;
+        box-shadow: none !important;
+    }
+    
+    /* 2. Unselected State (Force solid Aqua) */
+    [data-testid="stRadio"] label[data-baseweb="radio"]:not(:has(input:checked)) > div:first-child {
+        background-color: var(--safelife-aqua) !important;
+        border-color: var(--safelife-aqua) !important;
+    }
+    
+    /* 3. Selected/Active State (Force solid Deep Blue) */
+    [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child {
+        background-color: var(--safelife-deep-blue) !important;
+        border-color: var(--safelife-deep-blue) !important;
+    }
+    
+    /* 4. Ensure internal dot doesn't create weird artifacts */
+    [data-testid="stRadio"] label[data-baseweb="radio"] > div:first-child > div {
+        background-color: transparent !important;
+    }
+    [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) > div:first-child > div {
+        background-color: #FFFFFF !important; /* Small white dot in center of blue circle for active */
+        width: 4px !important;
+        height: 4px !important;
+    }
+
+    /* Fix for radio button option labels - make them black and bold */
+    div[data-testid="stRadio"] label,
+    div[data-testid="stRadio"] label p,
+    div[data-testid="stRadio"] label div,
+    div[data-testid="stRadio"] label span {
+        color: #111827 !important;
+        font-weight: 700 !important;
+        -webkit-text-fill-color: #111827 !important;
+        opacity: 1 !important;
+    }
+
     /* Form fields + selectboxes - WHITE backgrounds with BLACK text (Professional Look) */
     .stTextInput input,
     .stPasswordInput input,
@@ -223,6 +301,51 @@ GLOBAL_CSS = """
         color: #111827 !important;
         box-shadow: none !important;
         font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    /* PROFESSIONAL INPUT FOCUS - AQUA BORDER (Replaces default black) */
+    .stTextInput input:focus,
+    .stPasswordInput input:focus,
+    .stTextArea textarea:focus,
+    .stNumberInput input:focus,
+    .stDateInput input:focus,
+    .stSelectbox div[data-baseweb="select"]:focus,
+    .stSelectbox div[data-baseweb="select"]:focus-within,
+    [data-baseweb="input"] > div:focus-within {
+        border-color: var(--safelife-aqua) !important;
+        box-shadow: 0 0 0 2px rgba(60, 165, 170, 0.25) !important;
+        outline: none !important;
+    }
+    
+    /* Target the focus state of the wrapper too to prevent black outline */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="base-input"]:focus-within,
+    .stTextInput > div:focus-within,
+    .stNumberInput > div:focus-within,
+    .stTextArea > div:focus-within,
+    [data-baseweb="select"]:focus-within {
+        border-color: var(--safelife-aqua) !important;
+        box-shadow: 0 0 0 2px rgba(60, 165, 170, 0.25) !important;
+        outline: none !important;
+    }
+    
+    /* Global fix for Streamlit's default focus ring (black/gray) */
+    *:focus, *:focus-visible, *:active {
+        outline: none !important;
+        border-color: var(--safelife-aqua) !important;
+    }
+    
+    /* Force specific streamlit internal div borders to Aqua */
+    [data-baseweb="input"] {
+        border: 1px solid var(--safelife-aqua) !important;
+    }
+    
+    /* Ensure text visibility in input fields on focus */
+    input:focus, textarea:focus {
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+        border-color: var(--safelife-aqua) !important;
     }
     
     /* Ensure no double borders or inner borders */
