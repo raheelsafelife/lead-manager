@@ -8,3 +8,8 @@ ENV/
 *.db
 *.log
 .DS_Store
+
+# databases
+*.sqlite
+*.sqlite3
+backend/leads.db

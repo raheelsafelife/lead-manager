@@ -20,6 +20,8 @@ if __name__ == "__main__":
     
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()
+    # Security guard for admin reset
+    ALLOW_ADMIN_RESET = os.getenv('ALLOW_ADMIN_RESET', 'false').lower() == 'true'
     print(f"--- SECURE ADMIN SEEDING START ---", flush=True)
     try:
         from app.models import User
@@ -44,19 +46,22 @@ if __name__ == "__main__":
             user = create_user(db, admin_in)
             user.is_approved = True
             db.commit()
-            print(f"SUCCESSFULLY CREATED: {target_username} / {target_password}", flush=True)
+            print(f"SUCCESSFULLY CREATED: {target_username} / [HIDDEN]", flush=True)
         else:
-            print(f"Account '{target_username}' found. Force-resetting for access recovery...", flush=True)
-            # FORCE RE-SYNC EVERYTHING to ensure the user can get in
-            admin_user.hashed_password = hash_password(target_password)
-            admin_user.role = "admin"
-            admin_user.is_approved = True
-            # Also ensure optional fields aren't blocking anything
-            if not admin_user.email:
-                admin_user.email = "admin@safelife.local"
-            
-            db.commit()
-            print(f"SUCCESSFULLY RECOVERY: {target_username} is now ACTIVE with password {target_password}", flush=True)
+            if ALLOW_ADMIN_RESET:
+                print(f"Account '{target_username}' found. ALLOW_ADMIN_RESET is true. Resetting for access recovery...", flush=True)
+                # FORCE RE-SYNC EVERYTHING to ensure the user can get in
+                admin_user.hashed_password = hash_password(target_password)
+                admin_user.role = "admin"
+                admin_user.is_approved = True
+                # Also ensure optional fields aren't blocking anything
+                if not admin_user.email:
+                    admin_user.email = "admin@safelife.local"
+                
+                db.commit()
+                print(f"SUCCESSFULLY RECOVERY: {target_username} is now ACTIVE with password [HIDDEN]", flush=True)
+            else:
+                print(f"Account '{target_username}' found. Skipping reset (ALLOW_ADMIN_RESET=false).", flush=True)
 
     except Exception as e:
         print(f"CRITICAL ERROR DURING SEEDING: {e}", flush=True)
