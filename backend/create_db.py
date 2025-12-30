@@ -14,6 +14,10 @@ if __name__ == "__main__":
             os.makedirs(db_dir, exist_ok=True)
             print(f"Created directory: {db_dir}")
 
+    # Create tables if they don't exist
+    print(f"🚀 [DB] Creating tables...", flush=True)
+    Base.metadata.create_all(bind=engine)
+    
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()
     print(f"--- 🛠️ SECURE ADMIN SEEDING START 🛠️ ---", flush=True)
