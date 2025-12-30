@@ -15,12 +15,12 @@ if __name__ == "__main__":
             print(f"Created directory: {db_dir}")
 
     # Create tables if they don't exist
-    print(f"🚀 [DB] Creating tables...", flush=True)
+    print(f"[DB] Creating tables...", flush=True)
     Base.metadata.create_all(bind=engine)
     
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()
-    print(f"--- 🛠️ SECURE ADMIN SEEDING START 🛠️ ---", flush=True)
+    print(f"--- SECURE ADMIN SEEDING START ---", flush=True)
     try:
         from app.models import User
         from app.crud.crud_users import hash_password
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             user = create_user(db, admin_in)
             user.is_approved = True
             db.commit()
-            print(f"✅ SUCCESSFULLY CREATED: {target_username} / {target_password}", flush=True)
+            print(f"SUCCESSFULLY CREATED: {target_username} / {target_password}", flush=True)
         else:
             print(f"Account '{target_username}' found. Force-resetting for access recovery...", flush=True)
             # FORCE RE-SYNC EVERYTHING to ensure the user can get in
@@ -56,12 +56,12 @@ if __name__ == "__main__":
                 admin_user.email = "admin@safelife.local"
             
             db.commit()
-            print(f"✅ SUCCESSFULLY RECOVERY: {target_username} is now ACTIVE with password {target_password}", flush=True)
+            print(f"SUCCESSFULLY RECOVERY: {target_username} is now ACTIVE with password {target_password}", flush=True)
 
     except Exception as e:
-        print(f"❌ CRITICAL ERROR DURING SEEDING: {e}", flush=True)
+        print(f"CRITICAL ERROR DURING SEEDING: {e}", flush=True)
         import traceback
         traceback.print_exc()
     finally:
         db.close()
-        print(f"--- 🏁 SECURE ADMIN SEEDING COMPLETE 🏁 ---", flush=True)
+        print(f"--- SECURE ADMIN SEEDING COMPLETE ---", flush=True)
