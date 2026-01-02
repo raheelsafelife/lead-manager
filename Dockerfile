@@ -20,8 +20,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Create a data directory for the persistent database
-RUN mkdir -p /app/data
+# Create a data directory for the persistent database and set permissions
+RUN mkdir -p /app/data && chmod -R 777 /app/data
 
 # Set environment variables
 ENV PYTHONPATH=/app/backend
