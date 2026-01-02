@@ -70,3 +70,31 @@ if __name__ == "__main__":
     finally:
         db.close()
         print(f"--- SECURE ADMIN SEEDING COMPLETE ---", flush=True)
+
+    # SEEDING: Agencies, MCOs, etc.
+    db = SessionLocal()
+    try:
+        from app.models import Agency, MCO, CCU
+        
+        # 1. Agencies
+        agencies = ["IDOA", "MCO", "DORS"]
+        for name in agencies:
+            if not db.query(Agency).filter(Agency.name == name).first():
+                db.add(Agency(name=name, created_by="System"))
+        
+        # 2. MCOs
+        mcos = ["BCBS", "Aetna", "Meridian", "Humana", "CountyCare", "Molina"]
+        for name in mcos:
+            if not db.query(MCO).filter(MCO.name == name).first():
+                db.add(MCO(name=name, created_by="System"))
+                
+        # 3. Default CCU
+        if not db.query(CCU).filter(CCU.name == "General CCU").first():
+            db.add(CCU(name="General CCU", created_by="System"))
+            
+        db.commit()
+        print("--- BASE DATA SEEDING COMPLETE ---")
+    except Exception as e:
+        print(f"Error seeding base data: {e}")
+    finally:
+        db.close()
