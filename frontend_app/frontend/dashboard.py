@@ -197,9 +197,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_staff = st.plotly_chart(fig_staff, width="stretch", on_select="rerun", selection_mode="points", key="staff_chart", config=chart_config)
@@ -223,9 +225,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_source = st.plotly_chart(fig_source, width="stretch", on_select="rerun", selection_mode="points", key="source_chart_cum", config=chart_config)
@@ -250,9 +254,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_monthly = st.plotly_chart(fig_monthly, width="stretch", on_select="rerun", selection_mode="points", key="monthly_chart_ind", config=chart_config)
@@ -281,9 +287,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_source_ind = st.plotly_chart(fig_source_ind, width="stretch", on_select="rerun", selection_mode="points", key="source_chart_ind", config=chart_config)
@@ -324,9 +332,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_status = st.plotly_chart(fig_status, width="stretch", on_select="rerun", selection_mode="points", key="status_chart", config=chart_config)
@@ -545,9 +555,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_ref_monthly = st.plotly_chart(fig_ref_monthly, width="stretch", on_select="rerun", selection_mode="points", key="ref_monthly_chart", config=chart_config)
@@ -574,9 +586,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_ref_status = st.plotly_chart(fig_ref_status, width="stretch", on_select="rerun", selection_mode="points", key="ref_status_chart", config=chart_config)
@@ -606,9 +620,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_auth = st.plotly_chart(fig_auth, width="stretch", on_select="rerun", selection_mode="points", key="auth_chart", config=chart_config)
@@ -638,9 +654,11 @@ def dashboard():
                     clickmode='event+select',
                     paper_bgcolor='#FFFFFF',
                     plot_bgcolor='#FFFFFF',
-                    xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA')
+                    font=dict(family="Montserrat, sans-serif", color='#111827'),
+                    xaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    yaxis=dict(showgrid=False, title_font=dict(color='#00506b', size=12), tickfont=dict(color='#111827', size=10)),
+                    modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
+                    legend=dict(font=dict(color='#111827', size=10))
                 )
                 
                 event_care = st.plotly_chart(fig_care, width="stretch", on_select="rerun", selection_mode="points", key="care_chart", config=chart_config)
@@ -1205,10 +1223,29 @@ def discovery_tool():
             clickmode='event+select',
             paper_bgcolor='#FFFFFF',
             plot_bgcolor='#FFFFFF',
-            xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-            yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            font=dict(family="Montserrat, sans-serif", color='#111827'),
+            xaxis=dict(
+                showgrid=False, 
+                title_font=dict(color='#00506b', size=14, family="Montserrat, sans-serif"), 
+                tickfont=dict(color='#111827', size=11)
+            ),
+            yaxis=dict(
+                showgrid=False, 
+                title_font=dict(color='#00506b', size=14, family="Montserrat, sans-serif"), 
+                tickfont=dict(color='#111827', size=11)
+            ),
             modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5)
+            legend=dict(
+                orientation="h", 
+                yanchor="top", 
+                y=-0.2, 
+                xanchor="center", 
+                x=0.5,
+                font=dict(size=12, color="#111827"),
+                bgcolor='rgba(255,255,255,0)',
+                bordercolor='rgba(255,255,255,0)'
+            ),
+            margin=dict(t=30, b=150, l=20, r=20)
         )
     else:
         # Simple aggregation
@@ -1226,11 +1263,27 @@ def discovery_tool():
             clickmode='event+select',
             paper_bgcolor='#FFFFFF',
             plot_bgcolor='#FFFFFF',
-            xaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
-            yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
+            font=dict(family="Montserrat, sans-serif", color='#111827'),
+            xaxis=dict(
+                showgrid=False, 
+                title_font=dict(color='#00506b', size=14, family="Montserrat, sans-serif"), 
+                tickfont=dict(color='#111827', size=11)
+            ),
+            yaxis=dict(
+                showgrid=False, 
+                title_font=dict(color='#00506b', size=14, family="Montserrat, sans-serif"), 
+                tickfont=dict(color='#111827', size=11)
+            ),
             modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-            margin=dict(t=20, b=80, l=20, r=20)
+            legend=dict(
+                orientation="h", 
+                yanchor="top", 
+                y=-0.2, 
+                xanchor="center", 
+                x=0.5,
+                font=dict(size=12, color="#111827")
+            ),
+            margin=dict(t=30, b=150, l=20, r=20)
         )
 
     selection = st.plotly_chart(fig, width="stretch", on_select="rerun", selection_mode="points", key="discovery_chart_main", config=chart_config)
@@ -1374,7 +1427,7 @@ def view_all_user_dashboards():
                         yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         clickmode='event+select',
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
-                        legend=dict(orientation="h", y=-0.1)
+                        legend=dict(orientation="h", y=-0.1, font=dict(color='#111827', size=11))
                     )
                     st.plotly_chart(fig_confirm, width="stretch", config=chart_config, key=f"pie_conf_{user.id}")
                     
@@ -1444,7 +1497,7 @@ def view_all_user_dashboards():
                         yaxis=dict(showgrid=False, title_font=dict(color='#3CA5AA'), tickfont=dict(color='#3CA5AA')),
                         clickmode='event+select',
                         modebar=dict(bgcolor='rgba(0,0,0,0)', color='#3CA5AA'),
-                        legend=dict(orientation="h", y=-0.1)
+                        legend=dict(orientation="h", y=-0.1, font=dict(color='#111827', size=11))
                     )
                     st.plotly_chart(fig_convert, width="stretch", config=chart_config, key=f"pie_conv_{user.id}")
                     
