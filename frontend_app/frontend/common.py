@@ -12,6 +12,21 @@ import streamlit as st
 from app.db import SessionLocal
 from app.utils.activity_logger import utc_to_local
 import extra_streamlit_components as pyc
+import os
+
+def get_logo_path():
+    """Find the logo file in multiple possible locations"""
+    base_path = Path(__file__).parent.parent.parent
+    possible_paths = [
+        os.path.join(base_path, "icon1.png"),
+        "icon1.png",
+        "frontend_app/icon1.png",
+        "/app/icon1.png"
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    return "icon1.png" # Fallback
 
 
 # Initialize CookieManager

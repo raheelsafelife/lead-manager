@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # Import page modules from frontend folder
-from frontend.common import init_session_state, inject_custom_css
+from frontend.common import init_session_state, inject_custom_css, get_logo_path
 from frontend.auth import login, signup, forgot_password
 from frontend.dashboard import dashboard, view_all_user_dashboards, discovery_tool
 from frontend.view_leads import view_leads, mark_referral_page
@@ -59,7 +59,7 @@ def main():
         # Sidebar navigation
         with st.sidebar:
             # Company logo above the Navigation title
-            st.image("icon1.png", width=250)
+            st.image(get_logo_path(), width=250)
             st.markdown("")  # small spacer
             st.title("Navigation")
             

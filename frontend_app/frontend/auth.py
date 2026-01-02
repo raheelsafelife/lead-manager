@@ -12,6 +12,7 @@ import streamlit as st
 from app.db import SessionLocal
 from app.crud import crud_users, crud_activity_logs
 from app.schemas import UserCreate
+from frontend.common import get_logo_path
 
 
 def signup():
@@ -104,7 +105,7 @@ def login():
         </style>
     """, unsafe_allow_html=True)
 
-    st.image("icon1.png", width=400)
+    st.image(get_logo_path(), width=400)
     
     st.markdown(
         """
