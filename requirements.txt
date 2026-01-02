@@ -9,3 +9,4 @@ python-multipart
 python-dotenv
 requests
 plotly
+extra-streamlit-components
