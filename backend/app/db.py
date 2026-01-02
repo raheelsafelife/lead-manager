@@ -5,10 +5,10 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Database configuration
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Priority 1: Check for Railway Volume mount and RAILWAY_ENVIRONMENT env var
-if os.environ.get("RAILWAY_ENVIRONMENT") or os.path.exists("/app/data"):
+# Priority 1: Check for Persistent Volume mount (Docker/AWS)
+if os.path.exists("/app/data"):
     DATABASE_URL = "sqlite:////app/data/leads.db"
-    print(f"🚀 [DB] Starting in Railway Mode -> Using Persistent Volume: /app/data/leads.db")
+    print(f"🚀 [DB] Starting in Persistent Mode -> Using: /app/data/leads.db")
 else:
     # Priority 2: Use DATABASE_URL from environment if provided
     env_db_url = os.getenv("DATABASE_URL")
