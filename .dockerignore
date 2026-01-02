@@ -7,7 +7,7 @@ __pycache__/
 *.db-wal
 .git/
 .env
-*.csv
+.env
 .DS_Store
 node_modules/
 .ipynb_checkpoints/
