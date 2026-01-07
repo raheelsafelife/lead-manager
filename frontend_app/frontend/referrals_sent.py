@@ -36,6 +36,10 @@ def view_referrals():
     if 'show_only_my_referrals' not in st.session_state:
         st.session_state.show_only_my_referrals = True  # Default to showing only user's referrals
     
+    # Initialize active/inactive filter for referrals
+    if 'referral_active_inactive_filter' not in st.session_state:
+        st.session_state.referral_active_inactive_filter = "Active"  # Default to showing only active referrals
+    
     # Toggle buttons for regular users to switch between My Referrals and All Referrals
     if st.session_state.user_role != "admin":
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>View Mode</h4>", unsafe_allow_html=True)
@@ -60,6 +64,30 @@ def view_referrals():
                 st.rerun()
         
         st.divider()
+    
+    # Active/Inactive Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Active Status</h4>", unsafe_allow_html=True)
+    ref_act_col1, ref_act_col2, ref_act_col3 = st.columns(3)
+    
+    with ref_act_col1:
+        if st.button("Active", key="ref_active_filter", width="stretch",
+                    type="primary" if st.session_state.referral_active_inactive_filter == "Active" else "secondary"):
+            st.session_state.referral_active_inactive_filter = "Active"
+            st.rerun()
+    
+    with ref_act_col2:
+        if st.button("Inactive", key="ref_inactive_filter", width="stretch",
+                    type="primary" if st.session_state.referral_active_inactive_filter == "Inactive" else "secondary"):
+            st.session_state.referral_active_inactive_filter = "Inactive"
+            st.rerun()
+    
+    with ref_act_col3:
+        if st.button("All", key="ref_all_active_filter", width="stretch",
+                    type="primary" if st.session_state.referral_active_inactive_filter == "All" else "secondary"):
+            st.session_state.referral_active_inactive_filter = "All"
+            st.rerun()
+    
+    st.divider()
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
@@ -234,8 +262,15 @@ def view_referrals():
     if st.session_state.referral_priority_filter != "All":
         leads = [l for l in leads if l.priority == st.session_state.referral_priority_filter]
     
+    # Apply active/inactive filter
+    if st.session_state.referral_active_inactive_filter == "Active":
+        leads = [l for l in leads if l.last_contact_status != "Inactive"]
+    elif st.session_state.referral_active_inactive_filter == "Inactive":
+        leads = [l for l in leads if l.last_contact_status == "Inactive"]
+    # If "All", no filtering needed
+    
     # Show count with filter info
-    filter_info = f"Status: {st.session_state.referral_status_filter} | Priority: {st.session_state.referral_priority_filter}"
+    filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Priority: {st.session_state.referral_priority_filter}"
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_referrals:
         filter_info += f" | Showing: My Referrals Only"
     st.write(f"**Showing {len(leads)} referrals** ({filter_info})")

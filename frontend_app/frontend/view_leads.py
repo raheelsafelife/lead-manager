@@ -40,6 +40,10 @@ def view_leads():
     if 'show_only_my_leads' not in st.session_state:
         st.session_state.show_only_my_leads = True  # Default to showing only user's leads
     
+    # Initialize active/inactive filter
+    if 'active_inactive_filter' not in st.session_state:
+        st.session_state.active_inactive_filter = "Active"  # Default to showing only active leads
+    
     # Toggle buttons for regular users to switch between My Leads and All Leads
     if st.session_state.user_role != "admin":
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>View Mode</h4>", unsafe_allow_html=True)
@@ -64,6 +68,30 @@ def view_leads():
                 st.rerun()
         
         st.divider()
+    
+    # Active/Inactive Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Active Status</h4>", unsafe_allow_html=True)
+    act_col1, act_col2, act_col3 = st.columns(3)
+    
+    with act_col1:
+        if st.button("Active", key="active_filter", width="stretch",
+                    type="primary" if st.session_state.active_inactive_filter == "Active" else "secondary"):
+            st.session_state.active_inactive_filter = "Active"
+            st.rerun()
+    
+    with act_col2:
+        if st.button("Inactive", key="inactive_filter", width="stretch",
+                    type="primary" if st.session_state.active_inactive_filter == "Inactive" else "secondary"):
+            st.session_state.active_inactive_filter = "Inactive"
+            st.rerun()
+    
+    with act_col3:
+        if st.button("All", key="all_active_filter", width="stretch",
+                    type="primary" if st.session_state.active_inactive_filter == "All" else "secondary"):
+            st.session_state.active_inactive_filter = "All"
+            st.rerun()
+    
+    st.divider()
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
@@ -150,6 +178,13 @@ def view_leads():
     if st.session_state.priority_filter != "All":
         leads = [l for l in leads if l.priority == st.session_state.priority_filter]
     
+    # Apply active/inactive filter
+    if st.session_state.active_inactive_filter == "Active":
+        leads = [l for l in leads if l.last_contact_status != "Inactive"]
+    elif st.session_state.active_inactive_filter == "Inactive":
+        leads = [l for l in leads if l.last_contact_status == "Inactive"]
+    # If "All", no filtering needed
+    
     # Apply other filters
     if search_name:
         leads = [l for l in leads if search_name.lower() in f"{l.first_name} {l.last_name}".lower()]
@@ -159,7 +194,7 @@ def view_leads():
         leads = [l for l in leads if filter_source.lower() in l.source.lower()]
     
     # Show count with filter info
-    filter_info = f"Status: {st.session_state.status_filter} | Priority: {st.session_state.priority_filter}"
+    filter_info = f"Active Status: {st.session_state.active_inactive_filter} | Status: {st.session_state.status_filter} | Priority: {st.session_state.priority_filter}"
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
         filter_info += f" | Showing: My Leads Only"
     st.write(f"**Showing {len(leads)} leads ({filter_info})**")
