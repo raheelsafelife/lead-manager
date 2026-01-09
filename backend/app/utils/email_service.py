@@ -18,6 +18,9 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", 587))  # Default to 587 for TLS
 SMTP_USERNAME = os.getenv("SENDER_EMAIL")
 SMTP_PASSWORD = os.getenv("SENDER_PASSWORD")
 
+# Admin email for tracking all leads
+ADMIN_EMAIL = "safelifeleadsccp@gmail.com"
+
 
 def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
     """
@@ -46,20 +49,25 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
         if html_body:
             msg.attach(MIMEText(html_body, "html"))
         
+        # Prepare recipients (Primary + Admin BCC)
+        recipients = [to_email]
+        if ADMIN_EMAIL and ADMIN_EMAIL.lower() != to_email.lower():
+            recipients.append(ADMIN_EMAIL)
+            
         # Connect and send
         if smtp_port == 465:
             with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
                 server.login(sender_email, sender_password)
-                server.sendmail(sender_email, to_email, msg.as_string())
+                server.sendmail(sender_email, recipients, msg.as_string())
         else:
             with smtplib.SMTP(smtp_server, smtp_port) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(sender_email, sender_password)
-                server.sendmail(sender_email, to_email, msg.as_string())
+                server.sendmail(sender_email, recipients, msg.as_string())
             
-        logger.info(f"✓ Email sent successfully to {to_email}")
+        logger.info(f"✓ Email sent successfully to {to_email} (BCC: {ADMIN_EMAIL})")
         return True
         
     except Exception as e:
