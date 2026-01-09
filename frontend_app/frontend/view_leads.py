@@ -95,7 +95,7 @@ def view_leads():
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
-    col1, col2, col3, col5, col6 = st.columns(5)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         if st.button("Intro Call", width="stretch", 
@@ -115,13 +115,7 @@ def view_leads():
             st.session_state.status_filter = "No Response"
             st.rerun()
     
-    with col5:
-        if st.button("Inactive", width="stretch",
-                    type="primary" if st.session_state.status_filter == "Inactive" else "secondary"):
-            st.session_state.status_filter = "Inactive"
-            st.rerun()
-    
-    with col6:
+    with col4:
         if st.button("All", width="stretch",
                     type="primary" if st.session_state.status_filter == "All" else "secondary"):
             st.session_state.status_filter = "All"
