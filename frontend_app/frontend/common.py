@@ -31,9 +31,12 @@ def get_logo_path():
 
 # Initialize CookieManager
 def get_cookie_manager():
-    if 'cookie_manager' not in st.session_state:
-        st.session_state.cookie_manager = pyc.CookieManager()
-    return st.session_state.cookie_manager
+    """Ensure CookieManager is rendered exactly once per script execution"""
+    # Use st.session_state for the object, but we MUST render it every run
+    # To avoid DuplicateKeyError, we track if we've already rendered it this run
+    if not hasattr(st, "_cm_rendered_this_run"):
+        st._cm_rendered_this_run = pyc.CookieManager(key="lead_manager_auth_system_v1")
+    return st._cm_rendered_this_run
 
 
 # Global CSS styles (SafeLife UI theme)
@@ -549,14 +552,18 @@ GLOBAL_CSS = """
 
 
 def init_session_state():
-    """Initialize all session state variables"""
+    """Initialize all session state variables with improved persistence"""
     cookie_manager = get_cookie_manager()
     
+    # Initialize basic auth state if missing
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
-        
-        # Check for persistent session in cookies
+        st.session_state.has_checked_cookie = False
+
+    # Persistent Session Check:
+    if not st.session_state.authenticated:
         auth_cookie = cookie_manager.get(cookie='lead_manager_auth')
+        
         if auth_cookie:
             try:
                 import json
@@ -565,9 +572,17 @@ def init_session_state():
                 st.session_state.username = user_data.get('username')
                 st.session_state.user_role = user_data.get('role')
                 st.session_state.user_id = user_data.get('user_id')
-                # Optional: Refresh scheduler if newly logged in via cookie
+                st.rerun()
             except Exception:
                 pass
+        else:
+            # If we just refreshed, the cookie might take a split second to load.
+            # We do one small wait and rerun to give it a chance.
+            if not st.session_state.has_checked_cookie:
+                import time
+                time.sleep(0.3) # Small lag for JS component handshake
+                st.session_state.has_checked_cookie = True
+                st.rerun()
 
     if 'username' not in st.session_state:
         st.session_state.username = None
