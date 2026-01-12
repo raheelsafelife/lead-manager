@@ -566,8 +566,8 @@ def render_historian():
         <div style="color: #6B7280; font-size: 0.85rem; margin-bottom: 5px;">
             {utc_to_local(activity.timestamp).strftime('%m/%d/%Y %I:%M %p')}
         </div>
-        <div style="display: inline-block; background-color: #3CA5AA; color: #FFFFFF !important; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px;">
-            {format_time_ago(activity.timestamp)}
+        <div style="display: inline-block; background-color: #3CA5AA; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px;">
+            <span style="color: #FFFFFF !important;">{format_time_ago(activity.timestamp)}</span>
         </div>
         
         <div style="background-color: #F3F4F6; padding: 8px; border-radius: 0px; font-size: 0.9rem; color: #4B5563;">
