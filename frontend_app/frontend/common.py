@@ -478,8 +478,10 @@ GLOBAL_CSS = """
         border: none;
     }
     
-    /* Force white text for specific headers */
-    .white-header-text, .white-header-text * {
+    /* Force white text for specific headers (with sidebar override) */
+    .white-header-text, .white-header-text *, 
+    section[data-testid="stSidebar"] .white-header-text,
+    section[data-testid="stSidebar"] .white-header-text * {
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }
