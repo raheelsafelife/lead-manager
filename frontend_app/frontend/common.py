@@ -654,8 +654,14 @@ def save_page_to_cookies(page_name):
 def clear_login_cookies():
     """Clear login and page cookies on logout"""
     cookie_manager = get_cookie_manager()
-    cookie_manager.delete('lead_manager_auth')
-    cookie_manager.delete('lead_manager_page')
+    try:
+        cookie_manager.delete('lead_manager_auth')
+    except Exception:
+        pass
+    try:
+        cookie_manager.delete('lead_manager_page')
+    except Exception:
+        pass
 
 
 def inject_custom_css():
