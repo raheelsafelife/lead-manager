@@ -8,9 +8,12 @@ import sqlite3
 import os
 from pathlib import Path
 
-# Database path - use absolute path from project root
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-DB_PATH = PROJECT_ROOT / 'data' / 'leads.db'
+# Database path - match the logic in app/db.py
+BASE_DIR = Path(__file__).parent.parent
+if os.path.exists("/app/data"):
+    DB_PATH = "/app/data/leads.db"
+else:
+    DB_PATH = str(BASE_DIR / 'leads.db')
 
 def migrate():
     """Add session_tokens table"""

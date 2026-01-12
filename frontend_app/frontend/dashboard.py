@@ -792,7 +792,7 @@ def dashboard():
                 border-radius: 15px; 
                 margin-bottom: 20px;
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);">
-        <h2 style="text-align: center; color: #FFFFFF; margin-bottom: 5px; letter-spacing:0.08em; text-transform:uppercase; font-weight: 800;">
+        <h2 style="text-align: center; color: #FFFFFF !important; margin-bottom: 5px; letter-spacing:0.08em; text-transform:uppercase; font-weight: 800;">
                     Lead Pipeline Analytics
         </h2>
         <p style="text-align: center; color: #E5E7EB; font-size: 14px; font-weight: 500;">

@@ -196,6 +196,19 @@ GLOBAL_CSS = """
         letter-spacing: 0.02em;
     }
 
+    /* Force Lead Pipeline Analytics heading to white - multiple selectors for maximum override */
+    div[style*="linear-gradient(90deg, #00506b 0%, #3CA5AA 100%)"] h2,
+    div[style*="linear-gradient"] h2,
+    .stMarkdown h2,
+    h2 {
+        color: #FFFFFF !important;
+    }
+    
+    /* Override any Streamlit default h2 styling in markdown blocks */
+    [data-testid="stMarkdownContainer"] h2 {
+        color: inherit !important;
+    }
+
     /* Stat cards */
     .stat-card {
         background: #FFFFFF;
