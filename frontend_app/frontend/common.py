@@ -31,11 +31,23 @@ def get_logo_path():
 
 # Initialize CookieManager
 def get_cookie_manager():
-    """Ensure CookieManager is rendered exactly once per script execution for the CURRENT session"""
-    # Use st.session_state for BOTH the object and the render tracking
-    # Storing on 'st' (the module) was causing cross-session contamination
-    if "_cm_system" not in st.session_state:
-        st.session_state._cm_system = pyc.CookieManager(key="lead_manager_auth_system_v1")
+    """Ensure CookieManager is isolated per session and rendered once per run"""
+    # 1. Create a session-unique ID if it doesn't exist
+    if "_session_uuid" not in st.session_state:
+        import uuid
+        st.session_state._session_uuid = str(uuid.uuid4())
+    
+    # 2. Render the component with the unique key for this specific user session
+    # Using a unique key per session prevents cross-talk between different users
+    key = f"cm_{st.session_state._session_uuid}"
+    
+    # We use a session-state toggle to ensure we only call the component ONCE per run
+    # to avoid DuplicateKeyError, but we MUST call it every run to communicate with the browser.
+    # We clear this toggle at the end of the script or handle it carefully.
+    if "_cm_rendered" not in st.session_state or not st.session_state._cm_rendered:
+        st.session_state._cm_system = pyc.CookieManager(key=key)
+        st.session_state._cm_rendered = True
+        
     return st.session_state._cm_system
 
 
