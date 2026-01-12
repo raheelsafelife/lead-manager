@@ -691,37 +691,22 @@ def get_priority_tag(priority):
 
 def render_api_status():
     """Diagnostic tool to check if the FastAPI backend is running.
-    Supports a remote backend via BACKEND_API_URL environment variable.
+    Simplified: Shows only a green/red circle in the sidebar.
     """
     import urllib.request
-    import json
     import os
     
     # Use the environment variable if available, otherwise default to local
-    backend_url = os.environ.get("BACKEND_API_URL", "http://127.0.0.1:8000")
+    backend_url = os.environ.get("BACKEND_API_URL", "http://127.0.0.1:8003")
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"### 系统诊断 (Diagnostics)")
-    st.sidebar.caption(f"Backend: {backend_url}")
     
     try:
         # Ping the health endpoint
         with urllib.request.urlopen(f"{backend_url}/health", timeout=3) as response:
             if response.getcode() == 200:
-                st.sidebar.success("Backend API: 🟢 LIVE")
+                st.sidebar.markdown("### 🟢")
             else:
-                st.sidebar.error(f"Backend API: 🔴 Status {response.getcode()}")
-    except Exception as e:
-        st.sidebar.error("Backend API: 🔴 DOWN/OFFLINE")
-        if "127.0.0.1" in backend_url or "localhost" in backend_url:
-            st.sidebar.info("Internal API on port 8000 is not responding.")
-        else:
-            st.sidebar.info(f"Remote API at {backend_url} is not reachable.")
-        
-        # Diagnostic: Try to read the api.log if it exists (Railway only/Local too)
-        import os
-        if os.path.exists("api.log"):
-            with st.sidebar.expander("View API Error Logs"):
-                with open("api.log", "r") as f:
-                    logs = f.readlines()
-                    st.code("".join(logs[-20:])) # Show last 20 lines
+                st.sidebar.markdown("### 🔴")
+    except Exception:
+        st.sidebar.markdown("### 🔴")

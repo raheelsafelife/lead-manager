@@ -530,7 +530,7 @@ def render_historian():
     st.markdown(
         """
         <div style="background: #3CA5AA; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
-            <div class="white-header-text" style="font-size: 1.5rem; font-weight: 700; margin: 0; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; color: #FFFFFF;">Historian</div>
+            <div class="white-header-text" style="font-size: 1.5rem; font-weight: 700; margin: 0; text-align: center; text-transform: uppercase; letter-spacing: 0.05em; color: #FFFFFF !important;">Historian</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -549,7 +549,7 @@ def render_historian():
         st.markdown("""
         <div style="border-radius: 0.5rem; overflow: hidden; margin-top: 0.5rem; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);">
             <div style="background-color: #3CA5AA; padding: 10px 15px; border-radius: 0.35rem 0.35rem 0 0;">
-                <div class="white-header-text" style="margin: 0; font-size: 1.2rem; font-weight: bold;">Recent Activity</div>
+                <div class="white-header-text" style="margin: 0; font-size: 1.2rem; font-weight: bold; color: #FFFFFF !important;">Recent Activity</div>
             </div>
             <div style="background-color: #FFFFFF; padding: 1rem;">
         """, unsafe_allow_html=True)
@@ -566,7 +566,7 @@ def render_historian():
         <div style="color: #6B7280; font-size: 0.85rem; margin-bottom: 5px;">
             {utc_to_local(activity.timestamp).strftime('%m/%d/%Y %I:%M %p')}
         </div>
-        <div style="display: inline-block; background-color: #3CA5AA; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px;">
+        <div style="display: inline-block; background-color: #3CA5AA; color: #FFFFFF !important; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px;">
             {format_time_ago(activity.timestamp)}
         </div>
         
