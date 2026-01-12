@@ -52,12 +52,27 @@ GLOBAL_CSS = """
         color: #111827 !important;
     }
 
-    /* Hide Streamlit header (Deploy button, Rerun status) and footer */
-    header { visibility: hidden !important; }
-    #MainMenu { visibility: hidden !important; }
+    /* Hide Streamlit header (Deploy button, Rerun status) but KEEP the sidebar toggle */
+    header { 
+        visibility: hidden !important; 
+        background: transparent !important;
+    }
+    
+    [data-testid="stHeader"] { 
+        visibility: hidden !important; 
+        background: transparent !important;
+    }
+
     footer { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
-    [data-testid="stHeader"] { display: none !important; }
+    #MainMenu { visibility: hidden !important; }
+
+    /* Force the sidebar collapse/expand buttons to be visible */
+    [data-testid="stHeader"] button,
+    [data-testid="stSidebar"] button[aria-label="Collapse sidebar"],
+    button[data-testid="stExpandSidebarButton"] {
+        visibility: visible !important;
+    }
 
     /* Primary brand colors */
     :root {
@@ -572,17 +587,25 @@ def init_session_state():
                 st.session_state.username = user_data.get('username')
                 st.session_state.user_role = user_data.get('role')
                 st.session_state.user_id = user_data.get('user_id')
+                
+                # RESTORE PAGE: Check if there's a saved page cookie
+                page_cookie = cookie_manager.get(cookie='lead_manager_page')
+                if page_cookie:
+                    st.session_state.main_navigation = page_cookie
+                
                 st.rerun()
             except Exception:
                 pass
         else:
-            # If we just refreshed, the cookie might take a split second to load.
-            # We do one small wait and rerun to give it a chance.
             if not st.session_state.has_checked_cookie:
                 import time
-                time.sleep(0.3) # Small lag for JS component handshake
+                time.sleep(0.3)
                 st.session_state.has_checked_cookie = True
                 st.rerun()
+
+    # Ensure main_navigation is initialized for the radio button
+    if 'main_navigation' not in st.session_state:
+        st.session_state.main_navigation = "Dashboard"
 
     if 'username' not in st.session_state:
         st.session_state.username = None
@@ -623,11 +646,16 @@ def save_login_to_cookies(user_id, username, role):
     # Set cookie for 7 days
     cookie_manager.set('lead_manager_auth', json.dumps(user_data), max_age=60*60*24*7)
 
+def save_page_to_cookies(page_name):
+    """Save current navigation page to cookies"""
+    cookie_manager = get_cookie_manager()
+    cookie_manager.set('lead_manager_page', page_name, max_age=60*60*24*7)
 
 def clear_login_cookies():
-    """Clear login cookies on logout"""
+    """Clear login and page cookies on logout"""
     cookie_manager = get_cookie_manager()
     cookie_manager.delete('lead_manager_auth')
+    cookie_manager.delete('lead_manager_page')
 
 
 def inject_custom_css():
