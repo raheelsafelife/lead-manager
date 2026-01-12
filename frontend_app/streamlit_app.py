@@ -39,13 +39,9 @@ def init_scheduler():
 
 def main():
     """Main application logic - Router"""
-    # Reset the cookie render flag for THIS specific run to avoid DuplicateKeyError
-    # but ensure it renders exactly once per session per run.
-    st.session_state._cm_rendered = False
-    
     # Display loading screen while initializing
     with st.spinner("Initializing Lead Manager..."):
-        # Initialize session state (includes cookie check)
+        # Initialize session state (includes token validation)
         init_session_state()
     
     # Inject custom CSS

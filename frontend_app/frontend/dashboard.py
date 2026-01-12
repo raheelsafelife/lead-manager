@@ -68,9 +68,13 @@ def dashboard():
                 keywords="auth,logout"
             )
             
-        # Clear cookies for persistence
-        from frontend.common import clear_login_cookies
-        clear_login_cookies()
+        # Delete session token from database
+        from frontend.common import clear_session_token, get_session_token
+        from app.crud import crud_session_tokens
+        token = get_session_token()
+        if token:
+            crud_session_tokens.delete_token(db, token)
+        clear_session_token()
             
         st.session_state.authenticated = False
         st.session_state.username = None

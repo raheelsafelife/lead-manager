@@ -241,3 +241,20 @@ class EmailReminder(Base):
     lead_name = Column(String(300), nullable=False)
     lead_status = Column(String(50), nullable=False)
     lead_source = Column(String(150), nullable=False)
+
+
+class SessionToken(Base):
+    """
+    Stores secure session tokens for persistent authentication.
+    Tokens expire after a configurable period (default 7 days).
+    """
+    __tablename__ = "session_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    
+    # Relationship
+    user = relationship("User")

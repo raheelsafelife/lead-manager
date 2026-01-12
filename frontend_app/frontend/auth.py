@@ -149,9 +149,11 @@ def login():
                     st.session_state.user_role = user.role
                     st.session_state.user_id = user.id
                     
-                    # Save to cookies for persistence
-                    from frontend.common import save_login_to_cookies
-                    save_login_to_cookies(user.id, user.username, user.role)
+                    # Create secure session token in database
+                    from frontend.common import set_session_token
+                    from app.crud import crud_session_tokens
+                    token = crud_session_tokens.create_session_token(db, user.id, days_valid=7)
+                    set_session_token(token)
                     
                     crud_activity_logs.create_activity_log(
                         db=db,

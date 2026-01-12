@@ -11,7 +11,7 @@ sys.path.insert(0, str(backend_path))
 import streamlit as st
 from app.db import SessionLocal
 from app.utils.activity_logger import utc_to_local
-import extra_streamlit_components as pyc
+from app.crud import crud_session_tokens
 import os
 
 def get_logo_path():
@@ -29,26 +29,20 @@ def get_logo_path():
     return "icon1.png" # Fallback
 
 
-# Initialize CookieManager
-def get_cookie_manager():
-    """Ensure CookieManager is isolated per session and rendered once per run"""
-    # 1. Create a session-unique ID if it doesn't exist
-    if "_session_uuid" not in st.session_state:
-        import uuid
-        st.session_state._session_uuid = str(uuid.uuid4())
-    
-    # 2. Render the component with the unique key for this specific user session
-    # Using a unique key per session prevents cross-talk between different users
-    key = f"cm_{st.session_state._session_uuid}"
-    
-    # We use a session-state toggle to ensure we only call the component ONCE per run
-    # to avoid DuplicateKeyError, but we MUST call it every run to communicate with the browser.
-    # We clear this toggle at the end of the script or handle it carefully.
-    if "_cm_rendered" not in st.session_state or not st.session_state._cm_rendered:
-        st.session_state._cm_system = pyc.CookieManager(key=key)
-        st.session_state._cm_rendered = True
-        
-    return st.session_state._cm_system
+# Token-based session management (secure, database-backed)
+def get_session_token():
+    """Get the session token from URL query params"""
+    query_params = st.query_params
+    return query_params.get("token", None)
+
+def set_session_token(token: str):
+    """Store the session token in URL query params for persistence"""
+    st.query_params["token"] = token
+
+def clear_session_token():
+    """Remove the session token from URL query params"""
+    if "token" in st.query_params:
+        del st.query_params["token"]
 
 
 # Global CSS styles (SafeLife UI theme)
@@ -579,41 +573,31 @@ GLOBAL_CSS = """
 
 
 def init_session_state():
-    """Initialize all session state variables with improved persistence"""
-    cookie_manager = get_cookie_manager()
+    """Initialize all session state variables with secure token-based persistence"""
+    db = SessionLocal()
     
     # Initialize basic auth state if missing
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
-        st.session_state.has_checked_cookie = False
 
-    # Persistent Session Check:
+    # Secure Token-Based Session Check
     if not st.session_state.authenticated:
-        auth_cookie = cookie_manager.get(cookie='lead_manager_auth')
+        token = get_session_token()
         
-        if auth_cookie:
-            try:
-                import json
-                user_data = json.loads(auth_cookie)
+        if token:
+            # Validate token against database
+            user = crud_session_tokens.validate_token(db, token)
+            
+            if user:
+                # Token is valid - auto-login
                 st.session_state.authenticated = True
-                st.session_state.username = user_data.get('username')
-                st.session_state.user_role = user_data.get('role')
-                st.session_state.user_id = user_data.get('user_id')
-                
-                # RESTORE PAGE: Check if there's a saved page cookie
-                page_cookie = cookie_manager.get(cookie='lead_manager_page')
-                if page_cookie:
-                    st.session_state.main_navigation = page_cookie
-                
+                st.session_state.username = user.username
+                st.session_state.user_role = user.role
+                st.session_state.user_id = user.id
                 st.rerun()
-            except Exception:
-                pass
-        else:
-            if not st.session_state.has_checked_cookie:
-                import time
-                time.sleep(0.3)
-                st.session_state.has_checked_cookie = True
-                st.rerun()
+            else:
+                # Token is invalid or expired - clear it
+                clear_session_token()
 
     # Ensure main_navigation is initialized for the radio button
     if 'main_navigation' not in st.session_state:
@@ -644,36 +628,9 @@ def init_session_state():
                 st.session_state.email_scheduler_started = True
             except Exception as e:
                 pass  # Scheduler error won't break the app
+    
+    db.close()
 
-
-def save_login_to_cookies(user_id, username, role):
-    """Save user login info to browser cookies for persistence"""
-    cookie_manager = get_cookie_manager()
-    import json
-    user_data = {
-        'user_id': user_id,
-        'username': username,
-        'role': role
-    }
-    # Set cookie for 7 days
-    cookie_manager.set('lead_manager_auth', json.dumps(user_data), max_age=60*60*24*7)
-
-def save_page_to_cookies(page_name):
-    """Save current navigation page to cookies"""
-    cookie_manager = get_cookie_manager()
-    cookie_manager.set('lead_manager_page', page_name, max_age=60*60*24*7)
-
-def clear_login_cookies():
-    """Clear login and page cookies on logout"""
-    cookie_manager = get_cookie_manager()
-    try:
-        cookie_manager.delete('lead_manager_auth')
-    except Exception:
-        pass
-    try:
-        cookie_manager.delete('lead_manager_page')
-    except Exception:
-        pass
 
 
 def inject_custom_css():
