@@ -82,10 +82,6 @@ def main():
                 """Callback when main navigation changes"""
                 # Clear any sub-page state when navigating to a new main page
                 st.session_state.current_page = None
-                
-                # SAVE PAGE TO COOKIE
-                from frontend.common import save_page_to_cookies
-                save_page_to_cookies(st.session_state.main_navigation)
             
             # Additional check: If Mark Referral Page is active, ensure we don't accidentally navigate away
             # unless the user explicitly clicked.
