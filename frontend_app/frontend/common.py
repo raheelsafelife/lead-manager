@@ -31,12 +31,12 @@ def get_logo_path():
 
 # Initialize CookieManager
 def get_cookie_manager():
-    """Ensure CookieManager is rendered exactly once per script execution"""
-    # Use st.session_state for the object, but we MUST render it every run
-    # To avoid DuplicateKeyError, we track if we've already rendered it this run
-    if not hasattr(st, "_cm_rendered_this_run"):
-        st._cm_rendered_this_run = pyc.CookieManager(key="lead_manager_auth_system_v1")
-    return st._cm_rendered_this_run
+    """Ensure CookieManager is rendered exactly once per script execution for the CURRENT session"""
+    # Use st.session_state for BOTH the object and the render tracking
+    # Storing on 'st' (the module) was causing cross-session contamination
+    if "_cm_system" not in st.session_state:
+        st.session_state._cm_system = pyc.CookieManager(key="lead_manager_auth_system_v1")
+    return st.session_state._cm_system
 
 
 # Global CSS styles (SafeLife UI theme)
