@@ -328,7 +328,7 @@ def add_lead():
                 if existing_lead:
                     st.error(f" A lead with the same name and phone number already exists!")
                     st.warning(f"**Existing Lead:** {existing_lead.first_name} {existing_lead.last_name} (ID: {existing_lead.id})")
-                    st.info(f"Created on: {utc_to_local(existing_lead.created_at).strftime('%m/%d/%Y %I:%M %p')}")
+                    st.info(f"Created on: {utc_to_local(existing_lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y %I:%M %p')}")
                     st.info(f"Created by: {existing_lead.created_by or 'Unknown'}")
                     st.info(f"Status: {existing_lead.last_contact_status}")
                     st.info("Please update the existing lead instead of creating a duplicate.")
@@ -415,7 +415,7 @@ def add_lead():
                                         'phone': lead.phone,
                                         'dob': str(lead.dob) if lead.dob else 'N/A',
                                         'creator': st.session_state.username,
-                                        'created_date': utc_to_local(lead.created_at).strftime('%m/%d/%Y'),
+                                        'created_date': utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y'),
                                         'status': lead.last_contact_status,
                                         'referral_type': lead.referral_type if lead.referral_type else 'Regular',
                                         'payor_name': agency_name,
@@ -443,7 +443,7 @@ def add_lead():
                                         'dob': str(lead.dob) if lead.dob else 'N/A',
                                         'source': lead.source,
                                         'status': lead.last_contact_status,
-                                        'created_date': utc_to_local(lead.created_at).strftime('%m/%d/%Y')
+                                        'created_date': utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')
                                     }
                                     
                                     # Send simple email

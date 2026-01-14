@@ -71,7 +71,7 @@ def display_referral_confirm(lead, db, highlight=False):
             st.markdown("---")
 
             if auth_received_time:
-                st.success(f"**Authorization Received:** {utc_to_local(auth_received_time).strftime('%m/%d/%Y at %I:%M %p')}")
+                st.success(f"**Authorization Received:** {utc_to_local(auth_received_time, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}")
             else:
                 st.success("**Authorization Received**")
 
@@ -182,7 +182,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 # Limit to last 5 entries
                 for log in history_logs[:5]:
                     label = get_action_label(log.action_type)
-                    time_ago = format_time_ago(log.timestamp)
+                    time_ago = format_time_ago(log.timestamp, st.session_state.get('user_timezone'))
 
                     with st.container():
                         col1, col2 = st.columns([3, 2])
@@ -244,6 +244,51 @@ def referral_confirm():
     st.write(f"**Total Clients with Authorization: {len(authorized_referrals)}**")
     
     st.divider()
+
+    # Search and filter
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+    with col1:
+        search_name = st.text_input("Search by name")
+    with col2:
+        filter_staff = st.text_input("Filter by staff")
+    with col3:
+        filter_source = st.text_input("Filter by source")
+    with col4:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Search", key="search_confirm_btn", use_container_width=True):
+            st.rerun()
+
+    # Payor Filter
+    st.write("**Filter by Payor:**")
+    agencies = crud_agencies.get_all_agencies(db)
+    
+    if 'confirm_payor_filter' not in st.session_state:
+        st.session_state.confirm_payor_filter = "All"
+    
+    if agencies:
+        agency_names = ["All"] + [a.name for a in agencies]
+        selected_payor = st.selectbox("Select Payor", agency_names, index=agency_names.index(st.session_state.confirm_payor_filter) if st.session_state.confirm_payor_filter in agency_names else 0, key="confirm_payor_filter_select")
+        
+        if selected_payor != st.session_state.confirm_payor_filter:
+            st.session_state.confirm_payor_filter = selected_payor
+            st.rerun()
+
+    # CCU Filter
+    st.write("**Filter by CCU:**")
+    ccus = crud_ccus.get_all_ccus(db)
+    
+    if 'confirm_ccu_filter' not in st.session_state:
+        st.session_state.confirm_ccu_filter = "All"
+    
+    if ccus:
+        ccu_names = ["All"] + [c.name for c in ccus]
+        selected_ccu = st.selectbox("Select CCU", ccu_names, index=ccu_names.index(st.session_state.confirm_ccu_filter) if st.session_state.confirm_ccu_filter in ccu_names else 0, key="confirm_ccu_filter_select")
+        
+        if selected_ccu != st.session_state.confirm_ccu_filter:
+            st.session_state.confirm_ccu_filter = selected_ccu
+            st.rerun()
+    
+    st.divider()
     
     # Filter buttons for Care Status
     st.write("**Filter by Care Status:**")
@@ -271,14 +316,27 @@ def referral_confirm():
     
     st.divider()
     
-    # Apply filter
+    # Apply filters
     if st.session_state.confirm_care_filter == "Care Start":
         authorized_referrals = [l for l in authorized_referrals if l.care_status == "Care Start"]
     elif st.session_state.confirm_care_filter == "Not Start":
         authorized_referrals = [l for l in authorized_referrals if l.care_status == "Not Start"]
     
+    if search_name:
+        authorized_referrals = [l for l in authorized_referrals if search_name.lower() in f"{l.first_name} {l.last_name}".lower()]
+    if filter_staff:
+        authorized_referrals = [l for l in authorized_referrals if filter_staff.lower() in l.staff_name.lower()]
+    if filter_source:
+        authorized_referrals = [l for l in authorized_referrals if filter_source.lower() in l.source.lower()]
+        
+    if st.session_state.confirm_payor_filter != "All":
+        authorized_referrals = [l for l in authorized_referrals if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
+    
+    if st.session_state.confirm_ccu_filter != "All":
+        authorized_referrals = [l for l in authorized_referrals if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
+
     # Show filtered count
-    st.caption(f"Showing: {len(authorized_referrals)} clients ({st.session_state.confirm_care_filter})")
+    st.caption(f"Showing: {len(authorized_referrals)} clients")
     
     if not authorized_referrals:
         st.info("No clients match the selected filter.")

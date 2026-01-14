@@ -13,3 +13,5 @@ ENV/
 *.sqlite
 *.sqlite3
 backend/leads.db
+*.db-shm
+*.db-wal

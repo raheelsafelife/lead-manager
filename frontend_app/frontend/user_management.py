@@ -100,7 +100,7 @@ def admin_panel():
                     with col1:
                         st.markdown(f"<span style='font-weight: 900; color: black;'>Username:</span> {user.username}", unsafe_allow_html=True)
                         st.markdown(f"<span style='font-weight: 900; color: black;'>Email:</span> {user.email}", unsafe_allow_html=True)
-                        st.markdown(f"<span style='font-weight: 900; color: black;'>Requested:</span> {utc_to_local(user.created_at).strftime('%Y-%m-%d %H:%M')}", unsafe_allow_html=True)
+                        st.markdown(f"<span style='font-weight: 900; color: black;'>Requested:</span> {utc_to_local(user.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d %H:%M')}", unsafe_allow_html=True)
                     
                     with col2:
                         if st.button("Approve", key=f"approve_{user.id}", type="primary", width="stretch"):
@@ -173,7 +173,7 @@ def admin_panel():
                         
                         with col1:
                             st.markdown(f"<span style='font-weight: 900; color: black;'>ID:</span> {user.id} | <span style='font-weight: 900; color: black;'>User ID:</span> {user.user_id or 'N/A'} | <span style='font-weight: 900; color: black;'>Username:</span> {user.username} | <span style='font-weight: 900; color: black;'>Email:</span> {user.email} | <span style='font-weight: 900; color: black;'>Role:</span> {user.role}", unsafe_allow_html=True)
-                            st.caption(f"Created: {utc_to_local(user.created_at).strftime('%Y-%m-%d')}")
+                            st.caption(f"Created: {utc_to_local(user.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d')}")
                         
                         with col2:
                             if st.button(" Edit", key=f"edit_{user.id}"):
@@ -181,10 +181,8 @@ def admin_panel():
                                 st.rerun()
                         
                         with col3:
-                            if st.button(" Delete", key=f"del_{user.id}"):
-                                crud_users.delete_user(db, user.id, st.session_state.username, st.session_state.user_id)
-                                st.success(f"Deleted {user.username}")
-                                st.rerun()
+                            # Delete functionality removed as per user request
+                            pass
                         
                         st.divider()
                 
@@ -387,7 +385,7 @@ def admin_panel():
                 col1, col2 = st.columns([4, 1])
                 with col1:
                     st.markdown(f"<span style='font-size: 16px;'>**{agency.name}**</span>", unsafe_allow_html=True)
-                    st.caption(f"Created: {utc_to_local(agency.created_at).strftime('%Y-%m-%d %H:%M')} by {agency.created_by}")
+                    st.caption(f"Created: {utc_to_local(agency.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d %H:%M')} by {agency.created_by}")
                 with col2:
                     if st.button("Delete", key=f"del_agency_admin_{agency.id}", help=f"Delete {agency.name}", type="primary"):
                         try:
@@ -455,7 +453,7 @@ def admin_panel():
                 col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
                 with col1:
                     st.markdown(f"<span style='font-size: 16px;'> **{ccu.name}**</span>", unsafe_allow_html=True)
-                    st.caption(f"Created: {utc_to_local(ccu.created_at).strftime('%Y-%m-%d %H:%M')} by {ccu.created_by}")
+                    st.caption(f"Created: {utc_to_local(ccu.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d %H:%M')} by {ccu.created_by}")
                 with col2:
                     if st.button("Details", key=f"details_ccu_admin_{ccu.id}", help="View CCU Details", type="primary"):
                         st.session_state[f"viewing_ccu_{ccu.id}"] = not st.session_state.get(f"viewing_ccu_{ccu.id}", False)
@@ -564,10 +562,10 @@ def render_historian():
             {activity.description}
         </div>
         <div style="color: #6B7280; font-size: 0.85rem; margin-bottom: 5px;">
-            {utc_to_local(activity.timestamp).strftime('%m/%d/%Y %I:%M %p')}
+            {utc_to_local(activity.timestamp, st.session_state.get('user_timezone')).strftime('%m/%d/%Y %I:%M %p')}
         </div>
         <div style="display: inline-block; background-color: #3CA5AA; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px;">
-            <span class="white-header-text" style="color: #FFFFFF !important;">{format_time_ago(activity.timestamp)}</span>
+            <span class="white-header-text" style="color: #FFFFFF !important;">{format_time_ago(activity.timestamp, st.session_state.get('user_timezone'))}</span>
         </div>
         
         <div style="background-color: #F3F4F6; padding: 8px; border-radius: 0px; font-size: 0.9rem; color: #4B5563;">

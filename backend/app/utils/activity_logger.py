@@ -8,6 +8,10 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.crud import crud_activity_logs
 import json
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 
 def log_activity(
@@ -55,9 +59,9 @@ def log_activity(
     )
 
 
-def utc_to_local(utc_dt: datetime) -> datetime:
+def utc_to_local(utc_dt: datetime, tz_name: Optional[str] = None) -> datetime:
     """
-    Convert naive UTC datetime to local system time
+    Convert naive UTC datetime to local system time or specified timezone
     """
     if utc_dt is None:
         return None
@@ -66,11 +70,17 @@ def utc_to_local(utc_dt: datetime) -> datetime:
     if utc_dt.tzinfo is None:
         utc_dt = utc_dt.replace(tzinfo=timezone.utc)
     
+    if tz_name:
+        try:
+            return utc_dt.astimezone(ZoneInfo(tz_name))
+        except Exception:
+            pass
+            
     # Convert to local time
     return utc_dt.astimezone()
 
 
-def format_time_ago(timestamp: datetime) -> str:
+def format_time_ago(timestamp: datetime, tz_name: Optional[str] = None) -> str:
     """
     Convert timestamp to human-readable relative time
     
@@ -84,13 +94,24 @@ def format_time_ago(timestamp: datetime) -> str:
     if timestamp is None:
         return ""
         
-    # Ensure we're working with UTC for calculation
-    now_utc = datetime.utcnow()
+    # Ensure timestamp is UTC-aware for comparison
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+        
+    now_utc = datetime.now(timezone.utc)
     diff = now_utc - timestamp
     
     # Convert to local time for display
-    local_timestamp = utc_to_local(timestamp)
-    local_now = datetime.now().astimezone()
+    local_timestamp = utc_to_local(timestamp, tz_name)
+    
+    # Get local "now" for date comparison
+    if tz_name:
+        try:
+            local_now = datetime.now(ZoneInfo(tz_name))
+        except Exception:
+            local_now = datetime.now().astimezone()
+    else:
+        local_now = datetime.now().astimezone()
     
     # Less than 1 minute
     if diff.total_seconds() < 60:
@@ -101,20 +122,18 @@ def format_time_ago(timestamp: datetime) -> str:
         minutes = int(diff.total_seconds() / 60)
         return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
     
-    # Less than 24 hours (today)
-    if diff.total_seconds() < 86400 and local_timestamp.date() == local_now.date():
-        hours = int(diff.total_seconds() / 3600)
-        if hours < 2:
-            return f"{hours} hour ago"
-        return f"Today at {local_timestamp.strftime('%I:%M %p')}"
-    
-    # Yesterday
-    if (local_now.date() - local_timestamp.date()).days == 1:
-        return f"Yesterday at {local_timestamp.strftime('%I:%M %p')}"
+    # Less than 24 hours (today or yesterday)
+    if diff.total_seconds() < 86400 * 2:
+        if local_timestamp.date() == local_now.date():
+            return f"Today at {local_timestamp.strftime('%I:%M %p')}"
+        elif (local_now.date() - local_timestamp.date()).days == 1:
+            return f"Yesterday at {local_timestamp.strftime('%I:%M %p')}"
     
     # Less than 7 days
     if diff.total_seconds() < 604800:
         days = (local_now.date() - local_timestamp.date()).days
+        if days == 1:
+            return f"Yesterday at {local_timestamp.strftime('%I:%M %p')}"
         return f"{days} days ago"
     
     # Older than 7 days

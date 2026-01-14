@@ -12,6 +12,7 @@ import streamlit as st
 from app.db import SessionLocal
 from app.utils.activity_logger import utc_to_local
 from app.crud import crud_session_tokens
+from streamlit.components.v1 import html
 import os
 
 def get_logo_path():
@@ -631,6 +632,24 @@ def init_session_state():
     if 'show_user_dashboards' not in st.session_state:
         st.session_state.show_user_dashboards = False
     
+    # Timezone Detection
+    if 'user_timezone' not in st.session_state:
+        # Default to None, will be updated by JS
+        st.session_state.user_timezone = st.query_params.get("browser_tz", None)
+        
+        # Inject JS to detect timezone and set it as a query param
+        if not st.session_state.user_timezone:
+            html("""
+                <script>
+                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    const url = new URL(window.parent.location.href);
+                    if (url.searchParams.get('browser_tz') !== tz) {
+                        url.searchParams.set('browser_tz', tz);
+                        window.parent.location.href = url.href;
+                    }
+                </script>
+            """, height=0)
+    
     # Start email scheduler (runs once per session)
     if 'email_scheduler_started' not in st.session_state:
         st.session_state.email_scheduler_started = False
@@ -670,7 +689,7 @@ def prepare_lead_data_for_email(lead, db):
         'staff_name': lead.staff_name,
         'created_by': lead.created_by,
         'last_contact_status': lead.last_contact_status,
-        'last_contact_date': str(utc_to_local(lead.last_contact_date)) if lead.last_contact_date else 'N/A',
+        'last_contact_date': str(utc_to_local(lead.last_contact_date, st.session_state.get('user_timezone'))) if lead.last_contact_date else 'N/A',
         'active_client': lead.active_client,
         'referral_type': lead.referral_type,
         'e_contact_name': lead.e_contact_name,

@@ -136,7 +136,7 @@ def view_activity_logs():
             export_data = []
             for activity in activities:
                 export_data.append({
-                    "Timestamp": utc_to_local(activity.timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+                    "Timestamp": utc_to_local(activity.timestamp, st.session_state.get('user_timezone')).strftime("%Y-%m-%d %H:%M:%S"),
                     "User": activity.username,
                     "Action": activity.action_type,
                     "Entity Type": activity.entity_type,
@@ -161,7 +161,7 @@ def view_activity_logs():
         for activity in activities:
             # Get visual elements
             label = get_action_label(activity.action_type)
-            time_str = format_time_ago(activity.timestamp)
+            time_str = format_time_ago(activity.timestamp, st.session_state.get('user_timezone'))
             time_color = get_time_color(activity.timestamp)
             entity_color = get_entity_badge_color(activity.entity_type)
             

@@ -149,13 +149,17 @@ def view_leads():
     st.divider()
     
     # Search and filter
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
     with col1:
         search_name = st.text_input("Search by name")
     with col2:
         filter_staff = st.text_input("Filter by staff")
     with col3:
         filter_source = st.text_input("Filter by source")
+    with col4:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Search", key="search_leads_btn", use_container_width=True):
+            st.rerun()
     
     # Get leads
     leads = crud_leads.list_leads(db, limit=100)
@@ -216,8 +220,8 @@ def view_leads():
                 with col2:
                     st.write(f"**Status:** {lead.last_contact_status}")
                     st.write(f"**Referral:** {'Yes' if lead.active_client else 'No'}")
-                    st.write(f"**Created:** {utc_to_local(lead.created_at).strftime('%Y-%m-%d')}")
-                    st.write(f"**Updated:** {utc_to_local(lead.updated_at).strftime('%Y-%m-%d')}")
+                    st.write(f"**Created:** {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d')}")
+                    st.write(f"**Updated:** {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d')}")
                     if lead.comments:
                         st.write(f"**Comments:** {lead.comments}")
                 
@@ -226,15 +230,15 @@ def view_leads():
                 info_col1, info_col2 = st.columns(2)
                 with info_col1:
                     if lead.created_by:
-                        st.markdown(f"**Created by: {lead.created_by} on {utc_to_local(lead.created_at).strftime('%m/%d/%Y at %I:%M %p')}**")
+                        st.markdown(f"**Created by: {lead.created_by} on {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}**")
                     else:
-                        st.markdown(f"**Created on {utc_to_local(lead.created_at).strftime('%m/%d/%Y')}**")
+                        st.markdown(f"**Created on {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')}**")
                 
                 with info_col2:
                     if lead.updated_by:
-                        st.markdown(f"**Last updated by: {lead.updated_by} on {utc_to_local(lead.updated_at).strftime('%m/%d/%Y at %I:%M %p')}**")
+                        st.markdown(f"**Last updated by: {lead.updated_by} on {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}**")
                     else:
-                        st.markdown(f"**Last updated on {utc_to_local(lead.updated_at).strftime('%m/%d/%Y')}**")
+                        st.markdown(f"**Last updated on {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')}**")
                 
                 # Permission check for edit/delete
                 can_modify = (st.session_state.user_role == "admin" or 
@@ -250,10 +254,8 @@ def view_leads():
                         st.session_state[f'editing_{lead.id}'] = True
                         st.rerun()
                 with col2:
-                    if can_modify and st.button(" Delete", key=f"delete_{lead.id}"):
-                        crud_leads.delete_lead(db, lead.id, st.session_state.username, st.session_state.get('user_id'))
-                        st.success(" Lead deleted")
-                        st.rerun()
+                    # Delete functionality removed as per user request
+                    pass
                 
                 with col3:
                     # Toggle Referral button
@@ -288,11 +290,11 @@ def view_leads():
                     if history_logs:
                         for log in history_logs:
                             label = get_action_label(log.action_type)
-                            time_ago = format_time_ago(log.timestamp)
+                            time_ago = format_time_ago(log.timestamp, st.session_state.get('user_timezone'))
                             
                             with st.container():
                                 st.markdown(f"**{label}** - {time_ago}")
-                                st.caption(f"By **{log.username}** on {utc_to_local(log.timestamp).strftime('%m/%d/%Y at %I:%M %p')}")
+                                st.caption(f"By **{log.username}** on {utc_to_local(log.timestamp, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}")
                                 
                                 if log.description:
                                     st.write(log.description)
