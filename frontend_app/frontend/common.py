@@ -755,6 +755,14 @@ def inject_time_fix_script():
             // Aggressive Polling + Observer
             setInterval(runFix, 1000);
             new MutationObserver(runFix).observe(document.body, {childList:true, subtree:true});
+            
+            // Try to reach parent if in iframe (Streamlit component behavior)
+            try {
+                if (window.parent && window.parent.document !== document) {
+                    new MutationObserver(runFix).observe(window.parent.document.body, {childList:true, subtree:true});
+                }
+            } catch(e) {}
+            
             runFix();
         })();
         </script>
@@ -778,6 +786,7 @@ def render_time(dt, style='datetime', is_badge=False):
     else:
         fallback_text = dt.strftime("%m/%d/%Y %I:%M %p (UTC)")
     
+    cls = "local-time"
     if is_badge:
         cls += " badge"
         
