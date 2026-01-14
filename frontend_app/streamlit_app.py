@@ -39,13 +39,11 @@ def init_scheduler():
 
 def main():
     """Main application logic - Router"""
-    # Display loading screen while initializing
-    with st.spinner("Initializing Lead Manager..."):
-        # Initialize session state (includes token validation)
-        init_session_state()
-    
-    # Inject custom CSS
+    # Inject custom CSS/JS immediately
     inject_custom_css()
+    
+    # Initialize session state (includes token validation)
+    init_session_state()
     
     # Check authentication
     if not st.session_state.authenticated:

@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email
+from frontend.common import prepare_lead_data_for_email, render_time
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -71,7 +71,7 @@ def display_referral_confirm(lead, db, highlight=False):
             st.markdown("---")
 
             if auth_received_time:
-                st.success(f"**Authorization Received:** {utc_to_local(auth_received_time, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}")
+                st.success(f"**Authorization Received:** {render_time(auth_received_time)}", icon="✅")
             else:
                 st.success("**Authorization Received**")
 
@@ -191,7 +191,8 @@ def display_referral_confirm(lead, db, highlight=False):
                             if log.description:
                                 st.caption(log.description[:100] + "..." if len(log.description) > 100 else log.description)
                         with col2:
-                            st.caption(time_ago)
+                            timeframe = render_time(log.timestamp, style="ago")
+                            st.markdown(timeframe, unsafe_allow_html=True)
                         st.divider()
             else:
                 st.caption("No activity history available.")

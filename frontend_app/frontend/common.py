@@ -57,6 +57,12 @@ GLOBAL_CSS = """
                      Arial, 'Source Sans Pro', system-ui, sans-serif;
         background-color: #FFFFFF !important;
         color: #111827 !important;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
 
     /* Hide Streamlit header (Deploy button, Rerun status) but KEEP the sidebar toggle */
@@ -79,6 +85,34 @@ GLOBAL_CSS = """
     [data-testid="stSidebar"] button[aria-label="Collapse sidebar"],
     button[data-testid="stExpandSidebarButton"] {
         visibility: visible !important;
+    }
+
+    /* Suppress transient Streamlit errors and warnings highly aggressively */
+    /* We use a delay of 0.8s which is enough to hide all typical developmental "re-rendering" glitches */
+    [data-testid="stNotification"], 
+    .stException, 
+    [data-testid="stFormWarning"],
+    .stAlert,
+    [data-testid="stStatusWidget"] {
+        animation: delayedShow 0.8s forwards !important;
+        opacity: 0 !important;
+        pointer-events: none;
+    }
+
+    @keyframes delayedShow {
+        0% { opacity: 0; visibility: hidden; }
+        95% { opacity: 0; visibility: hidden; }
+        100% { opacity: 1; visibility: visible; pointer-events: auto; }
+    }
+
+    /* Prevent flashing of unstyled content during reloads */
+    .stApp {
+        animation: smoothStart 0.4s ease-out;
+    }
+    
+    @keyframes smoothStart {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     /* Primary brand colors */
@@ -582,6 +616,20 @@ GLOBAL_CSS = """
         padding-top: 5px !important;
         padding-right: 5px !important;
     }
+    
+    /* Local Time and Relative Time styles */
+    .local-time {
+        display: inline;
+    }
+    .local-time.badge {
+        display: inline-block;
+        background-color: #3CA5AA;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        color: #FFFFFF !important;
+    }
 </style>
 """
 
@@ -632,23 +680,9 @@ def init_session_state():
     if 'show_user_dashboards' not in st.session_state:
         st.session_state.show_user_dashboards = False
     
-    # Timezone Detection
+    # Timezone Detection - Simplified to avoid page flashes
     if 'user_timezone' not in st.session_state:
-        # Default to None, will be updated by JS
-        st.session_state.user_timezone = st.query_params.get("browser_tz", None)
-        
-        # Inject JS to detect timezone and set it as a query param
-        if not st.session_state.user_timezone:
-            html("""
-                <script>
-                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                    const url = new URL(window.parent.location.href);
-                    if (url.searchParams.get('browser_tz') !== tz) {
-                        url.searchParams.set('browser_tz', tz);
-                        window.parent.location.href = url.href;
-                    }
-                </script>
-            """, height=0)
+        st.session_state.user_timezone = st.query_params.get("browser_tz", "UTC")
     
     # Start email scheduler (runs once per session)
     if 'email_scheduler_started' not in st.session_state:
@@ -666,8 +700,112 @@ def init_session_state():
 
 
 def inject_custom_css():
-    """Inject global CSS styles"""
+    """Inject global CSS styles and time fix JS"""
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+    inject_time_fix_script()
+
+
+def inject_time_fix_script():
+    """Inject a global script via iframe-breakout for maximum reliability"""
+    import streamlit.components.v1 as components
+    components.html("""
+        <script>
+        (function() {
+            const doc = window.parent.document;
+            
+            // Prevent multiple initializations in the parent scope
+            if (window.parent._timeFixInitialized) return;
+            window.parent._timeFixInitialized = true;
+            
+            function formatTimeAgo(date) {
+                const now = new Date();
+                const diffInSeconds = Math.floor((now - date) / 1000);
+                if (diffInSeconds < 60) return "Just now";
+                if (diffInSeconds < 3600) {
+                    const minutes = Math.floor(diffInSeconds / 60);
+                    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+                }
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                const timeStr = date.toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                if (date >= today) return `Today at ${timeStr}`;
+                if (date >= yesterday) return `Yesterday at ${timeStr}`;
+                return date.toLocaleString([], { 
+                    month: '2-digit', day: '2-digit', year: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: true 
+                });
+            }
+
+            function processElements() {
+                doc.querySelectorAll('.local-time').forEach(el => {
+                    const utc = el.getAttribute('data-utc');
+                    if (!utc) return;
+                    
+                    // We check text content too - if it contains "UTC", it definitely needs fixing
+                    const needsFix = !el.dataset.processed || el.innerText.includes('UTC');
+                    if (!needsFix) return;
+                    
+                    try {
+                        const dateStr = utc.includes('Z') ? utc : utc + 'Z';
+                        const date = new Date(dateStr);
+                        if (isNaN(date.getTime())) return;
+                        
+                        const style = el.getAttribute('data-style') || 'datetime';
+                        const newText = (style === 'ago') ? formatTimeAgo(date) : date.toLocaleString([], {
+                            month: '2-digit', day: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit', hour12: true
+                        });
+                        
+                        if (el.innerText !== newText) {
+                            el.innerText = newText;
+                        }
+                        el.dataset.processed = "true";
+                    } catch (e) {}
+                });
+                
+                // Also update the status marker if found in parent or self
+                const statusEl = doc.getElementById('ui-engine-status');
+                if (statusEl) {
+                    statusEl.innerText = 'UI Engine Active';
+                    statusEl.style.display = 'none'; // Hide debug status
+                }
+            }
+
+            // High frequency polling to catch Streamlit's aggressive re-renders
+            setInterval(processElements, 500);
+            
+            // MutationObserver for snappier updates on the parent body
+            const observer = new MutationObserver(processElements);
+            observer.observe(doc.body, { childList: true, subtree: true });
+            
+            processElements();
+        })();
+        </script>
+    """, height=0, width=0)
+
+
+def render_time(dt, style='datetime', is_badge=False):
+    """
+    Returns HTML for a timestamp that will be automatically localized by JS.
+    styles: 'datetime' (default), 'ago' (relative time)
+    """
+    if not dt:
+        return "N/A"
+    
+    # Ensure it's treated as UTC in Python-side fallback too
+    from app.utils.activity_logger import utc_to_local
+    fallback_text = ""
+    if style == 'ago':
+        from app.utils.activity_logger import format_time_ago
+        fallback_text = format_time_ago(dt)
+    else:
+        fallback_text = dt.strftime("%m/%d/%Y %I:%M %p")
+    
+    cls = "local-time"
+    if is_badge:
+        cls += " badge"
+        
+    return f'<span class="{cls}" data-utc="{dt.isoformat()}" data-style="{style}">{fallback_text}</span>'
 
 
 def prepare_lead_data_for_email(lead, db):

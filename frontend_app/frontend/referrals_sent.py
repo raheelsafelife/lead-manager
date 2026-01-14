@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time
 
 
 def view_referrals():
@@ -306,8 +306,8 @@ def view_referrals():
                         st.success(f"**Auth:** Received | **Care:** {lead.care_status or 'N/A'} | **SOC:** {soc_str}")
                     else:
                         st.warning("**Auth:** Pending")
-                    st.write(f"**Created:** {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d')}")
-                    st.write(f"**Updated:** {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%Y-%m-%d')}")
+                    st.markdown(f"**Created:** {render_time(lead.created_at)}", unsafe_allow_html=True)
+                    st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                     if lead.comments:
                         st.write(f"**Comments:** {lead.comments}")
                 
@@ -316,15 +316,15 @@ def view_referrals():
                 info_col1, info_col2 = st.columns(2)
                 with info_col1:
                     if lead.created_by:
-                        st.markdown(f"**Created by: {lead.created_by} on {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}**")
+                        st.markdown(f"**Created by: {lead.created_by} on** {render_time(lead.created_at)}", unsafe_allow_html=True)
                     else:
-                        st.markdown(f"**Created on {utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')}**")
+                        st.markdown(f"**Created on** {render_time(lead.created_at)}", unsafe_allow_html=True)
                 
                 with info_col2:
                     if lead.updated_by:
-                        st.markdown(f"**Last updated by: {lead.updated_by} on {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}**")
+                        st.markdown(f"**Last updated by: {lead.updated_by} on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                     else:
-                        st.markdown(f"**Last updated on {utc_to_local(lead.updated_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')}**")
+                        st.markdown(f"**Last updated on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                 
                 # Permission check for edit/delete
                 can_modify = (st.session_state.user_role == "admin" or 
@@ -356,7 +356,7 @@ def view_referrals():
                     st.caption(f" Email History ({len(reminders)} sent):")
                     for reminder in reminders[:3]:  # Show last 3
                         status_icon = "" if reminder.status == "sent" else ""
-                        st.caption(f"{status_icon} {utc_to_local(reminder.sent_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y %I:%M %p')} -> {reminder.recipient_email}")
+                        st.markdown(f"<span style='font-size: 0.85rem; color: #6B7280;'>{status_icon} {render_time(reminder.sent_at)} -> {reminder.recipient_email}</span>", unsafe_allow_html=True)
                 
                 with col3:
                     # Unmark Referral button (always shows unmark since we're in referrals view)
@@ -467,10 +467,10 @@ def view_referrals():
                         for log in history_logs:
                             label = get_action_label(log.action_type)
                             time_ago = format_time_ago(log.timestamp, st.session_state.get('user_timezone'))
-                            
                             with st.container():
-                                st.markdown(f"**{label}** - {time_ago}")
-                                st.caption(f"By **{log.username}** on {utc_to_local(log.timestamp, st.session_state.get('user_timezone')).strftime('%m/%d/%Y at %I:%M %p')}")
+                                timeframe = render_time(log.timestamp, style="ago")
+                                st.markdown(f"**{label}** - {timeframe}", unsafe_allow_html=True)
+                                st.markdown(f"By **{log.username}** on {render_time(log.timestamp)}", unsafe_allow_html=True)
                                 
                                 if log.description:
                                     st.write(log.description)

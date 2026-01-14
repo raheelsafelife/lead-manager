@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email
+from frontend.common import prepare_lead_data_for_email, render_time
 
 from datetime import timedelta
 
@@ -161,7 +161,8 @@ def view_activity_logs():
         for activity in activities:
             # Get visual elements
             label = get_action_label(activity.action_type)
-            time_str = format_time_ago(activity.timestamp, st.session_state.get('user_timezone'))
+            time_ago_html = render_time(activity.timestamp, style="ago")
+            time_full_html = render_time(activity.timestamp)
             time_color = get_time_color(activity.timestamp)
             entity_color = get_entity_badge_color(activity.entity_type)
             
@@ -187,12 +188,8 @@ def view_activity_logs():
                 
                 with col3:
                     # Time with color coding
-                    if time_color == "success":
-                        st.success(f"{time_str}")
-                    elif time_color == "info":
-                        st.info(f"{time_str}")
-                    else:
-                        st.write(f"{time_str}")
+                    st.markdown(f"**Time:** {time_ago_html}", unsafe_allow_html=True)
+                    st.markdown(f"<span style='font-size: 0.85rem; color: #6B7280;'>{time_full_html}</span>", unsafe_allow_html=True)
                 
                 # Details row
                 col1, col2 = st.columns([1, 3])
