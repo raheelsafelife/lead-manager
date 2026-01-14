@@ -706,17 +706,14 @@ def inject_custom_css():
 
 
 def inject_time_fix_script():
-    """Inject a global script via iframe-breakout for maximum reliability"""
-    import streamlit.components.v1 as components
-    components.html("""
+    """Inject a robust script via st.markdown for universal compatibility (Parent DOM)"""
+    st.markdown("""
         <script>
         (function() {
-            const doc = window.parent.document;
-            
-            // Prevent multiple initializations in the parent scope
-            if (window.parent._timeFixInitialized) return;
-            window.parent._timeFixInitialized = true;
-            
+            // Check current window and define initialization
+            if (window._timeFixRunning) return;
+            window._timeFixRunning = true;
+
             function formatTimeAgo(date) {
                 const now = new Date();
                 const diffInSeconds = Math.floor((now - date) / 1000);
@@ -737,12 +734,13 @@ def inject_time_fix_script():
             }
 
             function processElements() {
-                doc.querySelectorAll('.local-time').forEach(el => {
+                // We target the current document and look for .local-time elements
+                document.querySelectorAll('.local-time').forEach(el => {
                     const utc = el.getAttribute('data-utc');
                     if (!utc) return;
                     
-                    // We check text content too - if it contains "UTC", it definitely needs fixing
-                    const needsFix = !el.dataset.processed || el.innerText.includes('UTC');
+                    // We check if it needs processing: not processed OR still has "(UTC)" in text
+                    const needsFix = !el.dataset.processed || el.innerText.includes('(UTC)');
                     if (!needsFix) return;
                     
                     try {
@@ -760,28 +758,20 @@ def inject_time_fix_script():
                             el.innerText = newText;
                         }
                         el.dataset.processed = "true";
-                    } catch (e) {}
+                    } catch (e) {
+                        // Silent fail to prevent console noise
+                    }
                 });
-                
-                // Also update the status marker if found in parent or self
-                const statusEl = doc.getElementById('ui-engine-status');
-                if (statusEl) {
-                    statusEl.innerText = 'UI Engine Active';
-                    statusEl.style.display = 'none'; // Hide debug status
-                }
             }
 
-            // High frequency polling to catch Streamlit's aggressive re-renders
-            setInterval(processElements, 500);
-            
-            // MutationObserver for snappier updates on the parent body
+            // Reliable polling + MutationObserver
+            setInterval(processElements, 1000);
             const observer = new MutationObserver(processElements);
-            observer.observe(doc.body, { childList: true, subtree: true });
-            
+            observer.observe(document.body, { childList: true, subtree: true });
             processElements();
         })();
         </script>
-    """, height=0, width=0)
+    """, unsafe_allow_html=True)
 
 
 def render_time(dt, style='datetime', is_badge=False):
@@ -799,7 +789,7 @@ def render_time(dt, style='datetime', is_badge=False):
         from app.utils.activity_logger import format_time_ago
         fallback_text = format_time_ago(dt)
     else:
-        fallback_text = dt.strftime("%m/%d/%Y %I:%M %p")
+        fallback_text = dt.strftime("%m/%d/%Y %I:%M %p (UTC)")
     
     cls = "local-time"
     if is_badge:
