@@ -706,69 +706,56 @@ def inject_custom_css():
 
 
 def inject_time_fix_script():
-    """Inject a robust script via st.markdown for universal compatibility (Parent DOM)"""
+    """Inject a professional, high-reliability script for timezone localization"""
     st.markdown("""
         <script>
         (function() {
-            // Check current window and define initialization
-            if (window._timeFixRunning) return;
-            window._timeFixRunning = true;
+            if (window._uiEngineRunning) return;
+            window._uiEngineRunning = true;
 
-            function formatTimeAgo(date) {
-                const now = new Date();
-                const diffInSeconds = Math.floor((now - date) / 1000);
-                if (diffInSeconds < 60) return "Just now";
-                if (diffInSeconds < 3600) {
-                    const minutes = Math.floor(diffInSeconds / 60);
-                    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+            const formatLocal = (utc, style) => {
+                const date = new Date(utc.includes('T') ? (utc.includes('Z') ? utc : utc + 'Z') : utc);
+                if (isNaN(date.getTime())) return null;
+                
+                if (style === 'ago') {
+                    const now = new Date();
+                    const diff = Math.floor((now - date) / 1000);
+                    if (diff < 60) return "Just now";
+                    if (diff < 3600) return `${Math.floor(diff/60)} minutes ago`;
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const time = date.toLocaleString([], {hour:'2-digit', minute:'2-digit', hour12:true});
+                    if (date >= today) return `Today at ${time}`;
+                    return date.toLocaleString([], {month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true});
                 }
-                const today = new Date(); today.setHours(0, 0, 0, 0);
-                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-                const timeStr = date.toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                if (date >= today) return `Today at ${timeStr}`;
-                if (date >= yesterday) return `Yesterday at ${timeStr}`;
-                return date.toLocaleString([], { 
-                    month: '2-digit', day: '2-digit', year: 'numeric', 
-                    hour: '2-digit', minute: '2-digit', hour12: true 
+                
+                return date.toLocaleString([], {
+                    month: '2-digit', day: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: true
                 });
-            }
+            };
 
-            function processElements() {
-                // We target the current document and look for .local-time elements
-                document.querySelectorAll('.local-time').forEach(el => {
+            const runFix = () => {
+                const elms = document.querySelectorAll('.local-time');
+                elms.forEach(el => {
                     const utc = el.getAttribute('data-utc');
+                    const style = el.getAttribute('data-style');
                     if (!utc) return;
                     
-                    // We check if it needs processing: not processed OR still has "(UTC)" in text
-                    const needsFix = !el.dataset.processed || el.innerText.includes('(UTC)');
-                    if (!needsFix) return;
-                    
-                    try {
-                        const dateStr = utc.includes('Z') ? utc : utc + 'Z';
-                        const date = new Date(dateStr);
-                        if (isNaN(date.getTime())) return;
-                        
-                        const style = el.getAttribute('data-style') || 'datetime';
-                        const newText = (style === 'ago') ? formatTimeAgo(date) : date.toLocaleString([], {
-                            month: '2-digit', day: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit', hour12: true
-                        });
-                        
-                        if (el.innerText !== newText) {
-                            el.innerText = newText;
-                        }
+                    const newText = formatLocal(utc, style);
+                    if (newText && (el.innerText !== newText || el.innerText.includes('UTC'))) {
+                        el.innerText = newText;
                         el.dataset.processed = "true";
-                    } catch (e) {
-                        // Silent fail to prevent console noise
                     }
                 });
-            }
+            };
 
-            // Reliable polling + MutationObserver
-            setInterval(processElements, 1000);
-            const observer = new MutationObserver(processElements);
-            observer.observe(document.body, { childList: true, subtree: true });
-            processElements();
+            // Global Singleton Processor
+            window.processTimeFix = runFix;
+            
+            // Aggressive Polling + Observer
+            setInterval(runFix, 1000);
+            new MutationObserver(runFix).observe(document.body, {childList:true, subtree:true});
+            runFix();
         })();
         </script>
     """, unsafe_allow_html=True)
@@ -791,11 +778,17 @@ def render_time(dt, style='datetime', is_badge=False):
     else:
         fallback_text = dt.strftime("%m/%d/%Y %I:%M %p (UTC)")
     
-    cls = "local-time"
     if is_badge:
         cls += " badge"
         
-    return f'<span class="{cls}" data-utc="{dt.isoformat()}" data-style="{style}">{fallback_text}</span>'
+    # Standard HTML part
+    html = f'<span class="{cls}" data-utc="{dt.isoformat()}" data-style="{style}">{fallback_text}</span>'
+    
+    # Universal Trigger: A hidden element that executes the fix logic whenever it loads
+    # This ensures conversion even if global scripts are delayed or throttled
+    trigger = f'<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="display:none" onload="if(window.processTimeFix)window.processTimeFix()">'
+    
+    return html + trigger
 
 
 def prepare_lead_data_for_email(lead, db):
