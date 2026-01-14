@@ -76,8 +76,8 @@ def utc_to_local(utc_dt: datetime, tz_name: Optional[str] = None) -> datetime:
         except Exception:
             pass
             
-    # Convert to local time
-    return utc_dt.astimezone()
+    # Convert to Central Time as requested by user
+    return utc_dt.astimezone(ZoneInfo("America/Chicago"))
 
 
 def format_time_ago(timestamp: datetime, tz_name: Optional[str] = None) -> str:

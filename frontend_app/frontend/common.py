@@ -680,9 +680,8 @@ def init_session_state():
     if 'show_user_dashboards' not in st.session_state:
         st.session_state.show_user_dashboards = False
     
-    # Timezone Detection - Simplified to avoid page flashes
-    if 'user_timezone' not in st.session_state:
-        st.session_state.user_timezone = st.query_params.get("browser_tz", "UTC")
+    # Timezone Detection - Force Central Time as requested
+    st.session_state.user_timezone = "America/Chicago"
     
     # Start email scheduler (runs once per session)
     if 'email_scheduler_started' not in st.session_state:
@@ -717,18 +716,33 @@ def inject_time_fix_script():
                 const date = new Date(utc.includes('T') ? (utc.includes('Z') ? utc : utc + 'Z') : utc);
                 if (isNaN(date.getTime())) return null;
                 
+                const tzOptions = { timeZone: 'America/Chicago' };
+                
                 if (style === 'ago') {
-                    const now = new Date();
-                    const diff = Math.floor((now - date) / 1000);
+                    // Get current time in Central Time for accurate relative comparison
+                    const nowInCST = new Date(new Date().toLocaleString('en-US', tzOptions));
+                    const dateInCST = new Date(date.toLocaleString('en-US', tzOptions));
+                    
+                    const diff = Math.floor((new Date() - date) / 1000);
                     if (diff < 60) return "Just now";
                     if (diff < 3600) return `${Math.floor(diff/60)} minutes ago`;
-                    const today = new Date(); today.setHours(0,0,0,0);
-                    const time = date.toLocaleString([], {hour:'2-digit', minute:'2-digit', hour12:true});
-                    if (date >= today) return `Today at ${time}`;
-                    return date.toLocaleString([], {month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true});
+                    
+                    const today = new Date(nowInCST); today.setHours(0,0,0,0);
+                    const timeStr = date.toLocaleString('en-US', {
+                        ...tzOptions,
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    });
+                    
+                    if (dateInCST >= today) return `Today at ${timeStr}`;
+                    return date.toLocaleString('en-US', {
+                        ...tzOptions,
+                        month: '2-digit', day: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                    });
                 }
                 
-                return date.toLocaleString([], {
+                return date.toLocaleString('en-US', {
+                    ...tzOptions,
                     month: '2-digit', day: '2-digit', year: 'numeric',
                     hour: '2-digit', minute: '2-digit', hour12: true
                 });
@@ -777,14 +791,16 @@ def render_time(dt, style='datetime', is_badge=False):
     if not dt:
         return "N/A"
     
-    # Ensure it's treated as UTC in Python-side fallback too
+    # Ensure it's treated as Central Time (CST/CDT) in Python-side fallback
     from app.utils.activity_logger import utc_to_local
     fallback_text = ""
+    # Hardcode CST for this user as requested
+    cst_dt = utc_to_local(dt, 'America/Chicago')
     if style == 'ago':
         from app.utils.activity_logger import format_time_ago
-        fallback_text = format_time_ago(dt)
+        fallback_text = format_time_ago(dt, 'America/Chicago')
     else:
-        fallback_text = dt.strftime("%m/%d/%Y %I:%M %p (UTC)")
+        fallback_text = cst_dt.strftime("%m/%d/%Y %I:%M %p (CST)")
     
     cls = "local-time"
     if is_badge:
@@ -819,7 +835,7 @@ def prepare_lead_data_for_email(lead, db):
         'staff_name': lead.staff_name,
         'created_by': lead.created_by,
         'last_contact_status': lead.last_contact_status,
-        'last_contact_date': str(utc_to_local(lead.last_contact_date, st.session_state.get('user_timezone'))) if lead.last_contact_date else 'N/A',
+        'last_contact_date': str(utc_to_local(lead.last_contact_date, 'America/Chicago')) if lead.last_contact_date else 'N/A',
         'active_client': lead.active_client,
         'referral_type': lead.referral_type,
         'e_contact_name': lead.e_contact_name,
