@@ -208,7 +208,7 @@ def view_activity_logs():
                         if changes:
                             st.markdown("**Changes:**")
                             for field, old_val, new_val in changes:
-                                st.write(f"  • **{field}:** {old_val} -> {new_val}")
+                                st.write(f"  - **{field}:** {old_val} -> {new_val}")
                 
                 st.divider()
     else:

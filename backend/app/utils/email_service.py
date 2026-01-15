@@ -67,11 +67,11 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, recipients, msg.as_string())
             
-        logger.info(f"✓ Email sent successfully to {to_email} (BCC: {ADMIN_EMAIL})")
+        logger.info(f"Email sent successfully to {to_email} (BCC: {ADMIN_EMAIL})")
         return True
         
     except Exception as e:
-        logger.error(f"✗ Failed to send email to {to_email}: {e}")
+        logger.error(f"Failed to send email to {to_email}: {e}")
         return False
 
 
@@ -97,7 +97,7 @@ def send_simple_lead_email(lead_info: dict, recipient_email: str) -> bool:
     status = lead_info.get('status', 'N/A')
     created_date = lead_info.get('created_date', 'N/A')
     
-    subject = f"🔔 Lead Reminder: {name}"
+    subject = f"Lead Reminder: {name}"
     
     # Plain text body
     body = f"""
@@ -125,7 +125,7 @@ Lead Manager System
     <html>
       <body style="font-family: Arial, sans-serif; color: #333; background-color: #f4f4f4; padding: 20px;">
         <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;">🔔 Lead Follow-up Reminder</h2>
+            <h2 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;">Lead Follow-up Reminder</h2>
             
             <div style="background-color: #e8f4f8; padding: 20px; border-radius: 5px; margin: 20px 0;">
                 <h3 style="color: #2980b9; margin-top: 0;">Lead Information</h3>
@@ -168,7 +168,7 @@ Lead Manager System
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background-color: #e8f4f8; border-radius: 5px; border-left: 4px solid #3498db;">
-                <p style="margin: 0; font-size: 14px;">⏰ Please follow up with this lead.</p>
+                <p style="margin: 0; font-size: 14px;">Please follow up with this lead.</p>
             </div>
             
             <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 5px; text-align: center;">
@@ -222,7 +222,7 @@ def send_referral_reminder_email(referral_info: dict, recipient_email: str) -> b
     if payor_suboption:
         payor_display += f" - {payor_suboption}"
     
-    subject = f"🏥 Referral Reminder [{referral_type}]: {name}"
+    subject = f"Referral Reminder [{referral_type}]: {name}"
     
     # Plain text body
     body = f"""
@@ -265,12 +265,12 @@ Lead Manager System
       <body style="font-family: Arial, sans-serif; color: #333; background-color: #f4f4f4; padding: 20px;">
         <div style="max-width: 650px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <h2 style="color: #2c3e50; border-bottom: 3px solid #e74c3c; padding-bottom: 10px;">
-                🏥 Referral Follow-up Reminder
+                Referral Follow-up Reminder
                 <span style="background-color: #e74c3c; color: white; padding: 5px 12px; border-radius: 5px; font-size: 14px; margin-left: 10px;">{referral_type}</span>
             </h2>
             
             <div style="background-color: #e8f4f8; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="color: #2980b9; margin-top: 0;">👤 Lead Information</h3>
+                <h3 style="color: #2980b9; margin-top: 0;">Lead Information</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold; width: 40%;">Name:</td>
@@ -288,7 +288,7 @@ Lead Manager System
             </div>
             
             <div style="background-color: #fff3e6; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="color: #d68910; margin-top: 0;">📋 Referral Details</h3>
+                <h3 style="color: #d68910; margin-top: 0;">Referral Details</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold; width: 40%;">Referral Type:</td>
@@ -310,7 +310,7 @@ Lead Manager System
             </div>
             
             <div style="background-color: #e6f7ff; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="color: #1890ff; margin-top: 0;">💼 Payor Information</h3>
+                <h3 style="color: #1890ff; margin-top: 0;">Payor Information</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold; width: 40%;">Payor:</td>
@@ -320,7 +320,7 @@ Lead Manager System
             </div>
             
             <div style="background-color: #f0f9ff; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #52c41a;">
-                <h3 style="color: #389e0d; margin-top: 0;">🏥 CCU Information</h3>
+                <h3 style="color: #389e0d; margin-top: 0;">CCU Information</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold; width: 40%;">CCU Name:</td>
@@ -350,7 +350,7 @@ Lead Manager System
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background-color: #fff2e8; border-radius: 5px; border-left: 4px solid #fa8c16;">
-                <p style="margin: 0; font-size: 14px; font-weight: bold;">⏰ Please follow up with this referral.</p>
+                <p style="margin: 0; font-size: 14px; font-weight: bold;">Please follow up with this referral.</p>
             </div>
             
             <div style="margin-top: 20px; padding: 15px; background-color: #f6ffed; border-radius: 5px; text-align: center;">
@@ -394,7 +394,7 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
     payor_name = auth_info.get('payor_name', 'N/A')
     auth_date = auth_info.get('auth_date', 'N/A')
 
-    subject = f"✅ AUTHORIZATION CONFIRMED - {name} ({referral_type} Referral)"
+    subject = f"AUTHORIZATION CONFIRMED - {name} ({referral_type} Referral)"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -407,12 +407,12 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
         <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
 
             <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="color: #52c41a; margin: 0;">✅ AUTHORIZATION CONFIRMED</h1>
+                <h1 style="color: #52c41a; margin: 0;">AUTHORIZATION CONFIRMED</h1>
                 <p style="font-size: 16px; color: #666; margin: 5px 0;">This referral has received authorization</p>
             </div>
 
             <div style="background-color: #f6ffed; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #52c41a;">
-                <h2 style="color: #389e0d; margin-top: 0;">📋 Referral Details</h2>
+                <h2 style="color: #389e0d; margin-top: 0;">Referral Details</h2>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold; width: 40%;">Client Name:</td>
@@ -442,13 +442,13 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
             </div>
 
             <div style="background-color: #fff2e8; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #fa8c16;">
-                <h3 style="color: #fa8c16; margin-top: 0;">⏰ AUTHORIZATION RECEIVED</h3>
+                <h3 style="color: #fa8c16; margin-top: 0;">AUTHORIZATION RECEIVED</h3>
                 <p style="margin: 10px 0; font-size: 16px;"><strong>Date & Time:</strong> {auth_date}</p>
                 <p style="margin: 10px 0;">This referral has been authorized and is ready for care coordination.</p>
             </div>
 
             <div style="background-color: #e6f7ff; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #1890ff;">
-                <h3 style="color: #1890ff; margin-top: 0;">🏥 NEXT STEPS</h3>
+                <h3 style="color: #1890ff; margin-top: 0;">NEXT STEPS</h3>
                 <ul style="margin: 10px 0; padding-left: 20px;">
                     <li><strong>Contact the client</strong> to schedule intake assessment</li>
                     <li><strong>Coordinate with CCU</strong> for care plan setup</li>
@@ -459,7 +459,7 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
 
             <div style="margin-top: 20px; padding: 15px; background-color: #fff7e6; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 14px; color: #d46b08;">
-                    <strong>⚠️ Care Start Reminder:</strong><br>
+                    <strong>Care Start Reminder:</strong><br>
                     <strong>Care Start Reminder:</strong> Every 6 hours until Care Start
                 </p>
             </div>
@@ -537,7 +537,7 @@ def send_lead_reminder_email(lead_data: dict, recipient_email: str) -> bool:
     # Comments
     comments = lead_data.get('comments', 'None')
     
-    subject = f"🔔 Lead Reminder: {full_name} - {contact_status}"
+    subject = f"Lead Reminder: {full_name} - {contact_status}"
     
     # Build source details
     source_detail = source
@@ -582,7 +582,7 @@ Last Contact Date: {last_contact_date}
 
 REFERRAL INFORMATION:
 ---------------------
-Is Referral: {'✅ Yes' if is_referral else '❌ No'}
+Referral: {'Yes' if is_referral else 'No'}
 Referral Type: {referral_type}
 Agency/Payor: {agency_detail}
 
@@ -618,10 +618,10 @@ Lead Manager System
     <html>
       <body style="font-family: Arial, sans-serif; color: #333; background-color: #f4f4f4; padding: 20px;">
         <div style="max-width: 700px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;">🔔 Lead Follow-up Reminder</h2>
+            <h2 style="color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;">Lead Follow-up Reminder</h2>
             
             <!-- Lead Information -->
-            <h3 style="color: #2980b9; margin-top: 25px;">👤 Lead Information</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Lead Information</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>Name</b></td>
@@ -658,7 +658,7 @@ Lead Manager System
             </table>
             
             <!-- Source Information -->
-            <h3 style="color: #2980b9; margin-top: 25px;">📍 Source Information</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Source Information</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>Source</b></td>
@@ -675,7 +675,7 @@ Lead Manager System
             </table>
             
             <!-- Contact Status -->
-            <h3 style="color: #2980b9; margin-top: 25px;">📞 Contact Status</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Contact Status</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>Current Status</b></td>
@@ -688,11 +688,11 @@ Lead Manager System
             </table>
             
             <!-- Referral Information -->
-            <h3 style="color: #2980b9; margin-top: 25px;">🏥 Referral Information</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Referral Information</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>Is Referral</b></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{'✅ Yes' if is_referral else '❌ No'}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">{'Yes' if is_referral else 'No'}</td>
                 </tr>
                 <tr>
                     <td style="padding: 10px; border: 1px solid #ddd;"><b>Referral Type</b></td>
@@ -706,7 +706,7 @@ Lead Manager System
             
             <!-- CCU Information -->
             {f'''
-            <h3 style="color: #2980b9; margin-top: 25px;">🏥 CCU Information</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">CCU Information</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>CCU Name</b></td>
@@ -721,7 +721,7 @@ Lead Manager System
             ''' if ccu_name != 'N/A' else ''}
             
             <!-- Emergency Contact -->
-            <h3 style="color: #2980b9; margin-top: 25px;">🚨 Emergency Contact</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Emergency Contact</h3>
             <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
                 <tr style="background-color: #f8f9fa;">
                     <td style="padding: 10px; border: 1px solid #ddd; width: 40%;"><b>Name</b></td>
@@ -739,7 +739,7 @@ Lead Manager System
             
             {f'''
             <!-- Comments -->
-            <h3 style="color: #2980b9; margin-top: 25px;">💬 Comments</h3>
+            <h3 style="color: #2980b9; margin-top: 25px;">Comments</h3>
             <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #3498db; margin: 15px 0;">
                 {comments}
             </div>

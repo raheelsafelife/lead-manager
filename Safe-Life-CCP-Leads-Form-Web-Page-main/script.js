@@ -162,7 +162,7 @@ function validateStep(stepIndex) {
         ageError.style.display = "block";
         isValid = false;
       } else if (isNaN(ageValue) || ageValue <= 0 || ageValue > 120) {
-        ageError.textContent = "Enter a valid age (1–120).";
+        ageError.textContent = "Enter a valid age (1-120).";
         ageError.style.display = "block";
         isValid = false;
       } else {

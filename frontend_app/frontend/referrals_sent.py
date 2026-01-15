@@ -479,7 +479,7 @@ def view_referrals():
                                     changes = format_changes(log.old_value, log.new_value)
                                     if changes:
                                         for field, old_val, new_val in changes:
-                                            st.caption(f"• {field}: {old_val} -> {new_val}")
+                                            st.caption(f"- {field}: {old_val} -> {new_val}")
                                 st.divider()
                     else:
                         st.caption("No history recorded yet.")

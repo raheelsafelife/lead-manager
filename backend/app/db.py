@@ -8,13 +8,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Priority 1: Check for Persistent Volume mount (Docker/AWS)
 if os.path.exists("/app/data"):
     DATABASE_URL = "sqlite:////app/data/leads.db"
-    print(f"🚀 [DB] Starting in Persistent Mode -> Using: /app/data/leads.db")
+    print(f"[DB] Starting in Persistent Mode -> Using: /app/data/leads.db")
 else:
     # Priority 2: Use DATABASE_URL from environment if provided
     env_db_url = os.getenv("DATABASE_URL")
     if env_db_url:
         DATABASE_URL = env_db_url
-        print(f"🚀 [DB] Starting in Custom Mode -> Using Env URL")
+        print(f"[DB] Starting in Custom Mode -> Using Env URL")
     else:
         # Priority 3: Default to local leads.db
         local_db_path = os.path.join(BASE_DIR, "leads.db")

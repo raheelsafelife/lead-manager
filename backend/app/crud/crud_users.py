@@ -20,7 +20,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     # Check if this is a legacy bcrypt hash (starts with $2b$)
     if hashed_password and hashed_password.startswith("$2b$"):
         try:
-            # Verify legacy bcrypt hashes using the direct bcrypt library
             # This bypasses the buggy passlib bcrypt handler
             return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
         except Exception:
@@ -115,6 +114,10 @@ def update_user_credentials(
         existing_user = get_user_by_username(db, new_username)
         if existing_user and existing_user.id != user_id:
             raise ValueError(f"Username '{new_username}' is already taken")
+        
+        # Sync all related tables with the new username
+        _sync_username_changes(db, old_username, new_username)
+        
         user.username = new_username
         changes["username"] = {"old": old_username, "new": new_username}
     
@@ -354,6 +357,10 @@ def admin_update_username(db: Session, user_id: int, new_username: str, admin_us
         raise ValueError(f"Username '{new_username}' is already taken")
     
     old_username = user.username
+    
+    # Sync all related tables with the new username
+    _sync_username_changes(db, old_username, new_username)
+    
     user.username = new_username
     db.commit()
     db.refresh(user)
@@ -449,3 +456,48 @@ def admin_update_user(db: Session, user_id: int, username: str = None, password:
         admin_update_username(db, user_id, username, admin_username, admin_id)
     if password:
         admin_reset_password(db, user_id, password, admin_username, admin_id)
+
+
+def _sync_username_changes(db: Session, old_username: str, new_username: str):
+    """
+    Internal helper to cascade username changes across all related tables.
+    """
+    if not old_username or not new_username or old_username == new_username:
+        return
+
+    # 1. Update Leads (staff_name, created_by, updated_by)
+    db.query(models.Lead).filter(models.Lead.staff_name == old_username).update({models.Lead.staff_name: new_username}, synchronize_session=False)
+    db.query(models.Lead).filter(models.Lead.created_by == old_username).update({models.Lead.created_by: new_username}, synchronize_session=False)
+    db.query(models.Lead).filter(models.Lead.updated_by == old_username).update({models.Lead.updated_by: new_username}, synchronize_session=False)
+
+    # 2. Update Events (created_by, updated_by)
+    db.query(models.Event).filter(models.Event.created_by == old_username).update({models.Event.created_by: new_username}, synchronize_session=False)
+    db.query(models.Event).filter(models.Event.updated_by == old_username).update({models.Event.updated_by: new_username}, synchronize_session=False)
+
+    # 3. Update Agencies (created_by, updated_by)
+    db.query(models.Agency).filter(models.Agency.created_by == old_username).update({models.Agency.created_by: new_username}, synchronize_session=False)
+    db.query(models.Agency).filter(models.Agency.updated_by == old_username).update({models.Agency.updated_by: new_username}, synchronize_session=False)
+
+    # 4. Update Agency Suboptions (created_by, updated_by)
+    db.query(models.AgencySuboption).filter(models.AgencySuboption.created_by == old_username).update({models.AgencySuboption.created_by: new_username}, synchronize_session=False)
+    db.query(models.AgencySuboption).filter(models.AgencySuboption.updated_by == old_username).update({models.AgencySuboption.updated_by: new_username}, synchronize_session=False)
+
+    # 5. Update CCUs (created_by, updated_by)
+    db.query(models.CCU).filter(models.CCU.created_by == old_username).update({models.CCU.created_by: new_username}, synchronize_session=False)
+    db.query(models.CCU).filter(models.CCU.updated_by == old_username).update({models.CCU.updated_by: new_username}, synchronize_session=False)
+
+    # 6. Update MCOs (created_by, updated_by)
+    db.query(models.MCO).filter(models.MCO.created_by == old_username).update({models.MCO.created_by: new_username}, synchronize_session=False)
+    db.query(models.MCO).filter(models.MCO.updated_by == old_username).update({models.MCO.updated_by: new_username}, synchronize_session=False)
+
+    # 7. Update Activity Logs (username and entity_name)
+    db.query(models.ActivityLog).filter(models.ActivityLog.username == old_username).update({models.ActivityLog.username: new_username}, synchronize_session=False)
+    db.query(models.ActivityLog).filter(
+        models.ActivityLog.entity_type == "User",
+        models.ActivityLog.entity_name == old_username
+    ).update({models.ActivityLog.entity_name: new_username}, synchronize_session=False)
+    
+    # 8. Update Email Reminders (sent_by)
+    db.query(models.EmailReminder).filter(models.EmailReminder.sent_by == old_username).update({models.EmailReminder.sent_by: new_username}, synchronize_session=False)
+
+    db.flush() # Ensure changes are staged within the current transaction

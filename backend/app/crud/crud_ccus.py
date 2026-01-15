@@ -107,7 +107,7 @@ def update_ccu(db: Session, ccu_id: int, name: str, updated_by: str, updated_by_
             entity_type="CCU",
             entity_id=ccu_id,
             entity_name=name,
-            description=f"Updated CCU: {old_name} → {name}"
+            description=f"Updated CCU: {old_name} -> {name}"
         )
         
         return ccu

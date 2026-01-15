@@ -173,7 +173,7 @@ def login():
                     st.error("Invalid credentials. Please check your username and password.")
             
             except Exception as e:
-                st.error(f"❌ Database connection error: {str(e)}")
+                st.error(f"Database connection error: {str(e)}")
                 st.info("Check if Railway Volume is correctly mounted at /app/data")
             finally:
                 if 'db' in locals():

@@ -298,7 +298,6 @@ def admin_panel():
                                     crud_users.approve_user(db, user.id, st.session_state.username, st.session_state.user_id)
                                     st.success(f" User '{new_username}' created successfully!")
                                     st.info(f"ID: {new_user_id} | Email: {new_email} | Role: {new_role}")
-                                    st.balloons()
                     except Exception as e:
                         st.error(f" Error creating user: {e}")
     
@@ -579,7 +578,7 @@ def render_historian():
                         for field, old, new in changes:
                             entry_html += f"""
 <div style="margin-top: 4px;">
-    <span style="font-weight: 600;">{field}:</span> ({old}) → ({new})
+    <span style="font-weight: 600;">{field}:</span> ({old}) -> ({new})
 </div>
 """
                 

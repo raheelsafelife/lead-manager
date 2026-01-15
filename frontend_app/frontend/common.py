@@ -277,7 +277,7 @@ GLOBAL_CSS = """
         color: #000000 !important;
     }
 
-    /* Buttons – aqua background with white text */
+    /* Buttons - aqua background with white text */
     button, .stButton > button, .stForm button, .stForm button[type="submit"] {
         font-family: 'Montserrat', sans-serif;
         font-weight: 700;
@@ -903,8 +903,8 @@ def render_api_status():
         # Ping the health endpoint
         with urllib.request.urlopen(f"{backend_url}/health", timeout=3) as response:
             if response.getcode() == 200:
-                st.sidebar.markdown("### 🟢")
+                st.sidebar.markdown("**System: Live**")
             else:
-                st.sidebar.markdown("### 🔴")
+                st.sidebar.markdown("**System: Offline**")
     except Exception:
-        st.sidebar.markdown("### 🔴")
+        st.sidebar.markdown("**System: Offline**")

@@ -161,24 +161,24 @@ def get_action_icon(action_type: str) -> str:
     Get emoji icon for action type
     """
     icons = {
-        "LEAD_CREATED": "✅",
-        "LEAD_UPDATED": "✏️",
-        "LEAD_DELETED": "🗑️",
-        "STATUS_CHANGED": "📞",
-        "REFERRAL_MARKED": "🎯",
-        "REFERRAL_UNMARKED": "❌",
-        "COMMENT_ADDED": "📝",
-        "USER_LOGIN": "👤",
-        "USER_LOGOUT": "🚪",
-        "PASSWORD_CHANGED": "🔑",
-        "USER_CREATED": "👥",
-        "USER_APPROVED": "✅",
-        "USER_REJECTED": "❌",
-        "EVENT_CREATED": "🎉",
-        "EVENT_UPDATED": "✏️",
-        "EVENT_DELETED": "🗑️",
+        "LEAD_CREATED": "",
+        "LEAD_UPDATED": "",
+        "LEAD_DELETED": "",
+        "STATUS_CHANGED": "",
+        "REFERRAL_MARKED": "",
+        "REFERRAL_UNMARKED": "",
+        "COMMENT_ADDED": "",
+        "USER_LOGIN": "",
+        "USER_LOGOUT": "",
+        "PASSWORD_CHANGED": "",
+        "USER_CREATED": "",
+        "USER_APPROVED": "",
+        "USER_REJECTED": "",
+        "EVENT_CREATED": "",
+        "EVENT_UPDATED": "",
+        "EVENT_DELETED": "",
     }
-    return icons.get(action_type, "📋")
+    return icons.get(action_type, "")
 
 
 def get_action_label(action_type: str) -> str:

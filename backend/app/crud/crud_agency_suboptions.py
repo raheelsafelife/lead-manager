@@ -97,7 +97,7 @@ def update_suboption(db: Session, suboption_id: int, name: str, updated_by: str,
             action_type="AGENCY_SUBOPTION_UPDATED",
             entity_type="AgencySuboption",
             entity_id=suboption_id,
-            description=f"Updated agency suboption: {old_name} → {name}"
+            description=f"Updated agency suboption: {old_name} -> {name}"
         )
         
         return suboption

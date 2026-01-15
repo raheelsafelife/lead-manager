@@ -39,8 +39,8 @@ def migrate():
             
             # Insert default MCOs
             default_mcos = [
-                "Aetna – Medicaid",
-                "Aetna – MMAI",
+                "Aetna - Medicaid",
+                "Aetna - MMAI",
                 "BCBSIL",
                 "Meridian",
                 "Molina"

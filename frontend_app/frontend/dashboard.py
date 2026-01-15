@@ -893,7 +893,7 @@ def dashboard():
                 col_btn1, col_btn2 = st.columns(2)
                 
                 with col_btn1:
-                    if st.button("📊 View Referrals", key="btn_referrals", width="stretch"):
+                    if st.button("View Referrals", key="btn_referrals", width="stretch"):
                         # Toggle: if already showing referrals, hide it; otherwise show it
                         if st.session_state.get('drill_down_active') == 'referrals':
                             st.session_state['drill_down_active'] = None
@@ -902,7 +902,7 @@ def dashboard():
                         st.rerun()
                 
                 with col_btn2:
-                    if st.button("📊 View Pending", key="btn_pending", width="stretch"):
+                    if st.button("View Pending", key="btn_pending", width="stretch"):
                         # Toggle: if already showing pending, hide it; otherwise show it
                         if st.session_state.get('drill_down_active') == 'pending':
                             st.session_state['drill_down_active'] = None
@@ -1013,7 +1013,7 @@ def dashboard():
             col_btn1, col_btn2, col_btn3 = st.columns(3)
             
             with col_btn1:
-                if st.button("📊 Care Start", key="btn_care_start", width="stretch"):
+                if st.button("Care Start", key="btn_care_start", width="stretch"):
                     if st.session_state.get('drill_down_conv') == 'care_start':
                         st.session_state['drill_down_conv'] = None
                     else:
@@ -1021,7 +1021,7 @@ def dashboard():
                     st.rerun()
             
             with col_btn2:
-                if st.button("📊 Not Start", key="btn_not_start", width="stretch"):
+                if st.button("Not Start", key="btn_not_start", width="stretch"):
                     if st.session_state.get('drill_down_conv') == 'not_start':
                         st.session_state['drill_down_conv'] = None
                     else:
@@ -1029,7 +1029,7 @@ def dashboard():
                     st.rerun()
             
             with col_btn3:
-                if st.button("📊 Pending", key="btn_conv_pending", width="stretch"):
+                if st.button("Pending", key="btn_conv_pending", width="stretch"):
                     if st.session_state.get('drill_down_conv') == 'conv_pending':
                         st.session_state['drill_down_conv'] = None
                     else:
@@ -1102,12 +1102,14 @@ def dashboard():
                 <div style="flex: 1; padding: 15px; border-right: 1px solid #E5E7EB;">
                     <span style="color: #111827; font-size: 32px; font-weight: bold;">{confirmation_rate:.1f}%</span>
                     <br><span style="color: #4B5563; font-size: 14px;">Confirmation Rate</span>
-                    <br><span style="color: #6B7280; font-size: 11px;">Leads → Referrals</span>
+                    <br><span style="color: #6B7280; font-size: 11px;">Leads -> Referrals
+</span>
                 </div>
                 <div style="flex: 1; padding: 15px;">
                     <span style="color: #3CA5AA; font-size: 32px; font-weight: bold;">{conversion_rate:.1f}%</span>
                     <br><span style="color: #4B5563; font-size: 14px;">Conversion Rate</span>
-                    <br><span style="color: #6B7280; font-size: 11px;">Referrals → Care Start</span>
+                    <br><span style="color: #6B7280; font-size: 11px;">Referrals -> Care Start
+</span>
                 </div>
             </div>
         </div>
@@ -1127,7 +1129,7 @@ def discovery_tool():
 
     st.markdown('<div class="main-header">LEAD DISCOVERY TOOL</div>', unsafe_allow_html=True)
     
-    st.info("💡 **Discover Hidden Patterns:** Select any two features to cross-reference and analyze your leads.")
+    st.info("**Discover Hidden Patterns:** Select any two features to cross-reference and analyze your leads.")
     
     # Check for empty data
     if df_all_leads.empty:
@@ -1318,7 +1320,7 @@ def view_all_user_dashboards():
     """View dashboard statistics for all users"""
     st.markdown('<div class="main-header">ALL USER DASHBOARDS</div>', unsafe_allow_html=True)
     
-    if st.button("← Back to Main Dashboard"):
+    if st.button("Back to Main Dashboard"):
         st.session_state.show_user_dashboards = False
         st.rerun()
     
@@ -1440,7 +1442,7 @@ def view_all_user_dashboards():
                     col_btn1, col_btn2 = st.columns(2)
                     
                     with col_btn1:
-                        if st.button("📊 Referrals", key=f"btn_ref_{user.id}", width="stretch"):
+                        if st.button("Referrals", key=f"btn_ref_{user.id}", width="stretch"):
                             # Toggle drill-down
                             session_key = f'drill_admin_conf_{user.id}'
                             if st.session_state.get(session_key) == 'referrals':
@@ -1450,7 +1452,7 @@ def view_all_user_dashboards():
                             st.rerun()
                     
                     with col_btn2:
-                        if st.button("📊 Pending", key=f"btn_pend_{user.id}", width="stretch"):
+                        if st.button("Pending", key=f"btn_pend_{user.id}", width="stretch"):
                             # Toggle drill-down
                             session_key = f'drill_admin_conf_{user.id}'
                             if st.session_state.get(session_key) == 'pending':
@@ -1510,7 +1512,7 @@ def view_all_user_dashboards():
                     col_btn1, col_btn2, col_btn3 = st.columns(3)
                     
                     with col_btn1:
-                        if st.button("📊 Care Start", key=f"btn_cs_{user.id}", width="stretch"):
+                        if st.button("Care Start", key=f"btn_cs_{user.id}", width="stretch"):
                             session_key = f'drill_admin_conv_{user.id}'
                             if st.session_state.get(session_key) == 'care_start':
                                 st.session_state[session_key] = None
@@ -1519,7 +1521,7 @@ def view_all_user_dashboards():
                             st.rerun()
                     
                     with col_btn2:
-                        if st.button("📊 Not Start", key=f"btn_ns_{user.id}", width="stretch"):
+                        if st.button("Not Start", key=f"btn_ns_{user.id}", width="stretch"):
                             session_key = f'drill_admin_conv_{user.id}'
                             if st.session_state.get(session_key) == 'not_start':
                                 st.session_state[session_key] = None
@@ -1528,7 +1530,7 @@ def view_all_user_dashboards():
                             st.rerun()
                     
                     with col_btn3:
-                        if st.button("📊 Pending", key=f"btn_cp_{user.id}", width="stretch"):
+                        if st.button("Pending", key=f"btn_cp_{user.id}", width="stretch"):
                             session_key = f'drill_admin_conv_{user.id}'
                             if st.session_state.get(session_key) == 'conv_pending':
                                 st.session_state[session_key] = None

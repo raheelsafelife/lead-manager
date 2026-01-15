@@ -245,12 +245,12 @@ def view_leads():
                              lead.staff_name == st.session_state.username)
                 
                 if not can_modify:
-                    st.warning(" You can only edit/delete your own leads")
+                    st.warning("You can only edit/delete your own leads")
                 
                 # Action buttons row
                 col1, col2, col3, col4 = st.columns([1, 1, 1.5, 1.5])
                 with col1:
-                    if can_modify and st.button(" Edit", key=f"edit_{lead.id}"):
+                    if can_modify and st.button("Edit", key=f"edit_{lead.id}"):
                         st.session_state[f'editing_{lead.id}'] = True
                         st.rerun()
                 with col2:
@@ -271,7 +271,7 @@ def view_leads():
                             if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary"):
                                 update_data = LeadUpdate(active_client=False, referral_type=None)
                                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                                st.success(" Unmarked as Referral!")
+                                st.success("Unmarked as Referral!")
                                 st.rerun()
                 
                 with col4:
@@ -303,7 +303,7 @@ def view_leads():
                                     changes = format_changes(log.old_value, log.new_value)
                                     if changes:
                                         for field, old_val, new_val in changes:
-                                            st.caption(f"• {field}: {old_val} → {new_val}")
+                                            st.caption(f"- {field}: {old_val} -> {new_val}")
                                 st.divider()
                     else:
                         st.caption("No history recorded yet.")
@@ -349,9 +349,9 @@ def view_leads():
                         st.divider()
                         col1, col2 = st.columns([1, 1])
                         with col1:
-                            save = st.form_submit_button("💾 Save Changes", width="stretch", type="primary")
+                            save = st.form_submit_button("Save Changes", width="stretch", type="primary")
                         with col2:
-                            cancel = st.form_submit_button(" Cancel", width="stretch")
+                            cancel = st.form_submit_button("Cancel", width="stretch")
                         
                         if save:
                             update_data = LeadUpdate(
@@ -375,7 +375,7 @@ def view_leads():
                             
                             crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
                             st.session_state[f'editing_{lead.id}'] = False
-                            st.success(" Lead updated successfully!")
+                            st.success("Lead updated successfully!")
                             st.rerun()
                         
                         if cancel:
@@ -397,7 +397,7 @@ def mark_referral_page():
     lead_id = st.session_state.get('mark_referral_lead_id')
     
     if not lead_id:
-        st.warning(" No lead selected. Please go to View Leads and click 'Mark Referral' on a lead.")
+        st.warning("No lead selected. Please go to View Leads and click 'Mark Referral' on a lead.")
         if st.button("Go to View Leads"):
             st.session_state['current_page'] = None
             st.rerun()
@@ -408,7 +408,7 @@ def mark_referral_page():
     lead = crud_leads.get_lead(db, lead_id)
     
     if not lead:
-        st.error(" Lead not found")
+        st.error("Lead not found")
         if st.button("Go to View Leads"):
             st.session_state['current_page'] = None
             st.session_state['mark_referral_lead_id'] = None
@@ -442,10 +442,10 @@ def mark_referral_page():
 
     # REDUNDANCY CHECK: Prevent re-marking if already an active referral
     if lead.active_client:
-        st.warning(f" **This lead is already marked as a referral ({lead.referral_type}).**")
+        st.warning(f"**This lead is already marked as a referral ({lead.referral_type}).**")
         st.info("You cannot mark this lead as a referral again. Please return to the View Leads page.")
         
-        if st.button("← Back to View Leads", type="primary"):
+        if st.button("Back to View Leads", type="primary"):
             st.session_state['current_page'] = None
             st.session_state['mark_referral_lead_id'] = None
             st.rerun()
@@ -467,7 +467,7 @@ def mark_referral_page():
     
     # Add Payor (Admin Only)
     if st.session_state.user_role == "admin":
-        with st.expander(" Add New Payor", expanded=False):
+        with st.expander("Add New Payor", expanded=False):
             with st.form("add_agency_referral_form"):
                 new_agency_name = st.text_input("New Payor Name")
                 col_ab1, col_ab2 = st.columns([1, 1])
@@ -490,7 +490,7 @@ def mark_referral_page():
     agency_options = {a.name: a.id for a in agencies}
     
     if not agencies:
-        st.warning(" No payors available.")
+        st.warning("No payors available.")
         selected_agency_name = "None"
     else:
         agency_list = ["None"] + list(agency_options.keys())
@@ -504,7 +504,7 @@ def mark_referral_page():
     st.write("**CCU Details:**")
     
     # Add CCU (All Users)
-    with st.expander(" Add New CCU", expanded=False):
+    with st.expander("Add New CCU", expanded=False):
         with st.form("add_ccu_referral_form"):
             new_ccu_name = st.text_input("CCU Name *")
             new_ccu_address = st.text_input("Address")
@@ -542,7 +542,7 @@ def mark_referral_page():
     
     selected_ccu_id = None
     if not ccus:
-        st.info(" No CCUs available.")
+        st.info("No CCUs available.")
     else:
         ccu_list = ["None"] + list(ccu_options.keys())
         selected_ccu_name = st.selectbox("Select CCU", ccu_list, label_visibility="collapsed")

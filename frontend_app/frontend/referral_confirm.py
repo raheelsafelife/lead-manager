@@ -71,7 +71,7 @@ def display_referral_confirm(lead, db, highlight=False):
             st.markdown("---")
 
             if auth_received_time:
-                st.success(f"**Authorization Received:** {render_time(auth_received_time)}", icon="✅")
+                st.success(f"**Authorization Received:** {render_time(auth_received_time)}")
             else:
                 st.success("**Authorization Received**")
 

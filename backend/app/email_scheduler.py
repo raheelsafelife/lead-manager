@@ -301,7 +301,7 @@ def send_lead_reminders():
 
                             # Send care start reminder email
                             success = send_referral_reminder_email(care_start_info, user.email)
-                            subject = f"⚠️ Care Start Reminder [{care_start_info['referral_type']}]: {lead.first_name} {lead.last_name} - {care_start_info['days_since_auth']} days since authorization"
+                            subject = f"Care Start Reminder [{care_start_info['referral_type']}]: {lead.first_name} {lead.last_name} - {care_start_info['days_since_auth']} days since authorization"
 
                             # Record the care start reminder
                             status = "sent" if success else "failed"

@@ -84,7 +84,7 @@ def update_mco(
         entity_type="MCO",
         entity_id=mco.id,
         entity_name=name,
-        description=f"Updated MCO: {old_name} → {name}",
+        description=f"Updated MCO: {old_name} -> {name}",
         old_value={"name": old_name},
         new_value={"name": name},
         keywords=f"mco,update,{name}"
