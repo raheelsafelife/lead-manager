@@ -35,5 +35,5 @@ fi
 echo "🏗️  Rebuilding and Starting services (Background)..."
 docker compose up -d --build
 
-echo "✅ Refresh Complete! Your app is starting at https://ccpleads.safelifehomehealth.com/
+echo "✅ Refresh Complete! Your app is starting at https://ccpleads.safelifehomehealth.com/"
 echo "Check logs with: docker compose logs -f"
