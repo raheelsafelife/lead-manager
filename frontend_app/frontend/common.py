@@ -187,22 +187,6 @@ GLOBAL_CSS = """
         min-width: 100% !important;
         margin: 0 !important;
     }
-    
-    /* Prevent clicks on background through the backdrop, not by disabling the whole app container */
-    /* stAppViewContainer should remain reachable so that the modal (its child) can receive events */
-    
-    /* Add white overlay on top of blurred content */
-    body:has(.modal-marker)::before {
-        content: "" !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background-color: rgba(255, 255, 255, 0.3) !important;
-        z-index: 999998 !important;
-        pointer-events: none !important;
-    }
 
     /* Modal backdrop - dark semi-transparent overlay */
     .modal-backdrop {
@@ -236,7 +220,7 @@ GLOBAL_CSS = """
         background-color: #FFFFFF !important;
         border-radius: 12px !important;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-        z-index: 999999 !important;
+        z-index: 999999 !important; /* Above everything */
         padding: 0 !important;
         overflow-y: auto !important; /* Allow internal scrolling if too tall */
         max-height: 95vh !important; /* Don't exceed screen height */

@@ -80,6 +80,8 @@ def main():
                 """Callback when main navigation changes"""
                 # Clear any sub-page state when navigating to a new main page
                 st.session_state.current_page = None
+                if 'active_modal' in st.session_state:
+                    del st.session_state['active_modal']
             
             # Additional check: If Mark Referral Page is active, ensure we don't accidentally navigate away
             # unless the user explicitly clicked.
