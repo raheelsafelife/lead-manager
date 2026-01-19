@@ -19,14 +19,153 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal
 
 
 def view_leads():
     """View and manage leads"""
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(msg)
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(msg)
+
     st.markdown('<div class="main-header">Manage Leads</div>', unsafe_allow_html=True)
     
     db = SessionLocal()
+
+    # --- TOP-LEVEL MODAL RENDERING ---
+    # Handle Global Modal Triggers
+    if 'active_modal' in st.session_state:
+        m = st.session_state['active_modal']
+        
+        # SPECIAL CASE: Edit Modal (Form)
+        if m['modal_type'] == 'save_edit_modal':
+            st.markdown('<div class="modal-backdrop"></div>', unsafe_allow_html=True)
+            with st.container():
+                st.markdown(f'<div class="modal-marker info form-modal"></div>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="modal-header">
+                    <div class="modal-icon">📝</div>
+                    <div class="modal-title">Edit Lead: {m['title']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Fetch lead data for form
+                lead = m['lead_data']
+                with st.form(f"edit_lead_modal_form_{m['target_id']}"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""))
+                        new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""))
+                        new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""))
+                        new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""))
+                        new_source = st.text_input("Source", value=str(lead.get('source') or ""))
+                        new_city = st.text_input("City", value=str(lead.get('city') or ""))
+                    with col2:
+                        status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Dead Lead"]
+                        current_status = lead.get('last_contact_status', 'Intro Call')
+                        status_index = status_options.index(current_status) if current_status in status_options else 0
+                        new_status = st.selectbox("Status", status_options, index=status_index)
+                        
+                        priority_options = ["High", "Medium", "Low"]
+                        current_priority = lead.get('priority', 'Medium')
+                        priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
+                        new_priority = st.selectbox("Priority", priority_options, index=priority_index)
+                        
+                        new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0))
+                        new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""))
+                        new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""))
+                        new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""))
+                    
+                    dob_value = lead.get('dob')
+                    new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today())
+                    
+                    new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""))
+                    
+                    st.divider()
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.form_submit_button("CANCEL", use_container_width=True):
+                            del st.session_state['active_modal']
+                            st.rerun()
+                    with c2:
+                        if st.form_submit_button("SAVE CHANGES", type="primary", use_container_width=True):
+                            # Update dictionary
+                            update_dict = {
+                                "first_name": new_first,
+                                "last_name": new_last,
+                                "phone": new_phone,
+                                "staff_name": new_staff,
+                                "source": new_source,
+                                "city": new_city,
+                                "last_contact_status": new_status,
+                                "priority": new_priority,
+                                "dob": new_dob,
+                                "medicaid_no": new_medicaid,
+                                "e_contact_name": new_e_name,
+                                "e_contact_phone": new_e_phone,
+                                "active_client": lead.get('active_client'), # This field is not editable in the form, so keep original value
+                                "comments": new_comments,
+                                "age": new_age if new_age > 0 else None
+                            }
+                            schema_data = LeadUpdate(**update_dict)
+                            crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
+                            st.session_state['success_msg'] = f"✅ Lead '{new_first} {new_last}' updated successfully!"
+                            del st.session_state['active_modal']
+                            st.rerun()
+            return # Exit early to only show modal
+
+        # REGULAR MODALS
+        action = render_confirmation_modal(
+            title=m['title'],
+            message=m['message'],
+            icon=m['icon'],
+            type=m['type'],
+            confirm_label=m['confirm_label'],
+            key_prefix=f"global_{m['target_id']}",
+            indicator=m.get('indicator')
+        )
+        
+        if action is True:
+            # Execute the action based on type
+            if m['modal_type'] == 'perm_delete':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
+                    st.session_state['success_msg'] = f"✅ Success! Lead has been permanently removed."
+                    del st.session_state['active_modal']
+                    st.rerun()
+            elif m['modal_type'] == 'soft_delete':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                    st.session_state['success_msg'] = f"✅ Success! Lead moved to Recycle Bin."
+                    del st.session_state['active_modal']
+                    st.rerun()
+            elif m['modal_type'] == 'mark_ref_confirm':
+                st.session_state['mark_referral_lead_id'] = m['target_id']
+                st.session_state['current_page'] = 'Mark Referral Page'
+                del st.session_state['active_modal']
+                st.toast("🚀 Heading to Mark Referral Page...", icon="🚀")
+                st.rerun()
+            elif m['modal_type'] == 'save_edit':
+                # Data is stored in session state to survive the modal rerun
+                update_data = st.session_state.get(f"pending_edit_{m['target_id']}")
+                if update_data:
+                    # Convert dict to schema
+                    schema_data = LeadUpdate(**update_data)
+                    crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
+                    st.session_state['success_msg'] = "✅ Lead updated successfully!"
+                    st.session_state[f'editing_{m["target_id"]}'] = False
+                    del st.session_state[f"pending_edit_{m['target_id']}"]
+                    del st.session_state['active_modal']
+                    st.rerun()
+        elif action is False:
+            if m['modal_type'] == 'save_edit':
+                del st.session_state[f"pending_edit_{m['target_id']}"]
+            del st.session_state['active_modal']
+            st.rerun()
     
     # Initialize status filter in session state
     if 'status_filter' not in st.session_state:
@@ -43,6 +182,23 @@ def view_leads():
     # Initialize active/inactive filter
     if 'active_inactive_filter' not in st.session_state:
         st.session_state.active_inactive_filter = "Active"  # Default to showing only active leads
+    
+    # Initialize recycle bin filter
+    if 'show_deleted_leads' not in st.session_state:
+        st.session_state.show_deleted_leads = False
+    
+    # Recycle Bin Toggle (Admin and Users can see their own deleted leads)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
+    show_deleted = st.checkbox(
+        "Show Deleted Leads",
+        value=st.session_state.show_deleted_leads,
+        help="View leads that have been deleted (can be restored)"
+    )
+    if show_deleted != st.session_state.show_deleted_leads:
+        st.session_state.show_deleted_leads = show_deleted
+        st.rerun()
+    
+    st.divider()
     
     # Toggle buttons for regular users to switch between My Leads and All Leads
     if st.session_state.user_role != "admin":
@@ -161,8 +317,14 @@ def view_leads():
         if st.button("Search", key="search_leads_btn", use_container_width=True):
             st.rerun()
     
-    # Get leads
-    leads = crud_leads.list_leads(db, limit=100)
+    # Get leads based on recycle bin filter
+    if st.session_state.show_deleted_leads:
+        # Show only deleted leads
+        leads = crud_leads.list_deleted_leads(db, limit=100)
+        st.info("🗑️ **Recycle Bin Mode** - Showing deleted leads only. Uncheck to see active leads.")
+    else:
+        # Show normal leads (not deleted)
+        leads = crud_leads.list_leads(db, limit=100, include_deleted=False)
     
     # Apply 'Show Only My Leads' filter for regular users
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
@@ -248,39 +410,157 @@ def view_leads():
                     st.warning("You can only edit/delete your own leads")
                 
                 # Action buttons row
-                col1, col2, col3, col4 = st.columns([1, 1, 1.5, 1.5])
-                with col1:
-                    if can_modify and st.button("Edit", key=f"edit_{lead.id}"):
-                        st.session_state[f'editing_{lead.id}'] = True
-                        st.rerun()
-                with col2:
-                    # Delete functionality removed as per user request
-                    pass
-                
-                with col3:
-                    # Toggle Referral button
-                    if can_modify:
-                        if not lead.active_client:
-                            # Not a referral yet -> Navigate to Mark Referral page
-                            if st.button("Mark Referral", key=f"mark_ref_btn_{lead.id}"):
-                                st.session_state['mark_referral_lead_id'] = lead.id
-                                st.session_state['current_page'] = 'Mark Referral Page'
+                if st.session_state.show_deleted_leads:
+                    # RECYCLE BIN MODE - Show Restore and Permanent Delete
+                    st.markdown("<div style='background-color: #fef3c7; padding: 10px; border-radius: 5px; margin: 10px 0;'>", unsafe_allow_html=True)
+                    st.markdown("<p style='margin: 0; color: #92400e; font-weight: 600;'>🗑️ Deleted Lead</p>", unsafe_allow_html=True)
+                    if lead.deleted_at:
+                        st.markdown(f"<p style='margin: 0; color: #78350f; font-size: 0.85rem;'>Deleted by: {lead.deleted_by} on {render_time(lead.deleted_at)}</p>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("↻ Restore Lead", key=f"restore_{lead.id}", type="primary", use_container_width=True):
+                            # Restore confirmation
+                            st.session_state[f'confirm_restore_{lead.id}'] = True
+                            st.rerun()
+                    
+                    with col2:
+                        if st.session_state.user_role == "admin":
+                            if st.button("🗑️ Permanent Delete", key=f"perm_del_{lead.id}", use_container_width=True):
+                                st.session_state[f'confirm_perm_delete_{lead.id}'] = True
                                 st.rerun()
-                        else:
-                            # Already a referral -> Show Unmark button
-                            if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary"):
-                                update_data = LeadUpdate(active_client=False, referral_type=None)
-                                crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                                st.success("Unmarked as Referral!")
+                    
+                    # Restore confirmation dialog
+                    if st.session_state.get(f'confirm_restore_{lead.id}', False):
+                        st.warning("⚠️ **Restore Lead?**")
+                        st.write(f"Restore **{lead.first_name} {lead.last_name}** back to active leads?")
+                        conf_col1, conf_col2 = st.columns(2)
+                        with conf_col1:
+                            if st.button("✅ Yes, Restore", key=f"yes_restore_{lead.id}", type="primary"):
+                                if crud_leads.restore_lead(db, lead.id, st.session_state.username, st.session_state.get('db_user_id')):
+                                    st.session_state['success_msg'] = f"✅ Success! {lead.first_name} {lead.last_name} has been restored to active leads."
+                                    del st.session_state[f'confirm_restore_{lead.id}']
+                                    st.rerun()
+                                else:
+                                    st.error("❌ **Restore Failed** - Could not restore lead.")
+                        with conf_col2:
+                            if st.button("❌ Cancel", key=f"no_restore_{lead.id}"):
+                                del st.session_state[f'confirm_restore_{lead.id}']
                                 st.rerun()
-                
-                with col4:
-                    # History button
-                    if st.button("History", key=f"history_{lead.id}"):
-                        # Toggle history view
-                        key = f"show_history_{lead.id}"
-                        st.session_state[key] = not st.session_state.get(key, False)
+                    
+                    # Permanent delete confirmation dialog
+                    if st.session_state.get(f'confirm_perm_delete_{lead.id}', False):
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'perm_delete',
+                            'target_id': lead.id,
+                            'title': 'Permanent Delete?',
+                            'message': f"Are you absolutely sure you want to <strong>PERMANENTLY DELETE</strong> <strong>{lead.first_name} {lead.last_name}</strong>?<br><br><span style='color: #DC2626; font-weight: bold;'>🔥 This action cannot be undone.</span>",
+                            'icon': '⚠️',
+                            'type': 'error',
+                            'confirm_label': 'DELETE FOREVER'
+                        }
+                        del st.session_state[f'confirm_perm_delete_{lead.id}']
                         st.rerun()
+                else:
+                    # NORMAL MODE - Show Edit, Delete, Mark Referral buttons
+                    col1, col2, col3, col4 = st.columns([1, 1, 1.5, 1.5])
+                    with col1:
+                        if can_modify and st.button("Edit", key=f"edit_{lead.id}"):
+                            # Prepare serializable lead data for modal
+                            lead_dict = {
+                                "staff_name": lead.staff_name,
+                                "first_name": lead.first_name,
+                                "last_name": lead.last_name,
+                                "source": lead.source,
+                                "phone": lead.phone,
+                                "city": lead.city,
+                                "last_contact_status": lead.last_contact_status,
+                                "priority": lead.priority,
+                                "dob": lead.dob,
+                                "medicaid_no": lead.medicaid_no,
+                                "e_contact_name": lead.e_contact_name,
+                                "e_contact_phone": lead.e_contact_phone,
+                                "active_client": lead.active_client,
+                                "comments": lead.comments
+                            }
+                            st.session_state['active_modal'] = {
+                                'modal_type': 'save_edit_modal',
+                                'target_id': lead.id,
+                                'title': f"{lead.first_name} {lead.last_name}",
+                                'lead_data': lead_dict
+                            }
+                            st.rerun()
+                    
+                    with col2:
+                        # Delete button with confirmation
+                        if can_modify:
+                            if st.button("🗑️ Delete", key=f"delete_{lead.id}"):
+                                st.session_state[f'confirm_delete_{lead.id}'] = True
+                                st.rerun()
+                    
+                    with col3:
+                        # Toggle Referral button with confirmation
+                        if can_modify:
+                            if not lead.active_client:
+                                # Not a referral yet -> Navigate to Mark Referral page
+                                if st.button("Mark Referral", key=f"mark_ref_btn_{lead.id}"):
+                                    st.session_state[f'confirm_mark_ref_{lead.id}'] = True
+                                    st.rerun()
+                            else:
+                                # Already a referral -> Show Unmark button
+                                if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary"):
+                                    update_data = LeadUpdate(active_client=False, referral_type=None)
+                                    crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
+                                    st.success("✅ Unmarked as Referral!")
+                                    st.rerun()
+                    
+                    with col4:
+                        # History button
+                        if st.button("History", key=f"history_{lead.id}"):
+                            # Toggle history view
+                            key = f"show_history_{lead.id}"
+                            st.session_state[key] = not st.session_state.get(key, False)
+                            st.rerun()
+                
+                # Confirmation Dialogs for Normal Mode
+                if not st.session_state.show_deleted_leads:
+                    # Delete confirmation dialog
+                    if st.session_state.get(f'confirm_delete_{lead.id}', False):
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'soft_delete',
+                            'target_id': lead.id,
+                            'title': 'Delete Lead?',
+                            'message': f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?",
+                            'icon': '🗑️',
+                            'type': 'warning',
+                            'confirm_label': 'DELETE',
+                            'indicator': 'It will be moved to the Recycle Bin.'
+                        }
+                        del st.session_state[f'confirm_delete_{lead.id}']
+                        st.rerun()
+                    
+                    # Mark Referral confirmation dialog
+                    if st.session_state.get(f'confirm_mark_ref_{lead.id}', False):
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'mark_ref_confirm',
+                            'target_id': lead.id,
+                            'title': 'Mark as Referral?',
+                            'message': f"This will move <strong>{lead.first_name} {lead.last_name}</strong> to 'Referrals Sent' and change its status.<br><br>You'll be redirected to complete referral details.",
+                            'icon': '🚀',
+                            'type': 'info',
+                            'confirm_label': 'YES, MARK REFERRAL',
+                            'cancel_label': 'CANCEL'
+                        }
+                        del st.session_state[f'confirm_mark_ref_{lead.id}']
+                        st.rerun()
+
+                # Handle Mark Referral Modal Action
+                if 'active_modal' in st.session_state and st.session_state['active_modal']['modal_type'] == 'mark_ref_confirm':
+                    m = st.session_state['active_modal']
+                    # This logic runs because we called render_confirmation_modal at top level
+                    # But we need to define what happens if THIS specific modal is active
+                    pass # Handled by the generic action == True block below for unified handling
                 
                 # History View
                 if st.session_state.get(f"show_history_{lead.id}", False):
@@ -314,73 +594,9 @@ def view_leads():
                     st.divider()
                     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Edit Lead</h4>", unsafe_allow_html=True)
                     
-                    with st.form(f"edit_form_{lead.id}"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            edit_staff_name = st.text_input("**Staff Name** *", value=lead.staff_name)
-                            edit_first_name = st.text_input("**First Name** *", value=lead.first_name)
-                            edit_last_name = st.text_input("**Last Name** *", value=lead.last_name)
-                            
-                            edit_age = st.number_input("**Age**", min_value=0, max_value=120, value=int(lead.age or 0))
-                            
-                            source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
-                            edit_source = st.selectbox("**Source** *", 
-                                                      source_options,
-                                                      index=source_options.index(lead.source) if lead.source in source_options else source_options.index("Other"))
-                            edit_phone = st.text_input("**Phone** *", value=lead.phone)
-                            edit_priority = st.selectbox("**Priority**", ["High", "Medium", "Low"], 
-                                                        index=["High", "Medium", "Low"].index(lead.priority) if lead.priority in ["High", "Medium", "Low"] else 1)
-                            st.markdown(get_priority_tag(edit_priority), unsafe_allow_html=True)
-                            edit_city = st.text_input("**City**", value=lead.city or "")
-                            edit_zip_code = st.text_input("**Zip Code**", value=lead.zip_code or "")
-                        
-                        
-                        with col2:
-                            edit_status = st.selectbox("**Contact Status**", 
-                                                      ["Intro Call", "Follow Up", "No Response", "Inactive"],
-                                                      index=["Intro Call", "Follow Up", "No Response", "Inactive"].index(lead.last_contact_status) if lead.last_contact_status in ["Intro Call", "Follow Up", "No Response", "Inactive"] else 0)
-                            edit_dob = st.date_input("**Date of Birth**", value=lead.dob)
-                            edit_medicaid_no = st.text_input("**Medicaid Number**", value=lead.medicaid_no or "")
-                            edit_e_contact_name = st.text_input("**Emergency Contact Name**", value=lead.e_contact_name or "")
-                            edit_e_contact_phone = st.text_input("**Emergency Contact Phone**", value=lead.e_contact_phone or "")
-                            edit_comments = st.text_area("**Comments**", value=lead.comments or "")
-                        
-                        st.divider()
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            save = st.form_submit_button("Save Changes", width="stretch", type="primary")
-                        with col2:
-                            cancel = st.form_submit_button("Cancel", width="stretch")
-                        
-                        if save:
-                            update_data = LeadUpdate(
-                                staff_name=edit_staff_name,
-                                first_name=edit_first_name,
-                                last_name=edit_last_name,
-                                source=edit_source,
-                                phone=edit_phone,
-                                age=edit_age if edit_age > 0 else None,
-                                city=edit_city or None,
-                                zip_code=edit_zip_code or None,
-                                active_client=lead.active_client,  # Keep unchanged - use Toggle button instead
-                                last_contact_status=edit_status,
-                                priority=edit_priority,
-                                dob=edit_dob if edit_dob else None,
-                                medicaid_no=edit_medicaid_no or None,
-                                e_contact_name=edit_e_contact_name or None,
-                                e_contact_phone=edit_e_contact_phone or None,
-                                comments=edit_comments or None
-                            )
-                            
-                            crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                            st.session_state[f'editing_{lead.id}'] = False
-                            st.success("Lead updated successfully!")
-                            st.rerun()
-                        
-                        if cancel:
-                            st.session_state[f'editing_{lead.id}'] = False
-                            st.rerun()
+                # This block is now handled by the 'save_edit_modal' in the top-level modal logic
+                # The content of the form is passed via lead_data to the modal.
+                # The actual rendering of the form will happen within the modal function.
     else:
         st.info("No leads found")
     

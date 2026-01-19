@@ -75,38 +75,6 @@ def display_referral_confirm(lead, db, highlight=False):
             else:
                 st.success("**Authorization Received**")
 
-            # Authorization toggle button
-            st.write("**Authorization Status:**")
-            auth_col1, auth_col2 = st.columns(2)
-
-            with auth_col1:
-                if st.button("Mark Authorized", key=f"mark_auth_confirm_{lead.id}",
-                           type="primary" if not lead.authorization_received else "secondary",
-                           width="stretch",
-                           disabled=lead.authorization_received):
-                    update_data = LeadUpdate(authorization_received=True)
-                    updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-
-                    if updated_lead:
-                        st.success(" Authorization marked as received")
-                        st.rerun()
-                    else:
-                        st.error(" Failed to mark authorization")
-
-            with auth_col2:
-                if st.button("Unmark Authorized", key=f"unmark_auth_confirm_{lead.id}",
-                           type="secondary" if lead.authorization_received else "primary",
-                           width="stretch",
-                           disabled=not lead.authorization_received):
-                    update_data = LeadUpdate(authorization_received=False)
-                    updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-
-                    if updated_lead:
-                        st.warning(" Authorization unmarked")
-                        st.rerun()
-                    else:
-                        st.error(" Failed to unmark authorization")
-
             st.divider()
 
         col1, col2 = st.columns(2)
@@ -154,7 +122,8 @@ def display_referral_confirm(lead, db, highlight=False):
                     soc_date=today
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                st.success(f" Care Started! SOC: {today.strftime('%m/%d/%Y')}")
+                st.toast(f"✅ Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
+                st.success(f"✅ **Care Started!** SOC: {today.strftime('%m/%d/%Y')}")
                 st.rerun()
 
         with col_not_start:
@@ -164,6 +133,7 @@ def display_referral_confirm(lead, db, highlight=False):
                     soc_date=None
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                st.toast("⏳ Care Not Started", icon="⏳")
                 st.warning(" Care Not Started")
                 st.rerun()
 

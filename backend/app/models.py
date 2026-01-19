@@ -117,6 +117,10 @@ class Lead(Base):
     medicaid_status = Column(String(10), nullable=True)  # "yes" or "no"
     address = Column(Text, nullable=True)  # Full address from form
     state = Column(String(2), nullable=True)  # 2-letter state code
+    
+    # Soft delete / Recycle Bin
+    deleted_at = Column(DateTime, nullable=True)  # When lead was deleted
+    deleted_by = Column(String(100), nullable=True)  # Username who deleted it
 
 class Event(Base):
     __tablename__ = "events"

@@ -92,8 +92,11 @@ def main():
             
             # Show user info
             st.divider()
-            st.write(f"**User:** {st.session_state.username}")
-            st.write(f"**Role:** {st.session_state.user_role}")
+            st.markdown(f"<div style='background-color: #f1f5f9; padding: 10px; border-radius: 5px; border-left: 4px solid #0f172a;'>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; font-size:0.9rem;'><b>Username:</b> {st.session_state.username}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; font-size:0.9rem;'><b>Employee ID:</b> {st.session_state.employee_id or 'N/A'}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; font-size:0.8rem; color: #64748b;'><b>Role:</b> {st.session_state.user_role}</p>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
             
             st.divider()
             render_historian()

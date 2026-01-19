@@ -78,11 +78,13 @@ def signup():
                                     role="user"
                                 )
                                 user = crud_users.create_user(db, user_data)
-                                st.success("Account created successfully.")
-                                st.info("Your account is pending admin approval.")
+                                st.toast("✅ Account created successfully!", icon="✅")
+                                st.success("✅ **Account created successfully.**")
+                                st.info("ℹ️ Your account is now pending admin approval.")
                                 st.session_state.show_signup = False
+                                st.rerun()
                 except Exception as e:
-                    st.error(f"Error creating account: {e}")
+                    st.error(f"❌ Error creating account: {e}")
                 finally:
                     db.close()
     
@@ -137,47 +139,59 @@ def login():
         submit = st.form_submit_button("Login", width="stretch")
         
         if submit:
-            try:
-                db = SessionLocal()
-                user = crud_users.authenticate_user(db, username, password)
+            # Validation with toast notifications
+            if not username:
+                st.toast("❌ Username Required - Please enter your username", icon="❌")
+                st.error("❌ **Username Required** - Please enter your username")
+            elif not password:
+                st.toast("❌ Password Required - Please enter your password", icon="❌")
+                st.error("❌ **Password Required** - Please enter your password")
+            else:
+                try:
+                    db = SessionLocal()
+                    user = crud_users.authenticate_user(db, username, password)
                 
-                if user == "pending":
-                    st.warning("Your account is pending admin approval. Please contact an admin.")
-                elif user:
-                    st.session_state.authenticated = True
-                    st.session_state.username = user.username
-                    st.session_state.user_role = user.role
-                    st.session_state.user_id = user.id
-                    
-                    # Create secure session token in database
-                    from frontend.common import set_session_token
-                    from app.crud import crud_session_tokens
-                    token = crud_session_tokens.create_session_token(db, user.id, days_valid=7)
-                    set_session_token(token)
-                    
-                    crud_activity_logs.create_activity_log(
-                        db=db,
-                        user_id=user.id,
-                        username=user.username,
-                        action_type="USER_LOGIN",
-                        entity_type="User",
-                        entity_id=user.id,
-                        entity_name=user.username,
-                        description=f"User '{user.username}' logged in",
-                        keywords="auth,login"
-                    )
-                    
-                    st.success("Login successful.")
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials. Please check your username and password.")
-            
-            except Exception as e:
-                st.error(f"Database connection error: {str(e)}")
-                st.info("Check if Railway Volume is correctly mounted at /app/data")
-            finally:
-                if 'db' in locals():
-                    db.close()
+                    if user == "pending":
+                        st.toast("⏳ Account Pending Approval - Contact an administrator", icon="⏳")
+                        st.warning("Your account is pending admin approval. Please contact an admin.")
+                    elif user:
+                        st.session_state.authenticated = True
+                        st.session_state.username = user.username
+                        st.session_state.user_role = user.role
+                        st.session_state.db_user_id = user.id
+                        st.session_state.employee_id = user.user_id
+                        
+                        # Create secure session token in database
+                        from frontend.common import set_session_token
+                        from app.crud import crud_session_tokens
+                        token = crud_session_tokens.create_session_token(db, user.id, days_valid=7)
+                        set_session_token(token)
+                        
+                        crud_activity_logs.create_activity_log(
+                            db=db,
+                            user_id=user.id,
+                            username=user.username,
+                            action_type="USER_LOGIN",
+                            entity_type="User",
+                            entity_id=user.id,
+                            entity_name=user.username,
+                            description=f"User '{user.username}' logged in",
+                            keywords="auth,login"
+                        )
+                        
+                        st.toast(f"✅ Welcome back, {user.username}!", icon="👋")
+                        st.success("✅ **Login successful.** Redirecting...")
+                        st.rerun()
+                    else:
+                        st.toast("❌ Login Failed - Incorrect username or password", icon="❌")
+                        st.error("Invalid credentials. Please check your username and password.")
+                except Exception as e:
+                    st.toast(f"❌ Login Error - {str(e)}", icon="❌")
+                    st.error(f"Database connection error: {str(e)}")
+                    st.info("Check if Railway Volume is correctly mounted at /app/data")
+                finally:
+                    if 'db' in locals():
+                        db.close()
     
     st.divider()
     col1, col2 = st.columns(2)
@@ -223,11 +237,13 @@ def forgot_password():
                 try:
                     user = crud_users.request_password_reset(db, username)
                     if user:
-                        st.success("Password reset requested.")
-                        st.info("Your request has been sent to administrators.")
+                        st.toast("✅ Reset Requested", icon="✅")
+                        st.success("✅ **Password reset requested.**")
+                        st.info("ℹ️ Your request has been sent to administrators for review.")
                         st.session_state.show_forgot_password = False
+                        st.rerun()
                     else:
-                        st.error("Username not found")
+                        st.error("❌ Username not found")
                 except Exception as e:
                     st.error(f"Error: {e}")
                 finally:

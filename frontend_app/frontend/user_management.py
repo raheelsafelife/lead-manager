@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time
+from frontend.common import prepare_lead_data_for_email, render_time, render_confirmation_modal
 
 
 def update_password():
@@ -55,14 +55,15 @@ def update_password():
                         # Update password
                         updated_user = crud_users.update_user_credentials(
                             db=db,
-                            user_id=st.session_state.user_id,
+                            user_id=st.session_state.db_user_id,
                             new_password=new_password,
                             performer_username=st.session_state.username,
-                            performer_id=st.session_state.user_id
+                            performer_id=st.session_state.db_user_id
                         )
                         
                         if updated_user:
-                            st.success(" Password updated successfully!")
+                            st.toast("✅ Password updated successfully!", icon="✅")
+                            st.success("✅ **Password updated successfully!**")
                         else:
                             st.error(" Failed to update password")
                 except Exception as e:
@@ -73,10 +74,65 @@ def update_password():
 
 def admin_panel():
     """Admin panel for user management"""
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(msg)
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(msg)
+
     st.markdown('<div class="main-header"> User Management</div>', unsafe_allow_html=True)
     
     db = SessionLocal()
-    
+
+    # --- TOP-LEVEL MODAL RENDERING ---
+    if 'active_modal' in st.session_state:
+        m = st.session_state['active_modal']
+        action = render_confirmation_modal(
+            title=m['title'],
+            message=m['message'],
+            icon=m['icon'],
+            type=m['type'],
+            confirm_label=m['confirm_label'],
+            key_prefix=f"admin_{m['target_id']}"
+        )
+        
+        if action is True:
+            if m['modal_type'] == 'approve_user':
+                crud_users.approve_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                st.session_state['success_msg'] = f"✅ Success! User has been approved."
+            elif m['modal_type'] == 'reject_user':
+                crud_users.reject_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                st.session_state['success_msg'] = f"❌ User has been rejected."
+            elif m['modal_type'] == 'delete_agency':
+                crud_agencies.delete_agency(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                st.session_state['success_msg'] = f"✅ Success! Payor has been deleted."
+            elif m['modal_type'] == 'delete_ccu':
+                crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                st.session_state['success_msg'] = f"✅ Success! CCU has been deleted."
+            elif m['modal_type'] == 'update_password':
+                # Password update logic
+                p = st.session_state.get('pending_password_update')
+                if p:
+                    crud_users.update_user_credentials(
+                        db=db,
+                        user_id=st.session_state.db_user_id,
+                        new_password=p['new_password'],
+                        performer_username=st.session_state.username,
+                        performer_id=st.session_state.db_user_id
+                    )
+                    st.session_state['success_msg'] = "✅ Password updated successfully!"
+                    del st.session_state['pending_password_update']
+            
+            del st.session_state['active_modal']
+            st.rerun()
+        elif action is False:
+            del st.session_state['active_modal']
+            st.rerun()
+
     # Tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         " Pending Users", 
@@ -104,15 +160,40 @@ def admin_panel():
                     
                     with col2:
                         if st.button("Approve", key=f"approve_{user.id}", type="primary", width="stretch"):
-                            crud_users.approve_user(db, user.id, st.session_state.username, st.session_state.user_id)
-                            st.success(f"Approved {user.username}")
+                            st.session_state[f"confirm_approve_{user.id}"] = True
                             st.rerun()
                     
                     with col3:
                         if st.button("Reject", key=f"reject_{user.id}", type="primary", width="stretch"):
-                            crud_users.reject_user(db, user.id, st.session_state.username, st.session_state.user_id)
-                            st.info(f"Rejected {user.username}")
+                            st.session_state[f"confirm_reject_{user.id}"] = True
                             st.rerun()
+
+                    if st.session_state.get(f"confirm_approve_{user.id}", False):
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'approve_user',
+                            'target_id': user.id,
+                            'title': 'Approve User?',
+                            'message': f"Do you want to approve user <strong>{user.username}</strong>?",
+                            'icon': '✅',
+                            'type': 'info',
+                            'confirm_label': 'APPROVE'
+                        }
+                        del st.session_state[f"confirm_approve_{user.id}"]
+                        st.rerun()
+
+                    if st.session_state.get(f"confirm_reject_{user.id}", False):
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'reject_user',
+                            'target_id': user.id,
+                            'title': 'Reject User?',
+                            'message': f"Are you sure you want to reject <strong>{user.username}</strong>?<br><br><span style='color: #DC2626; font-weight: bold;'>⚠️ This user will not be able to login.</span>",
+                            'icon': '❌',
+                            'type': 'error',
+                            'confirm_label': 'REJECT'
+                        }
+                        del st.session_state[f"confirm_reject_{user.id}"]
+                        st.rerun()
+                        st.markdown("<br>", unsafe_allow_html=True)
                     
                     st.divider()
         else:
@@ -144,8 +225,9 @@ def admin_panel():
                                 st.error(" Password must be at least 6 characters")
                             else:
                                 try:
-                                    crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.user_id)
-                                    st.success(f" Password reset for {user.username}!")
+                                    crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.db_user_id)
+                                    st.toast(f"✅ Password reset for {user.username}!", icon="✅")
+                                    st.success(f"✅ **Password reset** for {user.username}!")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f" Error: {e}")
@@ -202,25 +284,26 @@ def admin_panel():
                                 try:
                                     # Update username
                                     if new_username != user.username:
-                                        crud_users.admin_update_username(db, user.id, new_username, st.session_state.username, st.session_state.user_id)
+                                        crud_users.admin_update_username(db, user.id, new_username, st.session_state.username, st.session_state.db_user_id)
                                     
                                     # Update User ID
                                     if new_user_id_val != (user.user_id or ""):
-                                        crud_users.admin_update_user_id(db, user.id, new_user_id_val, st.session_state.username, st.session_state.user_id)
+                                        crud_users.admin_update_user_id(db, user.id, new_user_id_val, st.session_state.username, st.session_state.db_user_id)
                                     
                                     # Update email
                                     if new_email != user.email:
-                                        crud_users.admin_update_email(db, user.id, new_email, st.session_state.username, st.session_state.user_id)
+                                        crud_users.admin_update_email(db, user.id, new_email, st.session_state.username, st.session_state.db_user_id)
                                     
                                     # Update role
                                     if new_role != user.role:
-                                        crud_users.update_user_role(db, user.id, new_role, st.session_state.username, st.session_state.user_id)
+                                        crud_users.update_user_role(db, user.id, new_role, st.session_state.username, st.session_state.db_user_id)
                                     
                                     # Update password
                                     if new_password:
-                                        crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.user_id)
+                                        crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.db_user_id)
                                     st.session_state[f"editing_user_{user.id}"] = False
-                                    st.success("Updated!")
+                                    st.toast(f"✅ User '{user.username}' updated!", icon="✅")
+                                    st.success("✅ **Updated Successfully!**")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Error: {e}")
@@ -262,28 +345,41 @@ def admin_panel():
             if submit:
                 # Validation
                 if not all([new_username, new_email, new_password, confirm_password, new_user_id]):
-                    st.error(" Please fill in all fields (User ID is compulsory)")
+                    missing = []
+                    if not new_username: missing.append("Username")
+                    if not new_user_id: missing.append("Employee ID")
+                    if not new_email: missing.append("Email")
+                    if not new_password: missing.append("Password")
+                    if not confirm_password: missing.append("Confirm Password")
+                    st.toast(f"❌ Missing Information: {', '.join(missing)}", icon="❌")
+                    st.error(f"❌ **Missing Information** - Please fill in: {', '.join(missing)}")
                 elif new_password != confirm_password:
-                    st.error(" Passwords do not match")
+                    st.toast("❌ Password Mismatch", icon="❌")
+                    st.error("❌ **Password Mismatch** - Confirmation password doesn't match. Please re-enter.")
                 elif len(new_password) < 6:
-                    st.error(" Password must be at least 6 characters")
+                    st.toast("❌ Password Too Short", icon="❌")
+                    st.error("❌ **Password Too Short** - Password must be at least 6 characters long")
                 elif '@' not in new_email:
-                    st.error(" Please enter a valid email")
+                    st.toast("❌ Invalid Email", icon="❌")
+                    st.error("❌ **Invalid Email** - Please enter a valid email address")
                 else:
                     try:
                         # Check if username or email already exists
                         existing_user = crud_users.get_user_by_username(db, new_username)
                         if existing_user:
-                            st.error(f" Username '{new_username}' already exists")
+                            st.toast("❌ Username Conflict", icon="❌")
+                            st.error(f"❌ **Username Conflict** - '{new_username}' is already taken. Please choose a different username.")
                         else:
                             existing_email = crud_users.get_user_by_email(db, new_email)
                             if existing_email:
-                                st.error(f" Email '{new_email}' already registered")
+                                st.toast("❌ Email Already Registered", icon="❌")
+                                st.error(f"❌ **Email Already Registered** - '{new_email}' is already in use. Please use a different email.")
                             else:
                                 # Check for existing User ID
                                 existing_uid = crud_users.get_user_by_user_id(db, new_user_id)
                                 if existing_uid:
-                                    st.error(f" User ID '{new_user_id}' is already assigned to {existing_uid.username}")
+                                    st.toast("❌ Employee ID Conflict", icon="❌")
+                                    st.error(f"❌ **Employee ID Conflict** - Employee ID '{new_user_id}' is already assigned to {existing_uid.username}. Please use a unique ID.")
                                 else:
                                     # Create user with is_approved=True
                                     user_data = UserCreate(
@@ -293,13 +389,15 @@ def admin_panel():
                                         role=new_role,
                                         user_id=new_user_id
                                     )
-                                    user = crud_users.create_user(db, user_data, st.session_state.username, st.session_state.user_id)
+                                    user = crud_users.create_user(db, user_data, st.session_state.username, st.session_state.db_user_id)
                                     # Auto-approve the user
-                                    crud_users.approve_user(db, user.id, st.session_state.username, st.session_state.user_id)
-                                    st.success(f" User '{new_username}' created successfully!")
-                                    st.info(f"ID: {new_user_id} | Email: {new_email} | Role: {new_role}")
+                                    crud_users.approve_user(db, user.id, st.session_state.username, st.session_state.db_user_id)
+                                    st.toast(f"✅ User '{new_username}' created successfully!", icon="✅")
+                                    st.success(f"✅ **User Created Successfully!** - '{new_username}' has been added to the system.")
+                                    st.info(f"📝 **Details:** Employee ID: {new_user_id} | Email: {new_email} | Role: {new_role}")
                     except Exception as e:
-                        st.error(f" Error creating user: {e}")
+                        st.toast(f"❌ Error creating user: {str(e)}", icon="❌")
+                        st.error(f"❌ **User Creation Failed** - Could not create user: {str(e)}")
     
     with tab5:
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Change My Password</h4>", unsafe_allow_html=True)
@@ -315,32 +413,39 @@ def admin_panel():
             if submit:
                 # Validation
                 if not all([current_password, new_password, confirm_password]):
-                    st.error(" Please fill in all fields")
+                    missing = []
+                    if not current_password: missing.append("Current Password")
+                    if not new_password: missing.append("New Password")
+                    if not confirm_password: missing.append("Confirm Password")
+                    st.toast(f"❌ Missing Fields: {', '.join(missing)}", icon="❌")
+                    st.error(f"❌ **Missing Fields** - Please fill in: {', '.join(missing)}")
                 elif new_password != confirm_password:
-                    st.error(" New passwords do not match")
+                    st.toast("❌ New Passwords Mismatch", icon="❌")
+                    st.error("❌ **Password Mismatch** - New passwords do not match. Please re-enter.")
                 elif len(new_password) < 6:
-                    st.error(" Password must be at least 6 characters")
+                    st.toast("❌ Password Too Short", icon="❌")
+                    st.error("❌ **Password Too Short** - Password must be at least 6 characters long")
                 else:
                     try:
                         # Verify current password
                         user = crud_users.authenticate_user(db, st.session_state.username, current_password)
                         
                         if not user or user == "pending":
-                            st.error(" Current password is incorrect")
+                            st.toast("❌ Current Password Incorrect", icon="❌")
+                            st.error("❌ **Incorrect Password** - Current password is incorrect. Please try again.")
                         else:
-                            # Update password
-                            updated_user = crud_users.update_user_credentials(
-                                db=db,
-                                user_id=st.session_state.user_id,
-                                new_password=new_password,
-                                performer_username=st.session_state.username,
-                                performer_id=st.session_state.user_id
-                            )
-                            
-                            if updated_user:
-                                st.success(" Password updated successfully!")
-                            else:
-                                st.error(" Failed to update password")
+                            # Trigger confirmation modal
+                            st.session_state['pending_password_update'] = {"new_password": new_password}
+                            st.session_state['active_modal'] = {
+                                'modal_type': 'update_password',
+                                'target_id': st.session_state.db_user_id,
+                                'title': 'Update Password?',
+                                'message': "Are you sure you want to change your password?",
+                                'icon': '🔒',
+                                'type': 'info',
+                                'confirm_label': 'UPDATE'
+                            }
+                            st.rerun()
                     except Exception as e:
                         st.error(f" Error: {e}")
     
@@ -364,8 +469,9 @@ def admin_panel():
                         if existing:
                             st.error(f" Agency '{new_agency_name}' already exists")
                         else:
-                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.user_id)
-                            st.success(f" Agency '{new_agency_name}' added successfully!")
+                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.db_user_id)
+                            st.toast(f"✅ Payor '{new_agency_name}' added!", icon="✅")
+                            st.success(f"✅ **Success!** Payor '{new_agency_name}' added successfully!")
                             st.rerun()
                     except Exception as e:
                         st.error(f" Error: {e}")
@@ -387,12 +493,21 @@ def admin_panel():
                     st.markdown(f"<span style='color: #6B7280; font-size: 0.85rem;'>Created: {render_time(agency.created_at)} by {agency.created_by}</span>", unsafe_allow_html=True)
                 with col2:
                     if st.button("Delete", key=f"del_agency_admin_{agency.id}", help=f"Delete {agency.name}", type="primary"):
-                        try:
-                            crud_agencies.delete_agency(db, agency.id, st.session_state.username, st.session_state.user_id)
-                            st.success(f" Deleted '{agency.name}'")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f" Error: {e}")
+                        st.session_state[f"confirm_del_agency_{agency.id}"] = True
+                        st.rerun()
+
+                if st.session_state.get(f"confirm_del_agency_{agency.id}", False):
+                    st.session_state['active_modal'] = {
+                        'modal_type': 'delete_agency',
+                        'target_id': agency.id,
+                        'title': 'Delete Payor?',
+                        'message': f"Are you sure you want to delete payor <strong>{agency.name}</strong>?<br><br><span style='color: #6B7280;'>⚠️ This may affect associated leads.</span>",
+                        'icon': '🗑️',
+                        'type': 'error',
+                        'confirm_label': 'DELETE'
+                    }
+                    del st.session_state[f"confirm_del_agency_{agency.id}"]
+                    st.rerun()
                 
                 # Suboptions removed as per request
                 # suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency.id)
@@ -428,14 +543,15 @@ def admin_panel():
                             st.error(f" CCU '{new_ccu_name}' already exists")
                         else:
                             crud_ccus.create_ccu(
-                                db, new_ccu_name, st.session_state.username, st.session_state.user_id,
+                                db, new_ccu_name, st.session_state.username, st.session_state.db_user_id,
                                 address=new_ccu_address or None,
                                 phone=new_ccu_phone or None,
                                 fax=new_ccu_fax or None,
                                 email=new_ccu_email or None,
                                 care_coordinator_name=new_ccu_coordinator or None
                             )
-                            st.success(f" CCU '{new_ccu_name}' added successfully!")
+                            st.toast(f"✅ CCU '{new_ccu_name}' added!", icon="✅")
+                            st.success(f"✅ **Success!** CCU '{new_ccu_name}' added successfully!")
                             st.rerun()
                     except Exception as e:
                         st.error(f" Error: {e}")
@@ -463,12 +579,22 @@ def admin_panel():
                         st.rerun()
                 with col4:
                     if st.button("Delete", key=f"del_ccu_admin_{ccu.id}", help=f"Delete CCU: {ccu.name}", type="primary"):
-                        try:
-                            crud_ccus.delete_ccu(db, ccu.id, st.session_state.username, st.session_state.user_id)
-                            st.success(f" Deleted CCU '{ccu.name}'")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f" Error: {e}")
+                        st.session_state[f"confirm_del_ccu_{ccu.id}"] = True
+                        st.rerun()
+
+                if st.session_state.get(f"confirm_del_ccu_{ccu.id}", False):
+                    st.session_state['active_modal'] = {
+                        'modal_type': 'delete_ccu',
+                        'target_id': ccu.id,
+                        'title': 'Delete CCU?',
+                        'message': f"Are you sure you want to delete CCU <strong>{ccu.name}</strong>?",
+                        'indicator': 'This may affect associated referrals.',
+                        'icon': '🗑️',
+                        'type': 'error',
+                        'confirm_label': 'DELETE'
+                    }
+                    del st.session_state[f"confirm_del_ccu_{ccu.id}"]
+                    st.rerun()
                 
                 # Show CCU details
                 if st.session_state.get(f"viewing_ccu_{ccu.id}", False):
@@ -497,7 +623,7 @@ def admin_panel():
                             if st.form_submit_button("Save"):
                                 try:
                                     crud_ccus.update_ccu(
-                                        db, ccu.id, edit_name, st.session_state.username, st.session_state.user_id,
+                                        db, ccu.id, edit_name, st.session_state.username, st.session_state.db_user_id,
                                         address=edit_address or None,
                                         phone=edit_phone or None,
                                         fax=edit_fax or None,
@@ -505,7 +631,8 @@ def admin_panel():
                                         care_coordinator_name=edit_coordinator or None
                                     )
                                     st.session_state[f"editing_ccu_{ccu.id}"] = False
-                                    st.success(f" Updated CCU details")
+                                    st.toast(f"✅ CCU '{edit_name}' updated!", icon="✅")
+                                    st.success(f"✅ **Success!** Updated CCU details")
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f" Error: {str(e)}")

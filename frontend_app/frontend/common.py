@@ -65,6 +65,25 @@ GLOBAL_CSS = """
         to { opacity: 1; }
     }
 
+    /* Modal Backdrop Layer */
+    .modal-backdrop {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(0, 0, 0, 0) !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+        transition: background-color 0.3s ease !important;
+    }
+
+    body:has(.modal-marker) .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.4) !important;
+        z-index: 999990 !important;
+        pointer-events: auto !important;
+    }
+
     /* Hide Streamlit header (Deploy button, Rerun status) but KEEP the sidebar toggle */
     header { 
         visibility: hidden !important; 
@@ -89,15 +108,294 @@ GLOBAL_CSS = """
 
     /* Suppress transient Streamlit errors and warnings highly aggressively */
     /* We use a delay of 0.8s which is enough to hide all typical developmental "re-rendering" glitches */
+    /* EXCEPT for our custom toasts which we want to see immediately */
     [data-testid="stNotification"], 
     .stException, 
     [data-testid="stFormWarning"],
-    .stAlert,
     [data-testid="stStatusWidget"] {
-        animation: delayedShow 0.8s forwards !important;
-        opacity: 0 !important;
-        pointer-events: none;
+        /* Immediate visibility for critical alerts */
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
+
+    /* PREMIUM INDICATOR STYLING */
+    
+    /* Make Alert boxes much more professional and modern */
+    [data-testid="stNotification"] .stAlert {
+        font-size: 1.1rem !important;
+        font-weight: 500 !important;
+        padding: 1rem 1.25rem !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+        background-color: #f0fdf4 !important; /* Soft emerald green tint for success alert */
+    }
+
+    [data-testid="stNotification"] .stAlert:has(div[data-testid="stIcon"] span:contains("✅")) {
+        background-color: #f0fdf4 !important;
+        border-left: 5px solid #10b981 !important;
+    }
+
+    /* Make Toasts (Pop-ups) prominent and professional with premium emerald theme */
+    [data-testid="stToast"] {
+        min-width: 450px !important;
+        padding: 1rem 1.5rem !important;
+        border-radius: 14px !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        border-left: 10px solid !important;
+        background: white !important;
+        color: #111827 !important;
+        z-index: 1000000 !important;
+        animation: toastSlideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+    }
+
+    @keyframes toastSlideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Toast color coding based on icon */
+    [data-testid="stToast"]:has(div[data-testid="stIcon"] span:contains("✅")) {
+        border-left-color: #10b981 !important; /* Success emerald Green */
+    }
+    [data-testid="stToast"]:has(div[data-testid="stIcon"] span:contains("❌")) {
+        border-left-color: #ef4444 !important; /* Error Red */
+    }
+    [data-testid="stToast"]:has(div[data-testid="stIcon"] span:contains("⏳")) {
+        border-left-color: #f59e0b !important; /* Warning Amber */
+    }
+
+    /* Style the confirmation "Double Check" boxes if they are inside buttons/dialogs */
+    .stButton > button {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    .stButton > button:active {
+        transform: scale(0.96) !important;
+    }
+
+    /* MODAL STYLING - FULL WIDTH & OVERLAY APPROACH */
+    
+    /* Ensure the main app content stays full width when modal is active */
+    body:has(.modal-marker) [data-testid="stAppViewContainer"],
+    body:has(.modal-marker) [data-testid="stMain"],
+    body:has(.modal-marker) .main,
+    body:has(.modal-marker) .block-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* Prevent clicks on background through the backdrop, not by disabling the whole app container */
+    /* stAppViewContainer should remain reachable so that the modal (its child) can receive events */
+    
+    /* Add white overlay on top of blurred content */
+    body:has(.modal-marker)::before {
+        content: "" !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(255, 255, 255, 0.3) !important;
+        z-index: 999998 !important;
+        pointer-events: none !important;
+    }
+
+    /* Modal backdrop - dark semi-transparent overlay */
+    .modal-backdrop {
+        position: fixed !important;
+        z-index: 999998 !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background-color: rgba(0, 0, 0, 0.4) !important; /* Semi-transparent dark overlay */
+        display: none !important;
+        pointer-events: auto !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    /* Show backdrop when modal is active */
+    body:has(.modal-marker) .modal-backdrop {
+        display: block !important;
+    }
+
+    /* Target the Streamlit container that has our marker */
+    /* This is the actual modal dialog box */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 95% !important;
+        max-width: 420px !important;
+        background-color: #FFFFFF !important;
+        border-radius: 12px !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+        z-index: 999999 !important;
+        padding: 0 !important;
+        overflow-y: auto !important; /* Allow internal scrolling if too tall */
+        max-height: 95vh !important; /* Don't exceed screen height */
+        pointer-events: auto !important; /* Re-enable for the dialog box */
+        animation: modalFadeIn 0.3s ease-out !important;
+        gap: 0 !important;
+        margin: 0 !important;
+        filter: none !important;
+    }
+
+    /* Force interactive state for buttons inside the modal */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    /* Modal fade-in animation - Centered */
+    @keyframes modalFadeIn {
+        from { 
+            opacity: 0; 
+            transform: translate(-50%, -48%);
+        }
+        to { 
+            opacity: 1; 
+            transform: translate(-50%, -50%);
+        }
+    }
+
+    /* Modal fade-in animation - Top Aligned */
+    @keyframes modalFadeInTop {
+        from { 
+            opacity: 0; 
+            transform: translate(-50%, 10px);
+        }
+        to { 
+            opacity: 1; 
+            transform: translate(-50%, 0);
+        }
+    }
+
+    /* Transition the header to the Slate Teal design */
+    .modal-header {
+        background-color: #28646E !important; /* Slate Teal from Screenshot */
+        padding: 1.5rem !important;
+        text-align: center !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    .modal-icon {
+        font-size: 3.5rem !important;
+        color: white !important;
+        margin-bottom: 0.25rem !important;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)) !important;
+    }
+
+    .modal-title {
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 1.4rem !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    .modal-body {
+        padding: 2rem 1.75rem !important;
+        color: #1F2937 !important;
+        font-size: 1.1rem !important;
+        text-align: center !important;
+        background-color: white !important;
+        line-height: 1.5 !important;
+    }
+
+    /* Indicator (Lightbulb Notice) */
+    .modal-indicator {
+        margin-top: 1.25rem !important;
+        font-size: 1rem !important;
+        color: #4B5563 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Footer styled with columns inside */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) > div:last-child {
+        background-color: white !important;
+        padding: 1.25rem 1.75rem 2rem 1.75rem !important;
+        margin-top: 0 !important;
+        border-top: 1px solid #F3F4F6 !important;
+    }
+
+    /* Button Styling to match Screenshot */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button {
+        height: 48px !important;
+        border-radius: 8px !important;
+        text-transform: uppercase !important;
+        font-weight: 700 !important;
+        transition: all 0.2s ease !important;
+    }
+
+    /* CANCEL Button: Bordered White with Slate Teal Text */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]) {
+        background-color: #FFFFFF !important;
+        border: 1px solid #28646E !important; /* Border matches header Slate Teal */
+    }
+
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]) p {
+        color: #28646E !important; /* Text matches header Slate Teal */
+    }
+
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]):hover {
+        background-color: #F0F7F8 !important;
+        border-color: #034D61 !important;
+    }
+
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]):hover p {
+        color: #034D61 !important;
+    }
+
+    /* ACTION/DELETE Button: Dark Teal with White Text */
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"] {
+        background-color: #034D61 !important; /* Dark Teal from Image */
+        border: none !important;
+    }
+
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"] p {
+        color: #FFFFFF !important;
+    }
+
+    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"]:hover {
+        background-color: #023D4D !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .modal-marker { display: none !important; }
+
+    /* For Larger Form Modals (Edit Lead) */
+    body:has(.modal-marker.form-modal) [data-testid="stVerticalBlock"]:has(.modal-marker) {
+        max-width: 700px !important;
+        top: 2.5vh !important;
+        transform: translateX(-50%) !important; /* Reset Y-translation for top alignment */
+        max-height: 95vh !important;
+        animation: modalFadeInTop 0.3s ease-out !important;
+    }
+
+    body:has(.modal-marker.form-modal) .modal-body {
+        text-align: left !important;
+        padding: 1.5rem !important;
+    }
+
+    /* Type Specific Colors if needed */
+    .modal-marker.warning ~ .modal-header { background-color: #EA580C !important; }
+    .modal-marker.error ~ .modal-header { background-color: #991B1B !important; }
+    .modal-marker.info ~ .modal-header { background-color: #0369A1 !important; }
 
     @keyframes delayedShow {
         0% { opacity: 0; visibility: hidden; }
@@ -655,7 +953,8 @@ def init_session_state():
                 st.session_state.authenticated = True
                 st.session_state.username = user.username
                 st.session_state.user_role = user.role
-                st.session_state.user_id = user.id
+                st.session_state.db_user_id = user.id
+                st.session_state.employee_id = user.user_id
                 st.rerun()
             else:
                 # Token is invalid or expired - clear it
@@ -669,8 +968,10 @@ def init_session_state():
         st.session_state.username = None
     if 'user_role' not in st.session_state:
         st.session_state.user_role = None
-    if 'user_id' not in st.session_state:
-        st.session_state.user_id = None
+    if 'db_user_id' not in st.session_state:
+        st.session_state.db_user_id = None
+    if 'employee_id' not in st.session_state:
+        st.session_state.employee_id = None
     if 'show_signup' not in st.session_state:
         st.session_state.show_signup = False
     if 'show_forgot_password' not in st.session_state:
@@ -885,6 +1186,49 @@ def get_priority_tag(priority):
         p_class = "priority-low"
     
     return f'<span class="priority-tag {p_class}">{priority}</span>'
+
+
+def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", key_prefix="modal", indicator=None):
+    """
+    Renders a centered professional teal-header modal based on a screenshot.
+    Uses CSS :has selector to style the entire container.
+    Returns True if confirmed, False if cancelled, None if no action.
+    """
+    # Create the backdrop
+    st.markdown('<div class="modal-backdrop"></div>', unsafe_allow_html=True)
+    
+    with st.container():
+        # Marker for CSS targeting
+        st.markdown(f'<div class="modal-marker {type}"></div>', unsafe_allow_html=True)
+        
+        # Header (Centered Icon + Title)
+        st.markdown(f"""
+        <div class="modal-header">
+            <div class="modal-icon">{icon}</div>
+            <div class="modal-title">{title}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Body (Message + Optional Indicator)
+        indicator_html = f'<div class="modal-indicator">💡 {indicator}</div>' if indicator else ""
+        st.markdown(f"""
+        <div class="modal-body">
+            {message}
+            {indicator_html}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Footer Buttons
+        footer_col1, footer_col2 = st.columns([1, 1])
+        action = None
+        with footer_col1:
+            if st.button(cancel_label, key=f"{key_prefix}_cancel", use_container_width=True):
+                action = False
+        with footer_col2:
+            if st.button(confirm_label, key=f"{key_prefix}_confirm", type="primary", use_container_width=True):
+                action = True
+                
+        return action
 
 
 def render_api_status():

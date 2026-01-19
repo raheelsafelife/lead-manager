@@ -58,11 +58,11 @@ def dashboard():
         if st.session_state.username:
             crud_activity_logs.create_activity_log(
                 db=db,
-                user_id=st.session_state.user_id,
+                user_id=st.session_state.db_user_id,
                 username=st.session_state.username,
                 action_type="USER_LOGOUT",
                 entity_type="User",
-                entity_id=st.session_state.user_id,
+                entity_id=st.session_state.db_user_id,
                 entity_name=st.session_state.username,
                 description=f"User '{st.session_state.username}' logged out",
                 keywords="auth,logout"
@@ -79,7 +79,7 @@ def dashboard():
         st.session_state.authenticated = False
         st.session_state.username = None
         st.session_state.user_role = None
-        st.session_state.user_id = None
+        st.session_state.db_user_id = None
         st.rerun()
     
     st.divider()
