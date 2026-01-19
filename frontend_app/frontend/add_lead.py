@@ -304,18 +304,18 @@ def add_lead():
             # Validation
             required_fields = [staff_name, first_name, last_name, source, phone, custom_user_id]
             if source == "Event" and not event_name:
-                st.toast("❌ Event Required - Please select an Event", icon="❌")
-                st.error("❌ **Event Required** - Please select an Event")
+                st.toast("Event Required - Please select an Event", icon="❌")
+                st.error("**Event Required - Please select an Event**")
                 db.close()
                 return
             elif source == "Direct Through CCU" and not agency_id:
-                st.toast("❌ Payor Required - Please select a Payor", icon="❌")
-                st.error("❌ **Payor Required** - Please select a Payor")
+                st.toast("Payor Required - Please select a Payor", icon="❌")
+                st.error("**Payor Required - Please select a Payor**")
                 db.close()
                 return
             elif source == "Other" and not other_source_type:
-                st.toast("❌ Source Type Required - Please specify Source Type", icon="❌")
-                st.error("❌ **Source Type Required** - Please specify Source Type")
+                st.toast("Source Type Required - Please specify Source Type", icon="❌")
+                st.error("**Source Type Required - Please specify Source Type**")
                 db.close()
                 return
             
@@ -327,17 +327,17 @@ def add_lead():
                 if not source: missing.append("Source")
                 if not phone: missing.append("Phone")
                 if not custom_user_id: missing.append("Employee ID")
-                st.toast(f"❌ Missing Required Fields: {', '.join(missing)}", icon="❌")
-                st.error(f"❌ **Missing Required Fields** - Please fill in: {', '.join(missing)}")
+                st.toast(f"Missing Required Fields: {', '.join(missing)}", icon="❌")
+                st.error(f"**Missing Required Fields - Please fill in: {', '.join(missing)}**")
             elif source == "Transfer" and not soc_date:
-                st.toast("❌ SOC Date Required for Transfer", icon="❌")
-                st.error("❌ **SOC Date Required** - SOC Date is required for Transfer source")
+                st.toast("SOC Date Required for Transfer", icon="❌")
+                st.error("**SOC Date Required - SOC Date is required for Transfer source**")
             else:
                 # Check for duplicate lead
                 existing_lead = crud_leads.check_duplicate_lead(db, first_name, last_name, phone)
                 if existing_lead:
-                    st.toast("❌ Duplicate Lead Detected", icon="❌")
-                    st.error(f"❌ **Duplicate Lead Detected** - {first_name} {last_name} with phone {phone} already exists (ID: {existing_lead.id})")
+                    st.toast("Duplicate Lead Detected", icon="❌")
+                    st.error(f"**Duplicate Lead Detected - {first_name} {last_name} with phone {phone} already exists (ID: {existing_lead.id})**")
                     st.info(f"Created on: {utc_to_local(existing_lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y %I:%M %p')}")
                     st.info(f"Created by: {existing_lead.created_by or 'Unknown'}")
                     st.info(f"Status: {existing_lead.last_contact_status}")
@@ -377,8 +377,8 @@ def add_lead():
                         ccu_id=ccu_id
                     )
                     lead = crud_leads.create_lead(db, lead_data, st.session_state.username, st.session_state.get('db_user_id'))
-                    st.toast(f"✅ Lead '{first_name} {last_name}' created successfully!", icon="✅")
-                    st.success(f"✅ **Success!** Lead created successfully! (ID: {lead.id})")
+                    st.toast(f"Lead '{first_name} {last_name}' created successfully!", icon="✅")
+                    st.success(f"**Success! Lead created successfully! (ID: {lead.id})**")
                     
                     # Auto-send email to lead creator (always for non-inactive leads)
                     if lead.last_contact_status != "Inactive":

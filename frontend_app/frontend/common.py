@@ -52,12 +52,11 @@ GLOBAL_CSS = """
     /* Import Montserrat from Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap');
 
-    html, body, [class^="css"], .stApp  {
+    html, body, .stApp  {
         font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI',
                      Arial, 'Source Sans Pro', system-ui, sans-serif;
         background-color: #FFFFFF !important;
         color: #111827 !important;
-        animation: fadeIn 0.3s ease-in;
     }
 
     @keyframes fadeIn {
@@ -138,17 +137,22 @@ GLOBAL_CSS = """
 
     /* Make Toasts (Pop-ups) prominent and professional with premium emerald theme */
     [data-testid="stToast"] {
-        min-width: 450px !important;
-        padding: 1rem 1.5rem !important;
-        border-radius: 14px !important;
-        font-size: 1.1rem !important;
-        font-weight: 600 !important;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        border-left: 10px solid !important;
+        min-width: 520px !important;
+        max-width: 700px !important;
+        padding: 1.25rem 2rem !important;
+        border-radius: 16px !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important; /* Force bold */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+        border-left: 12px solid !important;
         background: white !important;
         color: #111827 !important;
-        z-index: 1000000 !important;
+        z-index: 2147483647 !important; /* Max Z-Index for toasts too */
         animation: toastSlideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+    }
+
+    [data-testid="stToast"] p, [data-testid="stToast"] span, [data-testid="stToast"] div {
+        font-weight: 700 !important; /* Thick bold text */
     }
 
     @keyframes toastSlideIn {
@@ -175,216 +179,47 @@ GLOBAL_CSS = """
         transform: scale(0.96) !important;
     }
 
-    /* MODAL STYLING - FULL WIDTH & OVERLAY APPROACH */
+    /* --- PROFESSIONAL MODAL SYSTEM (NATIVE ST.DIALOG) --- */
     
-    /* Ensure the main app content stays full width when modal is active */
-    body:has(.modal-marker) [data-testid="stAppViewContainer"],
-    body:has(.modal-marker) [data-testid="stMain"],
-    body:has(.modal-marker) .main,
-    body:has(.modal-marker) .block-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        margin: 0 !important;
-    }
-
-    /* Modal backdrop - dark semi-transparent overlay */
-    .modal-backdrop {
-        position: fixed !important;
-        z-index: 999998 !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background-color: rgba(0, 0, 0, 0.4) !important; /* Semi-transparent dark overlay */
-        display: none !important;
-        pointer-events: auto !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-    }
-
-    /* Show backdrop when modal is active */
-    body:has(.modal-marker) .modal-backdrop {
-        display: block !important;
-    }
-
-    /* Target the Streamlit container that has our marker */
-    /* This is the actual modal dialog box */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) {
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        width: 95% !important;
-        max-width: 420px !important;
-        background-color: #FFFFFF !important;
-        border-radius: 12px !important;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-        z-index: 999999 !important; /* Above everything */
+    /* Target the Streamlit Dialog container to match our theme */
+    div[data-testid="stDialog"] div[role="dialog"] {
+        border-radius: 14px !important;
+        overflow: hidden !important;
         padding: 0 !important;
-        overflow-y: auto !important; /* Allow internal scrolling if too tall */
-        max-height: 95vh !important; /* Don't exceed screen height */
-        pointer-events: auto !important; /* Re-enable for the dialog box */
-        animation: modalFadeIn 0.3s ease-out !important;
-        gap: 0 !important;
-        margin: 0 !important;
-        filter: none !important;
+        border: none !important;
+        box-shadow: 0 25px 80px rgba(0,0,0,0.55) !important;
     }
 
-    /* Force interactive state for buttons inside the modal */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button {
-        pointer-events: auto !important;
-        cursor: pointer !important;
-    }
-
-    /* Modal fade-in animation - Centered */
-    @keyframes modalFadeIn {
-        from { 
-            opacity: 0; 
-            transform: translate(-50%, -48%);
-        }
-        to { 
-            opacity: 1; 
-            transform: translate(-50%, -50%);
-        }
-    }
-
-    /* Modal fade-in animation - Top Aligned */
-    @keyframes modalFadeInTop {
-        from { 
-            opacity: 0; 
-            transform: translate(-50%, 10px);
-        }
-        to { 
-            opacity: 1; 
-            transform: translate(-50%, 0);
-        }
-    }
-
-    /* Transition the header to the Slate Teal design */
-    .modal-header {
-        background-color: #28646E !important; /* Slate Teal from Screenshot */
-        padding: 1.5rem !important;
-        text-align: center !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
+    /* Professional header style for use inside dialogs */
+    .modal-dialog-header {
+      background: #1f6f73;
+      color: #fff;
+      text-align: center;
+      padding: 24px 20px;
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin: -1rem -1rem 1rem -1rem; /* Negative margin to fill the dialog top */
     }
 
     .modal-icon {
-        font-size: 3.5rem !important;
-        color: white !important;
-        margin-bottom: 0.25rem !important;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)) !important;
+      font-size: 52px;
+      margin-bottom: 10px;
+      display: block;
+      font-weight: bold;
     }
 
-    .modal-title {
-        color: white !important;
-        font-weight: 700 !important;
-        font-size: 1.4rem !important;
-        letter-spacing: 0.05em !important;
-        text-transform: uppercase !important;
-        margin: 0 !important;
-        line-height: 1.2 !important;
+    .modal-body-content {
+      padding: 10px 15px 25px 15px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 18px;
+      color: #1f2937;
+      line-height: 1.6;
     }
-
-    .modal-body {
-        padding: 2rem 1.75rem !important;
-        color: #1F2937 !important;
-        font-size: 1.1rem !important;
-        text-align: center !important;
-        background-color: white !important;
-        line-height: 1.5 !important;
-    }
-
-    /* Indicator (Lightbulb Notice) */
-    .modal-indicator {
-        margin-top: 1.25rem !important;
-        font-size: 1rem !important;
-        color: #4B5563 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 0.5rem !important;
-    }
-
-    /* Footer styled with columns inside */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) > div:last-child {
-        background-color: white !important;
-        padding: 1.25rem 1.75rem 2rem 1.75rem !important;
-        margin-top: 0 !important;
-        border-top: 1px solid #F3F4F6 !important;
-    }
-
-    /* Button Styling to match Screenshot */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button {
-        height: 48px !important;
-        border-radius: 8px !important;
-        text-transform: uppercase !important;
-        font-weight: 700 !important;
-        transition: all 0.2s ease !important;
-    }
-
-    /* CANCEL Button: Bordered White with Slate Teal Text */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]) {
-        background-color: #FFFFFF !important;
-        border: 1px solid #28646E !important; /* Border matches header Slate Teal */
-    }
-
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]) p {
-        color: #28646E !important; /* Text matches header Slate Teal */
-    }
-
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]):hover {
-        background-color: #F0F7F8 !important;
-        border-color: #034D61 !important;
-    }
-
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button:not([kind="primary"]):hover p {
-        color: #034D61 !important;
-    }
-
-    /* ACTION/DELETE Button: Dark Teal with White Text */
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"] {
-        background-color: #034D61 !important; /* Dark Teal from Image */
-        border: none !important;
-    }
-
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"] p {
-        color: #FFFFFF !important;
-    }
-
-    [data-testid="stVerticalBlock"]:has(.modal-marker) button[kind="primary"]:hover {
-        background-color: #023D4D !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    .modal-marker { display: none !important; }
-
-    /* For Larger Form Modals (Edit Lead) */
-    body:has(.modal-marker.form-modal) [data-testid="stVerticalBlock"]:has(.modal-marker) {
-        max-width: 700px !important;
-        top: 2.5vh !important;
-        transform: translateX(-50%) !important; /* Reset Y-translation for top alignment */
-        max-height: 95vh !important;
-        animation: modalFadeInTop 0.3s ease-out !important;
-    }
-
-    body:has(.modal-marker.form-modal) .modal-body {
-        text-align: left !important;
-        padding: 1.5rem !important;
-    }
-
-    /* Type Specific Colors if needed */
-    .modal-marker.warning ~ .modal-header { background-color: #EA580C !important; }
-    .modal-marker.error ~ .modal-header { background-color: #991B1B !important; }
-    .modal-marker.info ~ .modal-header { background-color: #0369A1 !important; }
-
-    @keyframes delayedShow {
-        0% { opacity: 0; visibility: hidden; }
-        95% { opacity: 0; visibility: hidden; }
-        100% { opacity: 1; visibility: visible; pointer-events: auto; }
+    
+    .modal-body-content b, .modal-body-content strong {
+        font-weight: 900 !important;
     }
 
     /* Prevent flashing of unstyled content during reloads */
@@ -916,6 +751,17 @@ GLOBAL_CSS = """
 """
 
 
+def close_modal():
+    """
+    Closes any active modal by clearing session state and rerunning.
+    """
+    if 'active_modal' in st.session_state:
+        del st.session_state['active_modal']
+    if 'show_delete_modal' in st.session_state:
+        st.session_state.show_delete_modal = False
+    st.rerun()
+
+
 def init_session_state():
     """Initialize all session state variables with secure token-based persistence"""
     db = SessionLocal()
@@ -1050,6 +896,13 @@ def inject_time_fix_script():
 
             // Global Singleton Processor
             window.processTimeFix = runFix;
+
+            // Scroll Lock Logic
+            window.setScrollLock = (locked) => {
+                document.body.style.overflow = locked ? 'hidden' : '';
+                const mainContainer = document.querySelector('[data-testid="stAppViewContainer"]');
+                if (mainContainer) mainContainer.style.overflow = locked ? 'hidden' : 'auto';
+            };
             
             // Aggressive Polling + Observer
             setInterval(runFix, 1000);
@@ -1172,47 +1025,269 @@ def get_priority_tag(priority):
     return f'<span class="priority-tag {p_class}">{priority}</span>'
 
 
+def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
+    """Set the active modal in session state and rerun"""
+    st.session_state['active_modal'] = {
+        'modal_type': modal_type,
+        'target_id': target_id,
+        'title': title,
+        'message': message,
+        **kwargs
+    }
+    st.rerun()
+
+
+def close_modal():
+    """Clear the active modal from session state and rerun"""
+    if 'active_modal' in st.session_state:
+        del st.session_state['active_modal']
+    st.rerun()
+
+
+@st.dialog("Action Required")
+def confirmation_modal_dialog(db, m):
+    """
+    Native Streamlit dialog for general confirmation actions.
+    """
+    title = m.get('title', 'Confirm Action')
+    message = m.get('message', 'Are you sure?')
+    icon = m.get('icon', '🗑️')
+    confirm_label = m.get('confirm_label', 'CONFIRM')
+    indicator = m.get('indicator')
+    
+    indicator_html = f'<div style="margin-top:15px; font-size:0.9rem; color:#6b7280; font-weight:700;">💡 {indicator}</div>' if indicator else ""
+    
+    # Custom Header
+    st.markdown(f"""
+    <div class="modal-dialog-header">
+      <div class="modal-icon">{icon}</div>
+      {title}
+    </div>
+    <div class="modal-body-content">
+      {message}
+      {indicator_html}
+    </div>
+    """, unsafe_allow_html=True)
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['target_id']}"):
+            del st.session_state['active_modal']
+            st.rerun()
+    with c2:
+        if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['target_id']}"):
+            # Execute backend action directly here
+            # (Logic moved from handle_active_modal to here for atomicity)
+            from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus
+            
+            success = False
+            msg = ""
+            
+            if m['modal_type'] == 'perm_delete':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
+                    msg = "Success! Lead has been permanently removed."
+                    success = True
+            elif m['modal_type'] == 'soft_delete':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                    msg = "Success! Lead moved to Recycle Bin."
+                    success = True
+            elif m['modal_type'] == 'soft_delete_ref':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                    msg = "Success! Referral moved to Recycle Bin."
+                    success = True
+            elif m['modal_type'] == 'restore_ref':
+                if crud_leads.restore_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id')):
+                    msg = "Success! Referral has been restored."
+                    success = True
+            elif m['modal_type'] == 'perm_delete_ref':
+                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
+                    msg = "Success! Referral has been permanently removed."
+                    success = True
+            elif m['modal_type'] == 'mark_ref_confirm':
+                st.session_state['mark_referral_lead_id'] = m['target_id']
+                st.session_state['current_page'] = 'Mark Referral Page'
+                st.toast("Heading to Mark Referral Page...")
+                success = True # Close modal
+            elif m['modal_type'] == 'approve_user':
+                crud_users.approve_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                msg = "Success! User has been approved."
+                success = True
+            elif m['modal_type'] == 'reject_user':
+                crud_users.reject_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                msg = "User has been rejected."
+                success = True
+            elif m['modal_type'] == 'delete_agency':
+                crud_agencies.delete_agency(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                msg = "Success! Payor has been deleted."
+                success = True
+            elif m['modal_type'] == 'delete_ccu':
+                crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                msg = "Success! CCU has been deleted."
+                success = True
+            
+            if success:
+                if msg: st.session_state['success_msg'] = msg
+                del st.session_state['active_modal']
+                st.rerun()
+
+@st.dialog("Delete Lead")
+def show_delete_modal_dialog(db, lead_id, name):
+    """
+    Native Streamlit dialog for the special delete lead action from view_leads.
+    """
+    st.markdown(f"""
+    <div class="modal-dialog-header">
+      <div class="modal-icon">🗑️</div>
+      DELETE LEAD?
+    </div>
+    <div class="modal-body-content">
+      Are you sure you want to delete <b>{name}</b>?<br><br>
+      💡 It will be moved to the Recycle Bin.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("CANCEL", use_container_width=True, key="dialog_cancel_delete_lead"):
+            st.session_state.show_delete_modal = False
+            st.rerun()
+    with col2:
+        if st.button("DELETE", type="primary", use_container_width=True, key="dialog_confirm_delete_lead"):
+            from app.crud import crud_leads
+            if crud_leads.delete_lead(db, lead_id, st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                st.session_state['success_msg'] = f"Success! Lead '{name}' moved to Recycle Bin."
+            st.session_state.show_delete_modal = False
+            st.rerun()
+
+@st.dialog("Edit Lead", width="large")
+def show_edit_modal_dialog(db, m):
+    """
+    Native Streamlit dialog for editing a lead.
+    """
+    from app.crud import crud_leads
+    from app.schemas import LeadUpdate
+    from datetime import datetime
+
+    st.markdown(f"""
+    <div class="modal-dialog-header">
+      <div class="modal-icon">📝</div>
+      Edit Lead: {m["title"]}
+    </div>
+    """, unsafe_allow_html=True)
+            
+    # Fetch lead data for form
+    lead = m['lead_data']
+    with st.form(f"edit_lead_modal_form_{m['target_id']}"):
+        col1, col2 = st.columns(2)
+        with col1:
+            new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""))
+            new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""))
+            new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""))
+            new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""))
+            new_source = st.text_input("Source", value=str(lead.get('source') or ""))
+            new_city = st.text_input("City", value=str(lead.get('city') or ""))
+        with col2:
+            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Dead Lead"]
+            current_status = lead.get('last_contact_status', 'Intro Call')
+            status_index = status_options.index(current_status) if current_status in status_options else 0
+            new_status = st.selectbox("Status", status_options, index=status_index)
+            
+            priority_options = ["High", "Medium", "Low"]
+            current_priority = lead.get('priority', 'Medium')
+            priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
+            new_priority = st.selectbox("Priority", priority_options, index=priority_index)
+            
+            new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0))
+            new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""))
+            new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""))
+            new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""))
+        
+        dob_value = lead.get('dob')
+        if isinstance(dob_value, str) and dob_value:
+            try:
+                from datetime import date
+                dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
+            except:
+                dob_value = None
+        
+        from datetime import date
+        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today())
+        
+        new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""))
+        
+        st.divider()
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.form_submit_button("CANCEL", use_container_width=True):
+                close_modal() # Custom helper from common.py
+        with c2:
+            if st.form_submit_button("SAVE CHANGES", type="primary", use_container_width=True):
+                # Update dictionary
+                update_dict = {
+                    "first_name": new_first,
+                    "last_name": new_last,
+                    "phone": new_phone,
+                    "staff_name": new_staff,
+                    "source": new_source,
+                    "city": new_city,
+                    "last_contact_status": new_status,
+                    "priority": new_priority,
+                    "dob": new_dob,
+                    "medicaid_no": new_medicaid,
+                    "e_contact_name": new_e_name,
+                    "e_contact_phone": new_e_phone,
+                    "active_client": lead.get('active_client'),
+                    "comments": new_comments,
+                    "age": new_age if new_age > 0 else None
+                }
+                schema_data = LeadUpdate(**update_dict)
+                crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
+                st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
+                close_modal()
+
+def handle_active_modal(db):
+    """
+    Centralized handler for all active modals in the application.
+    """
+    # 1. SPECIAL DELETE MODAL (from view_leads.py)
+    if st.session_state.get('show_delete_modal', False):
+        lead_id = st.session_state.get('delete_lead_id')
+        name = st.session_state.get('delete_lead_name', 'Unknown')
+        show_delete_modal_dialog(db, lead_id, name)
+        return
+
+    # 2. HANDLE GENERIC ACTIVE_MODAL DICT
+    if 'active_modal' not in st.session_state:
+        return
+
+    m = st.session_state['active_modal']
+    
+    # SPECIAL CASE: Edit Modal (Form)
+    if m['modal_type'] == 'save_edit_modal':
+        show_edit_modal_dialog(db, m)
+        return
+
+    # REGULAR CONFIRMATION MODALS
+    confirmation_modal_dialog(db, m)
+
+
 def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", key_prefix="modal", indicator=None):
     """
-    Renders a centered professional teal-header modal based on a screenshot.
-    Uses CSS :has selector to style the entire container.
-    Returns True if confirmed, False if cancelled, None if no action.
+    Triggers a confirmation modal by setting session state.
     """
-    # Create the backdrop
-    st.markdown('<div class="modal-backdrop"></div>', unsafe_allow_html=True)
-    
-    with st.container():
-        # Marker for CSS targeting
-        st.markdown(f'<div class="modal-marker {type}"></div>', unsafe_allow_html=True)
-        
-        # Header (Centered Icon + Title)
-        st.markdown(f"""
-        <div class="modal-header">
-            <div class="modal-icon">{icon}</div>
-            <div class="modal-title">{title}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Body (Message + Optional Indicator)
-        indicator_html = f'<div class="modal-indicator">💡 {indicator}</div>' if indicator else ""
-        st.markdown(f"""
-        <div class="modal-body">
-            {message}
-            {indicator_html}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Footer Buttons
-        footer_col1, footer_col2 = st.columns([1, 1])
-        action = None
-        with footer_col1:
-            if st.button(cancel_label, key=f"{key_prefix}_cancel", use_container_width=True):
-                action = False
-        with footer_col2:
-            if st.button(confirm_label, key=f"{key_prefix}_confirm", type="primary", use_container_width=True):
-                action = True
-                
-        return action
+    # Simply set the session state - handle_active_modal will pick it up and show st.dialog
+    st.session_state['active_modal'] = {
+        'modal_type': 'generic_confirm',
+        'title': title,
+        'message': message,
+        'icon': icon,
+        'type': type,
+        'confirm_label': confirm_label,
+        'target_id': key_prefix,
+        'indicator': indicator
+    }
+    st.rerun()
+    return None
 
 
 def render_api_status():

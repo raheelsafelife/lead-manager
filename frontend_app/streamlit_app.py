@@ -19,7 +19,7 @@ st.set_page_config(
 )
 
 # Import page modules from frontend folder
-from frontend.common import init_session_state, inject_custom_css, get_logo_path
+from frontend.common import init_session_state, inject_custom_css, get_logo_path, handle_active_modal
 from frontend.auth import login, signup, forgot_password
 from frontend.dashboard import dashboard, view_all_user_dashboards, discovery_tool
 from frontend.view_leads import view_leads, mark_referral_page
@@ -28,6 +28,8 @@ from frontend.referrals_sent import view_referrals
 from frontend.referral_confirm import referral_confirm
 from frontend.activity_logs import view_activity_logs
 from frontend.user_management import admin_panel, update_password, render_historian
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.db import SessionLocal
 from app.email_scheduler import start_scheduler
 
 @st.cache_resource
@@ -54,6 +56,12 @@ def main():
         else:
             login()
     else:
+        # --- CENTRALIZED MODAL RENDERING ---
+        # Render modals at the absolute top of the DOM before page layout
+        db = SessionLocal()
+        handle_active_modal(db)
+        db.close()
+        
         # Sidebar navigation
         with st.sidebar:
             # Company logo above the Navigation title
@@ -140,6 +148,7 @@ def main():
                 admin_panel()
             else:
                 st.error("Access denied. Admin only.")
+
 
 
 if __name__ == "__main__":

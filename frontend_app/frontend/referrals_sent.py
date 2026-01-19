@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal
 
 
 def view_referrals():
@@ -28,76 +28,17 @@ def view_referrals():
     if 'success_msg' in st.session_state:
         msg = st.session_state.pop('success_msg')
         st.toast(msg, icon="✅")
-        st.success(msg)
+        st.success(f"**{msg}**")
     if 'error_msg' in st.session_state:
         msg = st.session_state.pop('error_msg')
         st.toast(msg, icon="❌")
-        st.error(msg)
+        st.error(f"**{msg}**")
 
     st.markdown('<div class="main-header">Referrals</div>', unsafe_allow_html=True)
     
     db = SessionLocal()
 
-    # --- TOP-LEVEL MODAL RENDERING ---
-    if 'active_modal' in st.session_state:
-        m = st.session_state['active_modal']
-        action = render_confirmation_modal(
-            title=m['title'],
-            message=m['message'],
-            icon=m['icon'],
-            type=m['type'],
-            confirm_label=m['confirm_label'],
-            key_prefix=f"ref_{m['target_id']}"
-        )
-        
-        if action is True:
-            if m['modal_type'] == 'unmark_ref':
-                update_data = LeadUpdate(active_client=False)
-                crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id'))
-                st.session_state['success_msg'] = f"✅ Success! Lead unmarked as referral."
-            elif m['modal_type'] == 'auth_received':
-                update_data = LeadUpdate(authorization_received=True)
-                updated_lead = crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id'))
-                if updated_lead:
-                    st.session_state['success_msg'] = f"✅ Success! Authorization marked as received."
-                    # (Note: Email logic omitted here for simplicity, or would be called inside the CRUD or here if needed)
-                    # For consistency with the complex logic in referrals_sent, I'll keep the email block there if possible,
-                    # but actually, it's better to handle the business logic here after confirmation.
-            
-            del st.session_state['active_modal']
-            st.rerun()
-        elif action is False:
-            del st.session_state['active_modal']
-            st.rerun()
-
-        # Handle Restore Action
-        if action is True and m['modal_type'] == 'restore_ref':
-            if crud_leads.restore_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id')):
-                st.session_state['success_msg'] = f"✅ Success! Lead restored."
-                del st.session_state['active_modal']
-                st.rerun()
-            else:
-                st.session_state['error_msg'] = "❌ Failed to restore lead."
-        
-        # Handle Soft Delete Action
-        if action is True and m['modal_type'] == 'soft_delete_ref':
-            import datetime
-            update_data = LeadUpdate(deleted_at=datetime.datetime.utcnow(), deleted_by=st.session_state.username)
-            if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
-                st.session_state['success_msg'] = f"✅ Success! Referral moved to Recycle Bin."
-                del st.session_state['active_modal']
-                st.rerun()
-            else:
-                st.session_state['error_msg'] = "❌ Failed to delete referral."
-
-        # Handle Permanent Delete Action
-        if action is True and m['modal_type'] == 'perm_delete_ref':
-            if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
-                st.session_state['success_msg'] = f"✅ Success! Lead permanently deleted."
-                del st.session_state['active_modal']
-                st.rerun()
-            else:
-                st.session_state['error_msg'] = "❌ Failed to permanently delete lead."
+    # --- TOP-LEVEL NAVIGATION HANDLING ---
     
     # Initialize status filter in session state
     if 'referral_status_filter' not in st.session_state:
@@ -394,7 +335,7 @@ def view_referrals():
                 
                 with col2:
                     st.write(f"**Status:** {lead.last_contact_status}")
-                    st.success(f"**Referral:** Yes ({lead.referral_type or 'Regular'})")
+                    st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
                     if lead.agency:
                         st.info(f"**Payor:** {lead.agency.name}")
                     if lead.ccu:
@@ -402,9 +343,9 @@ def view_referrals():
                     # Authorization Status
                     if lead.authorization_received:
                         soc_str = lead.soc_date.strftime('%m/%d/%Y') if lead.soc_date else 'Not Set'
-                        st.success(f"**Auth:** Received | **Care:** {lead.care_status or 'N/A'} | **SOC:** {soc_str}")
+                        st.success(f"**Auth: Received | Care: {lead.care_status or 'N/A'} | SOC: {soc_str}**")
                     else:
-                        st.warning("**Auth:** Pending")
+                        st.warning("**Auth: Pending**")
                     st.markdown(f"**Created:** {render_time(lead.created_at)}", unsafe_allow_html=True)
                     st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                     if lead.comments:
@@ -430,7 +371,7 @@ def view_referrals():
                              lead.staff_name == st.session_state.username)
                 
                 if not can_modify:
-                    st.warning(" You can only edit/delete your own referrals")
+                    st.warning("**You can only edit/delete your own referrals**")
                 
                 # RECYCLE BIN ACTIONS
                 if st.session_state.show_deleted_referrals:
@@ -475,12 +416,35 @@ def view_referrals():
                 # Action buttons
                 col1, col2, col3, col4 = st.columns([1.0, 1.0, 2.0, 2.0])
                 with col1:
-                    if can_modify and st.button(" Edit", key=f"edit_ref_{lead.id}"):
-                        st.session_state[f'editing_{lead.id}'] = True
+                    if can_modify and st.button("Edit", key=f"edit_ref_{lead.id}"):
+                        # Prepare lead data for edit modal
+                        lead_dict = {
+                            "staff_name": lead.staff_name,
+                            "first_name": lead.first_name,
+                            "last_name": lead.last_name,
+                            "source": lead.source,
+                            "phone": lead.phone,
+                            "city": lead.city,
+                            "last_contact_status": lead.last_contact_status,
+                            "priority": lead.priority,
+                            "dob": lead.dob,
+                            "medicaid_no": lead.medicaid_no,
+                            "e_contact_name": lead.e_contact_name,
+                            "e_contact_phone": lead.e_contact_phone,
+                            "active_client": lead.active_client,
+                            "comments": lead.comments,
+                            "age": lead.age
+                        }
+                        st.session_state['active_modal'] = {
+                            'modal_type': 'save_edit_modal',
+                            'target_id': lead.id,
+                            'title': f"{lead.first_name} {lead.last_name}",
+                            'lead_data': lead_dict
+                        }
                         st.rerun()
                 with col2:
                     if can_modify:
-                        if st.button("🗑️ Delete", key=f"delete_ref_{lead.id}"):
+                        if st.button("Delete", key=f"delete_ref_{lead.id}"):
                             st.session_state['active_modal'] = {
                                 'modal_type': 'soft_delete_ref',
                                 'target_id': lead.id,
@@ -549,29 +513,21 @@ def view_referrals():
                                 updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
 
                                 if updated_lead:
-                                    st.warning(f" Authorization unmarked for {lead.first_name} {lead.last_name}")
+                                    st.warning(f"**Authorization unmarked for {lead.first_name} {lead.last_name}**")
                                     st.rerun()
                                 else:
-                                    st.error(" Failed to unmark authorization")
+                                    st.error("**Failed to unmark authorization**")
                         else:
                             # Show mark as received button if not authorized
-                            if st.button("Authorization Received", key=f"auth_ref_{lead.id}",
-                                       help="Mark this referral as having received authorization"):
-                                st.session_state[f"confirm_auth_received_{lead.id}"] = True
-                                st.rerun()
-
-                        if st.session_state.get(f"confirm_auth_received_{lead.id}", False):
-                            st.session_state['active_modal'] = {
-                                'modal_type': 'auth_received',
-                                'target_id': lead.id,
-                                'title': 'Authorization Received?',
-                                'message': f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?<br><br><span style='color: #6B7280;'>💡 This will move it to 'Referral Confirm'.</span>",
-                                'icon': '✅',
-                                'type': 'info',
-                                'confirm_label': 'MARK RECEIVED'
-                            }
-                            del st.session_state[f"confirm_auth_received_{lead.id}"]
-                            st.rerun()
+                                open_modal(
+                                    modal_type='auth_received',
+                                    target_id=lead.id,
+                                    title='Authorization Received?',
+                                    message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?<br><br><span style='color: #6B7280;'>💡 This will move it to 'Referral Confirm'.</span>",
+                                    icon='✅',
+                                    type='info',
+                                    confirm_label='MARK RECEIVED'
+                                )
                 
                 # History View
                 if st.session_state.get(f"show_history_ref_{lead.id}", False):
@@ -707,7 +663,7 @@ def view_referrals():
                             
                             crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
                             st.session_state[f'editing_{lead.id}'] = False
-                            st.success(" Referral updated successfully!")
+                            st.success("**Referral updated successfully!**")
                             st.rerun()
                         
                         if cancel:

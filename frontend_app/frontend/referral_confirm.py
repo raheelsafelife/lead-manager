@@ -65,13 +65,13 @@ def display_referral_confirm(lead, db, highlight=False):
                 pass
 
             # Show prominent authorization confirmation
-            st.info("**AUTHORIZATION CONFIRMED** - This referral has received authorization and is ready for care coordination")
+            st.info("**AUTHORIZATION CONFIRMED - This referral has received authorization and is ready for care coordination**")
             st.markdown("---")
             st.markdown("## **AUTHORIZATION RECEIVED**")
             st.markdown("---")
 
             if auth_received_time:
-                st.success(f"**Authorization Received:** {render_time(auth_received_time)}")
+                st.success(f"**Authorization Received: {render_time(auth_received_time)}**")
             else:
                 st.success("**Authorization Received**")
 
@@ -101,11 +101,11 @@ def display_referral_confirm(lead, db, highlight=False):
         if lead.care_status:
             soc_str = lead.soc_date.strftime('%m/%d/%Y') if lead.soc_date else 'Not Set'
             if lead.care_status == "Care Start":
-                st.success(f" **Care Status:** {lead.care_status} | **SOC:** {soc_str}")
+                st.success(f"**Care Status: {lead.care_status} | SOC: {soc_str}**")
             else:
-                st.warning(f" **Care Status:** {lead.care_status}")
+                st.warning(f"**Care Status: {lead.care_status}**")
         else:
-            st.warning(" Care status not set yet")
+            st.warning("**Care status not set yet**")
 
         st.divider()
 
@@ -122,8 +122,8 @@ def display_referral_confirm(lead, db, highlight=False):
                     soc_date=today
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                st.toast(f"✅ Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
-                st.success(f"✅ **Care Started!** SOC: {today.strftime('%m/%d/%Y')}")
+                st.toast(f"Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
+                st.success(f"**Care Started! SOC: {today.strftime('%m/%d/%Y')}**")
                 st.rerun()
 
         with col_not_start:
@@ -133,8 +133,8 @@ def display_referral_confirm(lead, db, highlight=False):
                     soc_date=None
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                st.toast("⏳ Care Not Started", icon="⏳")
-                st.warning(" Care Not Started")
+                st.toast("Care Not Started", icon="⏳")
+                st.warning("**Care Not Started**")
                 st.rerun()
 
         with col_history:
@@ -310,7 +310,7 @@ def referral_confirm():
     st.caption(f"Showing: {len(authorized_referrals)} clients")
     
     if not authorized_referrals:
-        st.info("No clients match the selected filter.")
+        st.info("**No clients match the selected filter.**")
         st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
         db.close()
         return

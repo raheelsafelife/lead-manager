@@ -48,27 +48,27 @@ def signup():
         
         if submit:
             if not all([user_id, username, email, password]):
-                st.error("Please fill in all fields")
+                st.error("**Please fill in all fields**")
             elif password != confirm_password:
-                st.error("Passwords do not match")
+                st.error("**Passwords do not match**")
             elif len(password) < 6:
-                st.error("Password must be at least 6 characters")
+                st.error("**Password must be at least 6 characters**")
             elif '@' not in email:
-                st.error("Please enter a valid email")
+                st.error("**Please enter a valid email**")
             else:
                 db = SessionLocal()
                 try:
                     existing_user_id = crud_users.get_user_by_user_id(db, user_id)
                     if existing_user_id:
-                        st.error("User ID already taken. Please use a unique identifier.")
+                        st.error("**User ID already taken. Please use a unique identifier.**")
                     else:
                         existing_user = crud_users.get_user_by_username(db, username)
                         if existing_user:
-                            st.error("Username already taken")
+                            st.error("**Username already taken**")
                         else:
                             existing_email = crud_users.get_user_by_email(db, email)
                             if existing_email:
-                                st.error("Email already registered")
+                                st.error("**Email already registered**")
                             else:
                                 user_data = UserCreate(
                                     user_id=user_id,
@@ -78,13 +78,13 @@ def signup():
                                     role="user"
                                 )
                                 user = crud_users.create_user(db, user_data)
-                                st.toast("✅ Account created successfully!", icon="✅")
-                                st.success("✅ **Account created successfully.**")
-                                st.info("ℹ️ Your account is now pending admin approval.")
+                                st.toast("Account created successfully!", icon="✅")
+                                st.success("**Account created successfully.**")
+                                st.info("Your account is now pending admin approval.")
                                 st.session_state.show_signup = False
                                 st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error creating account: {e}")
+                    st.error(f"**Error creating account: {e}**")
                 finally:
                     db.close()
     
@@ -141,18 +141,18 @@ def login():
         if submit:
             # Validation with toast notifications
             if not username:
-                st.toast("❌ Username Required - Please enter your username", icon="❌")
-                st.error("❌ **Username Required** - Please enter your username")
+                st.toast("Username Required - Please enter your username", icon="❌")
+                st.error("**Username Required - Please enter your username**")
             elif not password:
-                st.toast("❌ Password Required - Please enter your password", icon="❌")
-                st.error("❌ **Password Required** - Please enter your password")
+                st.toast("Password Required - Please enter your password", icon="❌")
+                st.error("**Password Required - Please enter your password**")
             else:
                 try:
                     db = SessionLocal()
                     user = crud_users.authenticate_user(db, username, password)
                 
                     if user == "pending":
-                        st.toast("⏳ Account Pending Approval - Contact an administrator", icon="⏳")
+                        st.toast("Account Pending Approval - Contact an administrator", icon="⏳")
                         st.warning("Your account is pending admin approval. Please contact an admin.")
                     elif user:
                         st.session_state.authenticated = True
@@ -179,15 +179,15 @@ def login():
                             keywords="auth,login"
                         )
                         
-                        st.toast(f"✅ Welcome back, {user.username}!", icon="👋")
-                        st.success("✅ **Login successful.** Redirecting...")
+                        st.toast(f"Welcome back, {user.username}!", icon="👋")
+                        st.success("**Login successful.** Redirecting...")
                         st.rerun()
                     else:
-                        st.toast("❌ Login Failed - Incorrect username or password", icon="❌")
-                        st.error("Invalid credentials. Please check your username and password.")
+                        st.toast("Login Failed - Incorrect username or password", icon="❌")
+                        st.error("**Invalid credentials. Please check your username and password.**")
                 except Exception as e:
-                    st.toast(f"❌ Login Error - {str(e)}", icon="❌")
-                    st.error(f"Database connection error: {str(e)}")
+                    st.toast(f"Login Error - {str(e)}", icon="❌")
+                    st.error(f"**Database connection error: {str(e)}**")
                     st.info("Check if Railway Volume is correctly mounted at /app/data")
                 finally:
                     if 'db' in locals():
@@ -231,21 +231,21 @@ def forgot_password():
         
         if submit:
             if not username:
-                st.error("Please enter your username")
+                st.error("**Please enter your username**")
             else:
                 db = SessionLocal()
                 try:
                     user = crud_users.request_password_reset(db, username)
                     if user:
-                        st.toast("✅ Reset Requested", icon="✅")
-                        st.success("✅ **Password reset requested.**")
-                        st.info("ℹ️ Your request has been sent to administrators for review.")
+                        st.toast("Reset Requested", icon="✅")
+                        st.success("**Password reset requested.**")
+                        st.info("Your request has been sent to administrators for review.")
                         st.session_state.show_forgot_password = False
                         st.rerun()
                     else:
-                        st.error("❌ Username not found")
+                        st.error("**Username not found**")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"**Error: {e}**")
                 finally:
                     db.close()
     
