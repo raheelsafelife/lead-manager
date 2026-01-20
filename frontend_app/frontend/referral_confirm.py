@@ -78,6 +78,13 @@ def display_referral_confirm(lead, db, highlight=False):
                 """, unsafe_allow_html=True)
             else:
                 st.success("**Authorization Received**")
+            
+            # Allow unmarking authorization (Revert to Referrals Sent)
+            if st.button("Undo Authorization (Move to Referrals Sent)", key=f"unmark_auth_btn_confirm_{lead.id}", type="secondary", use_container_width=True):
+                 update_data = LeadUpdate(authorization_received=False)
+                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                 st.toast(f"Authorization undone for {lead.first_name}", icon="↩️")
+                 st.rerun()
 
             st.divider()
 
