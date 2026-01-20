@@ -1,9 +1,11 @@
 from sqlalchemy import create_engine, text
 import os
+import sys
 
-# Connect to database
-DATABASE_URL = "sqlite:///backend/leads.db"
-engine = create_engine(DATABASE_URL)
+# Add parent directory to path to allow importing from app
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.db import DATABASE_URL, engine
 
 def run_migration():
     print("Starting migration: Adding owner_id to leads table...")

@@ -35,5 +35,12 @@ fi
 echo "🏗️  Rebuilding and Starting services (Background)..."
 docker compose up -d --build
 
+# Run the new migration locally as well if running locally
+if [ -d "venv" ] || [ -d ".venv" ] || [ -d "ENV" ]; then
+    echo "🔄 Running migrations..."
+    # Attempt to use the activated python or system python
+    python backend/migrate_add_owner_id.py || python3 backend/migrate_add_owner_id.py
+fi
+
 echo "✅ Refresh Complete! Your app is starting at https://ccpleads.safelifehomehealth.com/"
 echo "Check logs with: docker compose logs -f"
