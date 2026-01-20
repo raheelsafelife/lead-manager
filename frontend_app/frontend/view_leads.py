@@ -193,11 +193,13 @@ def view_leads():
     # Get leads based on recycle bin filter
     if st.session_state.show_deleted_leads:
         # Show only deleted leads
-        leads = crud_leads.list_deleted_leads(db, limit=100)
+        leads = crud_leads.list_deleted_leads(db, limit=1000)
         st.info("**Recycle Bin Mode - Showing deleted leads only. Uncheck to see active leads.**")
     else:
         # Show normal leads (not deleted)
-        leads = crud_leads.list_leads(db, limit=100, include_deleted=False)
+        leads = crud_leads.list_leads(db, limit=1000, include_deleted=False)
+        # CRITICAL: Exclude active referrals (leads only appear here if not yet a referral)
+        leads = [l for l in leads if not l.active_client]
     
     # Apply 'Show Only My Leads' filter for regular users
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
@@ -406,6 +408,7 @@ def view_leads():
                                         type='info',
                                         confirm_label='YES, MARK REFERRAL'
                                     )
+                            else:
                                 # Already a referral -> Show Unmark button
                                 if st.button("Unmark Referral", key=f"unmark_ref_btn_main_{lead.id}", type="primary", use_container_width=True):
                                     render_confirmation_modal(

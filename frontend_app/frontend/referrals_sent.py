@@ -255,14 +255,14 @@ def view_referrals():
     # Get leads based on recycle bin filter
     if st.session_state.show_deleted_referrals:
         # Show only deleted leads
-        leads = crud_leads.list_deleted_leads(db, limit=100)
+        leads = crud_leads.list_deleted_leads(db, limit=1000)
         st.info("🗑️ **Recycle Bin Mode** - Showing deleted referrals only. Uncheck to see active referrals.")
     else:
         # Show normal leads (not deleted)
         leads = crud_leads.list_leads(db, limit=1000)
     
-    # FILTER: Only show referrals (active_client = True)
-    leads = [l for l in leads if l.active_client == True]
+    # FILTER: Only show referrals (active_client = True) that are NOT yet authorized
+    leads = [l for l in leads if l.active_client == True and l.authorization_received == False]
     
     # Apply 'Show Only My Referrals' filter for regular users
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_referrals:
