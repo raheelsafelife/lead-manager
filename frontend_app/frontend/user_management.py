@@ -114,8 +114,8 @@ def admin_panel():
                         st.markdown(f"<span style='font-weight: 900; color: black;'>Requested:</span> {render_time(user.created_at)}", unsafe_allow_html=True)
                     
                     with col2:
-                        if st.button("Approve", key=f"approve_{user.id}", type="primary", width="stretch"):
-                            open_modal(
+                        if st.button("Approve", key=f"approve_user_btn_admin_{user.id}", type="primary", width="stretch"):
+                            render_confirmation_modal(
                                 modal_type='approve_user',
                                 target_id=user.id,
                                 title='Approve User?',
@@ -126,8 +126,8 @@ def admin_panel():
                             )
                     
                     with col3:
-                        if st.button("Reject", key=f"reject_{user.id}", type="primary", width="stretch"):
-                            open_modal(
+                        if st.button("Reject", key=f"reject_user_btn_admin_{user.id}", type="primary", width="stretch"):
+                            render_confirmation_modal(
                                 modal_type='reject_user',
                                 target_id=user.id,
                                 title='Reject User?',
@@ -201,7 +201,7 @@ def admin_panel():
                             st.markdown(f"<span style='color: #6B7280;'>Created: {render_time(user.created_at)}</span>", unsafe_allow_html=True)
                         
                         with col2:
-                            if st.button("Edit", key=f"edit_{user.id}"):
+                            if st.button("Edit", key=f"edit_approved_user_btn_admin_{user.id}"):
                                 st.session_state[f"editing_user_{user.id}"] = True
                                 st.rerun()
                         
@@ -379,16 +379,15 @@ def admin_panel():
                         else:
                             # Trigger confirmation modal
                             st.session_state['pending_password_update'] = {"new_password": new_password}
-                            st.session_state['active_modal'] = {
-                                'modal_type': 'update_password',
-                                'target_id': st.session_state.db_user_id,
-                                'title': 'Update Password?',
-                                'message': "Are you sure you want to change your password?",
-                                'icon': '🔒',
-                                'type': 'info',
-                                'confirm_label': 'UPDATE'
-                            }
-                            st.rerun()
+                            render_confirmation_modal(
+                                modal_type='update_password',
+                                target_id=st.session_state.db_user_id,
+                                title='Update Password?',
+                                message="Are you sure you want to change your password?",
+                                icon='🔒',
+                                type='info',
+                                confirm_label='UPDATE'
+                            )
                     except Exception as e:
                         st.error(f" Error: {e}")
     
@@ -435,22 +434,17 @@ def admin_panel():
                     st.markdown(f"<span style='font-size: 16px;'>**{agency.name}**</span>", unsafe_allow_html=True)
                     st.markdown(f"<span style='color: #6B7280; font-size: 0.85rem;'>Created: {render_time(agency.created_at)} by {agency.created_by}</span>", unsafe_allow_html=True)
                 with col2:
-                    if st.button("Delete", key=f"del_agency_admin_{agency.id}", help=f"Delete {agency.name}", type="primary"):
-                        st.session_state[f"confirm_del_agency_{agency.id}"] = True
-                        st.rerun()
+                    if st.button("Delete", key=f"delete_agency_btn_admin_{agency.id}", help=f"Delete {agency.name}", type="primary"):
+                        render_confirmation_modal(
+                            modal_type='delete_agency',
+                            target_id=agency.id,
+                            title='Delete Payor?',
+                            message=f"Are you sure you want to delete payor <strong>{agency.name}</strong>?<br><br><span style='color: #6B7280;'>⚠️ This may affect associated leads.</span>",
+                            icon='🗑️',
+                            type='error',
+                            confirm_label='DELETE'
+                        )
 
-                if st.session_state.get(f"confirm_del_agency_{agency.id}", False):
-                    st.session_state['active_modal'] = {
-                        'modal_type': 'delete_agency',
-                        'target_id': agency.id,
-                        'title': 'Delete Payor?',
-                        'message': f"Are you sure you want to delete payor <strong>{agency.name}</strong>?<br><br><span style='color: #6B7280;'>⚠️ This may affect associated leads.</span>",
-                        'icon': '🗑️',
-                        'type': 'error',
-                        'confirm_label': 'DELETE'
-                    }
-                    st.session_state.pop(f"confirm_del_agency_{agency.id}", None)
-                    st.rerun()
                 
                 # Suboptions removed as per request
                 # suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency.id)
@@ -513,31 +507,26 @@ def admin_panel():
                     st.markdown(f"<span style='font-size: 16px;'> **{ccu.name}**</span>", unsafe_allow_html=True)
                     st.markdown(f"<span style='color: #6B7280; font-size: 0.85rem;'>Created: {render_time(ccu.created_at)} by {ccu.created_by}</span>", unsafe_allow_html=True)
                 with col2:
-                    if st.button("Details", key=f"details_ccu_admin_{ccu.id}", help="View CCU Details", type="primary"):
+                    if st.button("Details", key=f"details_ccu_btn_admin_{ccu.id}", help="View CCU Details", type="primary"):
                         st.session_state[f"viewing_ccu_{ccu.id}"] = not st.session_state.get(f"viewing_ccu_{ccu.id}", False)
                         st.rerun()
                 with col3:
-                    if st.button("Edit", key=f"edit_ccu_admin_{ccu.id}", help="Edit CCU", type="primary"):
+                    if st.button("Edit", key=f"edit_ccu_btn_admin_{ccu.id}", help="Edit CCU", type="primary"):
                         st.session_state[f"editing_ccu_{ccu.id}"] = not st.session_state.get(f"editing_ccu_{ccu.id}", False)
                         st.rerun()
                 with col4:
-                    if st.button("Delete", key=f"del_ccu_admin_{ccu.id}", help=f"Delete CCU: {ccu.name}", type="primary"):
-                        st.session_state[f"confirm_del_ccu_{ccu.id}"] = True
-                        st.rerun()
+                    if st.button("Delete", key=f"delete_ccu_btn_admin_{ccu.id}", help=f"Delete CCU: {ccu.name}", type="primary"):
+                        render_confirmation_modal(
+                            modal_type='delete_ccu',
+                            target_id=ccu.id,
+                            title='Delete CCU?',
+                            message=f"Are you sure you want to delete CCU <strong>{ccu.name}</strong>?",
+                            indicator='This may affect associated referrals.',
+                            icon='🗑️',
+                            type='error',
+                            confirm_label='DELETE'
+                        )
 
-                if st.session_state.get(f"confirm_del_ccu_{ccu.id}", False):
-                    st.session_state['active_modal'] = {
-                        'modal_type': 'delete_ccu',
-                        'target_id': ccu.id,
-                        'title': 'Delete CCU?',
-                        'message': f"Are you sure you want to delete CCU <strong>{ccu.name}</strong>?",
-                        'indicator': 'This may affect associated referrals.',
-                        'icon': '🗑️',
-                        'type': 'error',
-                        'confirm_label': 'DELETE'
-                    }
-                    st.session_state.pop(f"confirm_del_ccu_{ccu.id}", None)
-                    st.rerun()
                 
                 # Show CCU details
                 if st.session_state.get(f"viewing_ccu_{ccu.id}", False):

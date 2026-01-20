@@ -339,14 +339,15 @@ def view_leads():
                     # NORMAL MODE - Show Edit, Delete, Mark Referral buttons
                     col1, col2, col3, col4 = st.columns([1, 1, 1.5, 1.5])
                     with col1:
-                        if can_modify and st.button("Edit", key=f"edit_{lead.id}"):
+                        if can_modify and st.button("Edit", key=f"edit_lead_btn_main_{lead.id}"):
                             # Prepare serializable lead data for modal
                             lead_dict = {
-                                "staff_name": lead.staff_name,
+                                "id": lead.id,
                                 "first_name": lead.first_name,
                                 "last_name": lead.last_name,
-                                "source": lead.source,
                                 "phone": lead.phone,
+                                "staff_name": lead.staff_name,
+                                "source": lead.source,
                                 "city": lead.city,
                                 "last_contact_status": lead.last_contact_status,
                                 "priority": lead.priority,
@@ -357,6 +358,17 @@ def view_leads():
                                 "active_client": lead.active_client,
                                 "comments": lead.comments
                             }
+                            # Action-scoped state (Stability Refactor)
+                            st.session_state.modal_open = True
+                            st.session_state.modal_action = 'save_edit_modal'
+                            st.session_state.modal_lead_id = lead.id
+                            st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
+                            st.session_state.modal_data = {
+                                'title': f"{lead.first_name} {lead.last_name}",
+                                'lead_data': lead_dict
+                            }
+                            
+                            # Legacy active_modal mapping
                             st.session_state['active_modal'] = {
                                 'modal_type': 'save_edit_modal',
                                 'target_id': lead.id,
@@ -366,20 +378,25 @@ def view_leads():
                             st.rerun()
                     
                     with col2:
-                        # Delete button with confirmation
+                        # Delete button
                         if can_modify:
-                            if st.button("Delete", key=f"delete_{lead.id}"):
-                                st.session_state.show_delete_modal = True
-                                st.session_state.delete_lead_name = f"{lead.first_name} {lead.last_name}"
-                                st.session_state.delete_lead_id = lead.id
-                                st.rerun()
+                            if st.button("Delete", key=f"delete_lead_btn_main_{lead.id}"):
+                                render_confirmation_modal(
+                                    modal_type='soft_delete',
+                                    target_id=lead.id,
+                                    title='Delete Lead?',
+                                    message=f"Are you sure you want to delete <b>{lead.first_name} {lead.last_name}</b>?<br><br>💡 It will be moved to the Recycle Bin.",
+                                    icon='🗑️',
+                                    type='warning',
+                                    confirm_label='DELETE'
+                                )
                     
                     with col3:
-                        # Toggle Referral button with confirmation
+                        # Toggle Referral button
                         if can_modify:
                             if not lead.active_client:
                                 # Not a referral yet -> Navigate to Mark Referral page
-                                if st.button("Mark Referral", key=f"mark_ref_btn_{lead.id}", use_container_width=True):
+                                if st.button("Mark Referral", key=f"mark_ref_btn_main_{lead.id}", use_container_width=True):
                                     render_confirmation_modal(
                                         modal_type='mark_ref_confirm',
                                         target_id=lead.id,
@@ -389,9 +406,8 @@ def view_leads():
                                         type='info',
                                         confirm_label='YES, MARK REFERRAL'
                                     )
-                            else:
                                 # Already a referral -> Show Unmark button
-                                if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary", use_container_width=True):
+                                if st.button("Unmark Referral", key=f"unmark_ref_btn_main_{lead.id}", type="primary", use_container_width=True):
                                     render_confirmation_modal(
                                         modal_type='unmark_ref',
                                         target_id=lead.id,
@@ -405,9 +421,9 @@ def view_leads():
                     
                     with col4:
                         # History button
-                        if st.button("History", key=f"history_{lead.id}"):
+                        if st.button("History", key=f"history_btn_main_{lead.id}"):
                             # Toggle history view
-                            key = f"show_history_{lead.id}"
+                            key = f"show_history_main_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
                             st.rerun()
                 

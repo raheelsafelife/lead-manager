@@ -64,25 +64,6 @@ GLOBAL_CSS = """
         to { opacity: 1; }
     }
 
-    /* Modal Backdrop Layer */
-    .modal-backdrop {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background-color: rgba(0, 0, 0, 0) !important;
-        z-index: 0 !important;
-        pointer-events: none !important;
-        transition: background-color 0.3s ease !important;
-    }
-
-    body:has(.modal-marker) .modal-backdrop {
-        background-color: rgba(0, 0, 0, 0.4) !important;
-        z-index: 999990 !important;
-        pointer-events: auto !important;
-    }
-
     /* Hide Streamlit header (Deploy button, Rerun status) but KEEP the sidebar toggle */
     header { 
         visibility: hidden !important; 
@@ -174,7 +155,22 @@ GLOBAL_CSS = """
     /* Style the confirmation "Double Check" boxes if they are inside buttons/dialogs */
     .stButton > button {
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
     }
+    
+    /* Force primary buttons to be Deep Blue (Chicago/SafeLife branding) */
+    .stButton > button[kind="primary"] {
+        background-color: #00506b !important;
+        border: none !important;
+    }
+    
+    /* Ultra-strong override for all button text containers */
+    .stButton button p, .stButton button span, .stButton button label {
+        color: #FFFFFF !important;
+        font-weight: 700 !important;
+    }
+    
     .stButton > button:active {
         transform: scale(0.96) !important;
     }
@@ -755,6 +751,14 @@ def close_modal():
     """Clear any active modal from session state and rerun"""
     st.session_state.pop('active_modal', None)
     st.session_state.show_delete_modal = False
+    
+    # Action-scoped state cleanup (Stability Refactor)
+    st.session_state.modal_open = False
+    st.session_state.modal_action = None
+    st.session_state.modal_lead_id = None
+    st.session_state.modal_lead_name = None
+    st.session_state.modal_data = {}
+    
     st.rerun()
 
 
@@ -806,6 +810,18 @@ def init_session_state():
         st.session_state.stats_view_mode = 'individual'
     if 'show_user_dashboards' not in st.session_state:
         st.session_state.show_user_dashboards = False
+    
+    # --- MODAL STABILITY STATE (CHICAGO FIX) ---
+    if 'modal_open' not in st.session_state:
+        st.session_state.modal_open = False
+    if 'modal_action' not in st.session_state:
+        st.session_state.modal_action = None
+    if 'modal_lead_id' not in st.session_state:
+        st.session_state.modal_lead_id = None
+    if 'modal_lead_name' not in st.session_state:
+        st.session_state.modal_lead_name = None
+    if 'modal_data' not in st.session_state:
+        st.session_state.modal_data = {}
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
@@ -1062,13 +1078,13 @@ def confirmation_modal_dialog(db, m):
     
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['target_id']}"):
-            st.session_state.pop('active_modal', None)
-            st.rerun()
+        # Action-scoped unique key for CANCEL button
+        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['modal_type']}_{m['target_id']}"):
+            close_modal()
     with c2:
-        if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['target_id']}"):
+        # Action-scoped unique key for CONFIRM button
+        if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['modal_type']}_{m['target_id']}"):
             # Execute backend action directly here
-            # (Logic moved from handle_active_modal to here for atomicity)
             from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus
             
             success = False
@@ -1130,8 +1146,7 @@ def confirmation_modal_dialog(db, m):
             
             if success:
                 if msg: st.session_state['success_msg'] = msg
-                st.session_state.pop('active_modal', None)
-                st.rerun()
+                close_modal()
 
 @st.dialog("Delete Lead")
 def show_delete_modal_dialog(db, lead_id, name):
@@ -1251,34 +1266,71 @@ def show_edit_modal_dialog(db, m):
 def handle_active_modal(db):
     """
     Centralized handler for all active modals in the application.
+    (Updated with Stability Refactor logic)
     """
-    # 1. SPECIAL DELETE MODAL (from view_leads.py)
+    
+    # 1. SPECIAL DELETE MODAL (legacy support for view_leads.py)
     if st.session_state.get('show_delete_modal', False):
+        # Clear the trigger so it doesn't reappear on next rerun (e.g. navigation)
+        st.session_state.show_delete_modal = False
         lead_id = st.session_state.get('delete_lead_id')
         name = st.session_state.get('delete_lead_name', 'Unknown')
         show_delete_modal_dialog(db, lead_id, name)
         return
 
-    # 2. HANDLE GENERIC ACTIVE_MODAL DICT
-    if 'active_modal' not in st.session_state:
-        return
-
-    m = st.session_state['active_modal']
+    # 2. HANDLE GENERIC ACTIVE_MODAL (Action-Scoped Priority)
+    m = None
+    if st.session_state.get('modal_open', False):
+         # Clear the trigger so it doesn't reappear on next rerun
+         st.session_state.modal_open = False
+         
+         # Priority: Map action-scoped state to 'm' for compatibility
+         m = {
+             'modal_type': st.session_state.modal_action,
+             'target_id': st.session_state.modal_lead_id,
+             'title': st.session_state.modal_lead_name or st.session_state.modal_data.get('title'),
+             'lead_data': st.session_state.modal_data.get('lead_data'),
+             'icon': st.session_state.modal_data.get('icon'),
+             'type': st.session_state.modal_data.get('type'),
+             'confirm_label': st.session_state.modal_data.get('confirm_label'),
+             'cancel_label': st.session_state.modal_data.get('cancel_label'),
+             'indicator': st.session_state.modal_data.get('indicator'),
+             'message': st.session_state.modal_data.get('message')
+         }
+    elif 'active_modal' in st.session_state:
+         # Fallback: Legacy dictionary (consume it immediately)
+         m = st.session_state.pop('active_modal')
     
-    # SPECIAL CASE: Edit Modal (Form)
+    if not m:
+        return
+    
+    # Dispatch to specific dialog functions
+    # Note: We already cleared the session trigger above; the dialog persists in its own context
     if m['modal_type'] == 'save_edit_modal':
         show_edit_modal_dialog(db, m)
-        return
-
-    # REGULAR CONFIRMATION MODALS
-    confirmation_modal_dialog(db, m)
+    else:
+        confirmation_modal_dialog(db, m)
 
 
 def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", target_id="modal", indicator=None, modal_type='soft_delete'):
     """
-    Triggers a confirmation modal by setting session state.
+    Triggers a confirmation modal by setting isolated session state variables.
     """
-    # Simply set the session state - handle_active_modal will pick it up and show st.dialog
+    # Simply set the session state variables (Stability Refactor)
+    st.session_state.modal_open = True
+    st.session_state.modal_action = modal_type
+    st.session_state.modal_lead_id = target_id
+    st.session_state.modal_data = {
+        'title': title,
+        'message': message,
+        'icon': icon,
+        'type': type,
+        'confirm_label': confirm_label,
+        'cancel_label': cancel_label,
+        'indicator': indicator
+    }
+    
+    # Maintain legacy dictionary for backward compatibility during transition
     st.session_state['active_modal'] = {
         'modal_type': modal_type,
         'title': title,
@@ -1289,28 +1341,24 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
         'target_id': target_id,
         'indicator': indicator
     }
+    
     st.rerun()
     return None
 
 
 def render_api_status():
-    """Diagnostic tool to check if the FastAPI backend is running.
-    Simplified: Shows only a green/red circle in the sidebar.
-    """
+    """Diagnostic tool to check if the FastAPI backend is running."""
     import urllib.request
     import os
     
-    # Use the environment variable if available, otherwise default to local
     backend_url = os.environ.get("BACKEND_API_URL", "http://127.0.0.1:8003")
-    
     st.sidebar.markdown("---")
     
     try:
-        # Ping the health endpoint
         with urllib.request.urlopen(f"{backend_url}/health", timeout=3) as response:
             if response.getcode() == 200:
                 st.sidebar.markdown("**System: Live**")
             else:
                 st.sidebar.markdown("**System: Offline**")
-    except Exception:
+    except:
         st.sidebar.markdown("**System: Offline**")

@@ -416,14 +416,15 @@ def view_referrals():
                 # Action buttons
                 col1, col2, col3, col4 = st.columns([1.0, 1.0, 2.0, 2.0])
                 with col1:
-                    if can_modify and st.button("Edit", key=f"edit_ref_{lead.id}"):
+                    if can_modify and st.button("Edit", key=f"edit_lead_btn_ref_{lead.id}"):
                         # Prepare lead data for edit modal
                         lead_dict = {
-                            "staff_name": lead.staff_name,
+                            "id": lead.id,
                             "first_name": lead.first_name,
                             "last_name": lead.last_name,
-                            "source": lead.source,
                             "phone": lead.phone,
+                            "staff_name": lead.staff_name,
+                            "source": lead.source,
                             "city": lead.city,
                             "last_contact_status": lead.last_contact_status,
                             "priority": lead.priority,
@@ -435,6 +436,17 @@ def view_referrals():
                             "comments": lead.comments,
                             "age": lead.age
                         }
+                        # Action-scoped state (Stability Refactor)
+                        st.session_state.modal_open = True
+                        st.session_state.modal_action = 'save_edit_modal'
+                        st.session_state.modal_lead_id = lead.id
+                        st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
+                        st.session_state.modal_data = {
+                            'title': f"{lead.first_name} {lead.last_name}",
+                            'lead_data': lead_dict
+                        }
+                        
+                        # Legacy active_modal mapping
                         st.session_state['active_modal'] = {
                             'modal_type': 'save_edit_modal',
                             'target_id': lead.id,
@@ -444,18 +456,17 @@ def view_referrals():
                         st.rerun()
                 with col2:
                     if can_modify:
-                        if st.button("Delete", key=f"delete_ref_{lead.id}"):
-                            st.session_state['active_modal'] = {
-                                'modal_type': 'soft_delete_ref',
-                                'target_id': lead.id,
-                                'title': 'Delete Referral?',
-                                'message': f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?",
-                                'icon': '🗑️',
-                                'type': 'warning',
-                                'confirm_label': 'DELETE',
-                                'indicator': 'This will move it to the Recycle Bin.'
-                            }
-                            st.rerun()
+                        if st.button("Delete", key=f"delete_lead_btn_ref_{lead.id}"):
+                            render_confirmation_modal(
+                                modal_type='soft_delete_ref',
+                                target_id=lead.id,
+                                title='Delete Referral?',
+                                message=f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?",
+                                icon='🗑️',
+                                type='warning',
+                                confirm_label='DELETE',
+                                indicator='This will move it to the Recycle Bin.'
+                            )
                 with col3:
                     # Show automatic email status
                     if lead.last_contact_status != "Inactive":
@@ -475,7 +486,7 @@ def view_referrals():
                 with col3:
                     # Unmark Referral button (always shows unmark since we're in referrals view)
                     if can_modify:
-                        if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary", use_container_width=True):
+                        if st.button("Unmark Referral", key=f"unmark_ref_btn_ref_{lead.id}", type="primary", use_container_width=True):
                             render_confirmation_modal(
                                 modal_type='unmark_ref',
                                 target_id=lead.id,
@@ -491,7 +502,7 @@ def view_referrals():
                     # History button and Authorization Received button side by side
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
-                        if st.button("History", key=f"history_ref_{lead.id}"):
+                        if st.button("History", key=f"history_btn_ref_{lead.id}"):
                             # Toggle history view
                             key = f"show_history_ref_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
@@ -501,8 +512,8 @@ def view_referrals():
                         # Authorization Received button - toggleable
                         if lead.authorization_received:
                             # Show unmark button if already authorized
-                            if st.button("Unmark Auth", key=f"unmark_auth_ref_{lead.id}",
-                                       help="Remove authorization received status"):
+                            if st.button("Unmark Auth", key=f"unmark_auth_btn_ref_{lead.id}",
+                                       help="Remove authorization received status", type="primary"):
                                 update_data = LeadUpdate(authorization_received=False)
                                 updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
 
@@ -513,8 +524,8 @@ def view_referrals():
                                     st.error("**Failed to unmark authorization**")
                         else:
                             # Show mark as received button if not authorized
-                            if st.button("Mark Auth", key=f"mark_auth_ref_{lead.id}", 
-                                       help="Mark as authorized and move to Referral Confirm", use_container_width=True):
+                            if st.button("Mark Authentication", key=f"mark_auth_btn_ref_{lead.id}", 
+                                       help="Mark as authorized and move to Referral Confirm", type="primary", use_container_width=True):
                                 render_confirmation_modal(
                                     modal_type='auth_received',
                                     target_id=lead.id,

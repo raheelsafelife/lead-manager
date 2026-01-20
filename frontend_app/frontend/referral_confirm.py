@@ -118,7 +118,7 @@ def display_referral_confirm(lead, db, highlight=False):
         col_start, col_not_start, col_history = st.columns(3)
 
         with col_start:
-            if st.button("Care Start", key=f"care_start_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
+            if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
                 # Auto-fetch today's date as SOC
                 today = date.today()
                 update_data = LeadUpdate(
@@ -131,7 +131,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 st.rerun()
 
         with col_not_start:
-            if st.button("Not Start", key=f"not_start_{lead.id}", type="secondary", width="stretch", disabled=(lead.care_status == "Not Start")):
+            if st.button("Not Start", key=f"not_start_btn_confirm_{lead.id}", type="secondary", width="stretch", disabled=(lead.care_status == "Not Start")):
                 update_data = LeadUpdate(
                     care_status="Not Start",
                     soc_date=None
@@ -142,7 +142,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 st.rerun()
 
         with col_history:
-            if st.button("History", key=f"history_confirm_{lead.id}", width="stretch"):
+            if st.button("History", key=f"history_btn_confirm_{lead.id}", width="stretch"):
                 st.session_state[f'show_confirm_history_{lead.id}'] = not st.session_state.get(f'show_confirm_history_{lead.id}', False)
                 st.rerun()
 
@@ -230,7 +230,7 @@ def referral_confirm():
         filter_source = st.text_input("Filter by source")
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Search", key="search_confirm_btn", use_container_width=True):
+        if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
             st.rerun()
 
     # Payor Filter
@@ -275,17 +275,17 @@ def referral_confirm():
     col_all, col_start, col_not_start = st.columns(3)
     
     with col_all:
-        if st.button("All", key="filter_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", width="stretch"):
+        if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "All"
             st.rerun()
     
     with col_start:
-        if st.button("Care Start", key="filter_care_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", width="stretch"):
+        if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Care Start"
             st.rerun()
     
     with col_not_start:
-        if st.button("Not Start", key="filter_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", width="stretch"):
+        if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Not Start"
             st.rerun()
     
