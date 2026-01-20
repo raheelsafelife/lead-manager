@@ -449,7 +449,7 @@ def admin_panel():
                         'type': 'error',
                         'confirm_label': 'DELETE'
                     }
-                    del st.session_state[f"confirm_del_agency_{agency.id}"]
+                    st.session_state.pop(f"confirm_del_agency_{agency.id}", None)
                     st.rerun()
                 
                 # Suboptions removed as per request
@@ -536,7 +536,7 @@ def admin_panel():
                         'type': 'error',
                         'confirm_label': 'DELETE'
                     }
-                    del st.session_state[f"confirm_del_ccu_{ccu.id}"]
+                    st.session_state.pop(f"confirm_del_ccu_{ccu.id}", None)
                     st.rerun()
                 
                 # Show CCU details

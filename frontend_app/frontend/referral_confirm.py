@@ -203,7 +203,7 @@ def referral_confirm():
             display_referral_confirm(specific_lead, db, highlight=True)
 
             # Clear the specific lead ID after displaying
-            del st.session_state['referral_confirm_lead_id']
+            st.session_state.pop('referral_confirm_lead_id', None)
 
             st.divider()
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>All Other Authorized Referrals</h4>", unsafe_allow_html=True)
@@ -213,7 +213,7 @@ def referral_confirm():
         else:
             # Clear the invalid lead ID if referral not found
             if 'referral_confirm_lead_id' in st.session_state:
-                del st.session_state['referral_confirm_lead_id']
+                st.session_state.pop('referral_confirm_lead_id', None)
 
     # Show count
     st.write(f"**Total Clients with Authorization: {len(authorized_referrals)}**")

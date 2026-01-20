@@ -313,13 +313,13 @@ def view_leads():
                             if st.button("✅ Yes, Restore", key=f"yes_restore_{lead.id}", type="primary"):
                                 if crud_leads.restore_lead(db, lead.id, st.session_state.username, st.session_state.get('db_user_id')):
                                     st.session_state['success_msg'] = f"Success! {lead.first_name} {lead.last_name} has been restored to active leads."
-                                    del st.session_state[f'confirm_restore_{lead.id}']
+                                    st.session_state.pop(f'confirm_restore_{lead.id}', None)
                                     st.rerun()
                                 else:
                                     st.error("**Restore Failed - Could not restore lead.**")
                         with conf_col2:
                             if st.button("❌ Cancel", key=f"no_restore_{lead.id}"):
-                                del st.session_state[f'confirm_restore_{lead.id}']
+                                st.session_state.pop(f'confirm_restore_{lead.id}', None)
                                 st.rerun()
                     
                     # Permanent delete confirmation dialog
@@ -333,7 +333,7 @@ def view_leads():
                             'type': 'error',
                             'confirm_label': 'DELETE FOREVER'
                         }
-                        del st.session_state[f'confirm_perm_delete_{lead.id}']
+                        st.session_state.pop(f'confirm_perm_delete_{lead.id}', None)
                         st.rerun()
                 else:
                     # NORMAL MODE - Show Edit, Delete, Mark Referral buttons
