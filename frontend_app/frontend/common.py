@@ -409,7 +409,7 @@ GLOBAL_CSS = """
     }
     
     /* Ensure all button text is white */
-    button *, .stButton > button *, .stForm button *, .stForm button[type="submit\"] *, button p, .stButton > button p {
+    button *, .stButton > button *, .stForm button *, .stForm button[type="submit"] *, button p, .stButton > button p, button span, button div {
         color: #FFFFFF !important;
     }
 
