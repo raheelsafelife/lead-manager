@@ -752,13 +752,9 @@ GLOBAL_CSS = """
 
 
 def close_modal():
-    """
-    Closes any active modal by clearing session state and rerunning.
-    """
-    if 'active_modal' in st.session_state:
-        del st.session_state['active_modal']
-    if 'show_delete_modal' in st.session_state:
-        st.session_state.show_delete_modal = False
+    """Clear any active modal from session state and rerun"""
+    st.session_state.pop('active_modal', None)
+    st.session_state.show_delete_modal = False
     st.rerun()
 
 
@@ -1037,11 +1033,6 @@ def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
     st.rerun()
 
 
-def close_modal():
-    """Clear the active modal from session state and rerun"""
-    if 'active_modal' in st.session_state:
-        del st.session_state['active_modal']
-    st.rerun()
 
 
 @st.dialog("Action Required")
@@ -1072,7 +1063,7 @@ def confirmation_modal_dialog(db, m):
     c1, c2 = st.columns(2)
     with c1:
         if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['target_id']}"):
-            del st.session_state['active_modal']
+            st.session_state.pop('active_modal', None)
             st.rerun()
     with c2:
         if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['target_id']}"):
@@ -1139,7 +1130,7 @@ def confirmation_modal_dialog(db, m):
             
             if success:
                 if msg: st.session_state['success_msg'] = msg
-                del st.session_state['active_modal']
+                st.session_state.pop('active_modal', None)
                 st.rerun()
 
 @st.dialog("Delete Lead")
