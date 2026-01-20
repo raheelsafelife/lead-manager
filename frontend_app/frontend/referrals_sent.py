@@ -475,23 +475,17 @@ def view_referrals():
                 with col3:
                     # Unmark Referral button (always shows unmark since we're in referrals view)
                     if can_modify:
-                        if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary"):
-                            st.session_state[f"confirm_unmark_ref_{lead.id}"] = True
-                            st.rerun()
-
-                    if st.session_state.get(f"confirm_unmark_ref_{lead.id}", False):
-                        st.session_state['active_modal'] = {
-                            'modal_type': 'unmark_ref',
-                            'target_id': lead.id,
-                            'title': 'Unmark Referral?',
-                            'message': f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?",
-                            'indicator': 'This will hide it from the Referrals list but keep the record in the main Lead List.',
-                            'icon': '🚫',
-                            'type': 'warning',
-                            'confirm_label': 'UNMARK'
-                        }
-                        del st.session_state[f"confirm_unmark_ref_{lead.id}"]
-                        st.rerun()
+                        if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary", use_container_width=True):
+                            render_confirmation_modal(
+                                modal_type='unmark_ref',
+                                target_id=lead.id,
+                                title='Unmark Referral?',
+                                message=f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?",
+                                indicator='This will hide it from the Referrals list but keep the record in the main Lead List.',
+                                icon='🚫',
+                                type='warning',
+                                confirm_label='UNMARK'
+                            )
                 
                 with col4:
                     # History button and Authorization Received button side by side
@@ -510,7 +504,7 @@ def view_referrals():
                             if st.button("Unmark Auth", key=f"unmark_auth_ref_{lead.id}",
                                        help="Remove authorization received status"):
                                 update_data = LeadUpdate(authorization_received=False)
-                                updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                                updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
 
                                 if updated_lead:
                                     st.warning(f"**Authorization unmarked for {lead.first_name} {lead.last_name}**")
@@ -520,8 +514,8 @@ def view_referrals():
                         else:
                             # Show mark as received button if not authorized
                             if st.button("Mark Auth", key=f"mark_auth_ref_{lead.id}", 
-                                       help="Mark as authorized and move to Referral Confirm"):
-                                open_modal(
+                                       help="Mark as authorized and move to Referral Confirm", use_container_width=True):
+                                render_confirmation_modal(
                                     modal_type='auth_received',
                                     target_id=lead.id,
                                     title='Authorization Received?',
@@ -663,7 +657,7 @@ def view_referrals():
                                 ccu_id=edit_ccu_id
                             )
                             
-                            crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                            crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                             st.session_state[f'editing_{lead.id}'] = False
                             st.success("**Referral updated successfully!**")
                             st.rerun()

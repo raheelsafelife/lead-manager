@@ -1124,6 +1124,18 @@ def confirmation_modal_dialog(db, m):
                 crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
                 msg = "Success! CCU has been deleted."
                 success = True
+            elif m['modal_type'] == 'auth_received':
+                from app.schemas import LeadUpdate
+                update_data = LeadUpdate(authorization_received=True)
+                if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                    msg = "Success! Authorization marked as received."
+                    success = True
+            elif m['modal_type'] == 'unmark_ref':
+                from app.schemas import LeadUpdate
+                update_data = LeadUpdate(active_client=False, referral_type=None)
+                if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                    msg = "Success! Client unmarked as referral."
+                    success = True
             
             if success:
                 if msg: st.session_state['success_msg'] = msg
@@ -1271,19 +1283,19 @@ def handle_active_modal(db):
     confirmation_modal_dialog(db, m)
 
 
-def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", key_prefix="modal", indicator=None):
+def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", target_id="modal", indicator=None, modal_type='soft_delete'):
     """
     Triggers a confirmation modal by setting session state.
     """
     # Simply set the session state - handle_active_modal will pick it up and show st.dialog
     st.session_state['active_modal'] = {
-        'modal_type': 'generic_confirm',
+        'modal_type': modal_type,
         'title': title,
         'message': message,
         'icon': icon,
         'type': type,
         'confirm_label': confirm_label,
-        'target_id': key_prefix,
+        'target_id': target_id,
         'indicator': indicator
     }
     st.rerun()

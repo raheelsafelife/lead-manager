@@ -379,25 +379,29 @@ def view_leads():
                         if can_modify:
                             if not lead.active_client:
                                 # Not a referral yet -> Navigate to Mark Referral page
-                                if st.button("Mark Referral", key=f"mark_ref_btn_{lead.id}"):
-                                    st.session_state['active_modal'] = {
-                                        'modal_type': 'mark_ref_confirm',
-                                        'target_id': lead.id,
-                                        'title': 'Mark as Referral?',
-                                        'message': f"This will move <strong>{lead.first_name} {lead.last_name}</strong> to 'Referrals Sent' and change its status.<br><br>You'll be redirected to complete referral details.",
-                                        'icon': '�',
-                                        'type': 'info',
-                                        'confirm_label': 'YES, MARK REFERRAL',
-                                        'cancel_label': 'CANCEL'
-                                    }
-                                    st.rerun()
+                                if st.button("Mark Referral", key=f"mark_ref_btn_{lead.id}", use_container_width=True):
+                                    render_confirmation_modal(
+                                        modal_type='mark_ref_confirm',
+                                        target_id=lead.id,
+                                        title='Mark as Referral?',
+                                        message=f"This will move <strong>{lead.first_name} {lead.last_name}</strong> to 'Referrals Sent' and change its status.<br><br>You'll be redirected to complete referral details.",
+                                        icon='🚩',
+                                        type='info',
+                                        confirm_label='YES, MARK REFERRAL'
+                                    )
                             else:
                                 # Already a referral -> Show Unmark button
-                                if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary"):
-                                    update_data = LeadUpdate(active_client=False, referral_type=None)
-                                    crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
-                                    st.success("**Unmarked as Referral!**")
-                                    st.rerun()
+                                if st.button("Unmark Referral", key=f"unmark_ref_{lead.id}", type="primary", use_container_width=True):
+                                    render_confirmation_modal(
+                                        modal_type='unmark_ref',
+                                        target_id=lead.id,
+                                        title='Unmark Referral?',
+                                        message=f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?",
+                                        indicator='This will hide it from the Referrals list but keep the record in the main Lead List.',
+                                        icon='🚫',
+                                        type='warning',
+                                        confirm_label='UNMARK'
+                                    )
                     
                     with col4:
                         # History button
