@@ -519,6 +519,8 @@ def view_referrals():
                                     st.error("**Failed to unmark authorization**")
                         else:
                             # Show mark as received button if not authorized
+                            if st.button("Mark Auth", key=f"mark_auth_ref_{lead.id}", 
+                                       help="Mark as authorized and move to Referral Confirm"):
                                 open_modal(
                                     modal_type='auth_received',
                                     target_id=lead.id,

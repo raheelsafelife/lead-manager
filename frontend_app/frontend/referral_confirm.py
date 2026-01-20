@@ -71,7 +71,11 @@ def display_referral_confirm(lead, db, highlight=False):
             st.markdown("---")
 
             if auth_received_time:
-                st.success(f"**Authorization Received: {render_time(auth_received_time)}**")
+                st.markdown(f"""
+                <div style="padding: 1rem; border-radius: 0.5rem; background-color: #d1fae5; border: 1px solid #10b981; color: #065f46; font-weight: bold; margin-bottom: 1rem;">
+                    ✅ Authorization Received: {render_time(auth_received_time)}
+                </div>
+                """, unsafe_allow_html=True)
             else:
                 st.success("**Authorization Received**")
 
