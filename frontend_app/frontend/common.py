@@ -1205,7 +1205,7 @@ def show_edit_modal_dialog(db, m):
             new_source = st.text_input("Source", value=str(lead.get('source') or ""))
             new_city = st.text_input("City", value=str(lead.get('city') or ""))
         with col2:
-            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Dead Lead"]
+            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
             current_status = lead.get('last_contact_status', 'Intro Call')
             status_index = status_options.index(current_status) if current_status in status_options else 0
             new_status = st.selectbox("Status", status_options, index=status_index)
