@@ -374,7 +374,8 @@ def add_lead():
                         comments=comments or None,
                         agency_id=agency_id,
                         agency_suboption_id=agency_suboption_id,
-                        ccu_id=ccu_id
+                        ccu_id=ccu_id,
+                        owner_id=st.session_state.get('db_user_id')  # Save Owner ID for stable linking
                     )
                     lead = crud_leads.create_lead(db, lead_data, st.session_state.username, st.session_state.get('db_user_id'))
                     st.toast(f"Lead '{first_name} {last_name}' created successfully!", icon="✅")

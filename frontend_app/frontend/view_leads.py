@@ -202,8 +202,14 @@ def view_leads():
         leads = [l for l in leads if not l.active_client]
     
     # Apply 'Show Only My Leads' filter for regular users
+    # Apply 'Show Only My Leads' filter for regular users
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
-        leads = [l for l in leads if l.staff_name == st.session_state.username]
+        # Stable Filtering: Use owner_id if available (fallback to name for old/unmigrated data)
+        user_id = st.session_state.get('db_user_id')
+        if user_id:
+             leads = [l for l in leads if l.owner_id == user_id or (l.owner_id is None and l.staff_name == st.session_state.username)]
+        else:
+             leads = [l for l in leads if l.staff_name == st.session_state.username]
     
     # Apply contact status filter
     if st.session_state.status_filter != "All":

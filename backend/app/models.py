@@ -44,6 +44,9 @@ class Lead(Base):
     # Activity tracking
     created_by = Column(String(100), nullable=True)  # Username who created
     updated_by = Column(String(100), nullable=True)  # Username who last updated
+    
+    # Stable Relationship (Fix for Username Sync Issue)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     # who is responsible
     staff_name = Column(String(150), nullable=False)
