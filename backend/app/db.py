@@ -42,8 +42,13 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA busy_timeout=10000") # Increased timeout for network volumes
         cursor.close()
 
-# Database session
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Database session with detached-friendly configuration
+SessionLocal = sessionmaker(
+    autocommit=False, 
+    autoflush=False, 
+    bind=engine,
+    expire_on_commit=False  # Keep object data accessible after commit/close
+)
 
 # Base class for models
 Base = declarative_base()

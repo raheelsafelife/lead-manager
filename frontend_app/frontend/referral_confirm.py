@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time
+from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -83,6 +83,7 @@ def display_referral_confirm(lead, db, highlight=False):
             if st.button("Undo Authorization (Move to Referrals Sent)", key=f"unmark_auth_btn_confirm_{lead.id}", type="secondary", use_container_width=True):
                  update_data = LeadUpdate(authorization_received=False)
                  crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                 clear_leads_cache()
                  st.toast(f"Authorization undone for {lead.first_name}", icon="↩️")
                  st.rerun()
 
@@ -126,6 +127,11 @@ def display_referral_confirm(lead, db, highlight=False):
 
         with col_start:
             if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
+                # CRITICAL: Clear modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 # Auto-fetch today's date as SOC
                 today = date.today()
                 update_data = LeadUpdate(
@@ -133,23 +139,35 @@ def display_referral_confirm(lead, db, highlight=False):
                     soc_date=today
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                clear_leads_cache()
                 st.toast(f"Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
                 st.success(f"**Care Started! SOC: {today.strftime('%m/%d/%Y')}**")
                 st.rerun()
 
         with col_not_start:
             if st.button("Not Start", key=f"not_start_btn_confirm_{lead.id}", type="secondary", width="stretch", disabled=(lead.care_status == "Not Start")):
+                # CRITICAL: Clear modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 update_data = LeadUpdate(
                     care_status="Not Start",
                     soc_date=None
                 )
                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                clear_leads_cache()
                 st.toast("Care Not Started", icon="⏳")
                 st.warning("**Care Not Started**")
                 st.rerun()
 
         with col_history:
             if st.button("History", key=f"history_btn_confirm_{lead.id}", width="stretch"):
+                # CRITICAL: Clear modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 st.session_state[f'show_confirm_history_{lead.id}'] = not st.session_state.get(f'show_confirm_history_{lead.id}', False)
                 st.rerun()
 
@@ -185,7 +203,7 @@ def referral_confirm():
 
     db = SessionLocal()
 
-    # Get all leads with authorization received
+    # Get all leads with authorization received (Direct query with eager loading)
     all_leads = crud_leads.list_leads(db, limit=1000)
 
     # Filter: Only referrals (active_client = True) with authorization_received = True
@@ -244,8 +262,7 @@ def referral_confirm():
     st.write("**Filter by Payor:**")
     agencies = crud_agencies.get_all_agencies(db)
     
-    if 'confirm_payor_filter' not in st.session_state:
-        st.session_state.confirm_payor_filter = "All"
+    # Payor filter is now initialized in init_session_state() in common.py
     
     if agencies:
         agency_names = ["All"] + [a.name for a in agencies]
@@ -259,8 +276,7 @@ def referral_confirm():
     st.write("**Filter by CCU:**")
     ccus = crud_ccus.get_all_ccus(db)
     
-    if 'confirm_ccu_filter' not in st.session_state:
-        st.session_state.confirm_ccu_filter = "All"
+    # CCU filter is now initialized in init_session_state() in common.py
     
     if ccus:
         ccu_names = ["All"] + [c.name for c in ccus]
@@ -275,9 +291,7 @@ def referral_confirm():
     # Filter buttons for Care Status
     st.write("**Filter by Care Status:**")
     
-    # Initialize filter in session state
-    if 'confirm_care_filter' not in st.session_state:
-        st.session_state.confirm_care_filter = "All"
+    # Care filter is now initialized in init_session_state() in common.py
     
     col_all, col_start, col_not_start = st.columns(3)
     

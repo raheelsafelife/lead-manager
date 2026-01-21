@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache
 
 
 def view_leads():
@@ -40,25 +40,7 @@ def view_leads():
 
     # --- TOP-LEVEL NAVIGATION HANDLING ---
     
-    # Initialize status filter in session state
-    if 'status_filter' not in st.session_state:
-        st.session_state.status_filter = "All"
-    
-    # Initialize priority filter
-    if 'priority_filter' not in st.session_state:
-        st.session_state.priority_filter = "All"
-    
-    # Initialize my leads filter
-    if 'show_only_my_leads' not in st.session_state:
-        st.session_state.show_only_my_leads = True  # Default to showing only user's leads
-    
-    # Initialize active/inactive filter
-    if 'active_inactive_filter' not in st.session_state:
-        st.session_state.active_inactive_filter = "Active"  # Default to showing only active leads
-    
-    # Initialize recycle bin filter
-    if 'show_deleted_leads' not in st.session_state:
-        st.session_state.show_deleted_leads = False
+    # Filters are now initialized in init_session_state() in common.py
     
     # Recycle Bin Toggle (Admin and Users can see their own deleted leads)
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Recycle Bin</h4>", unsafe_allow_html=True)
@@ -190,14 +172,14 @@ def view_leads():
         if st.button("Search", key="search_leads_btn", use_container_width=True):
             st.rerun()
     
-    # Get leads based on recycle bin filter
+    # Get leads based on recycle bin filter (Direct query with eager loading)
     if st.session_state.show_deleted_leads:
         # Show only deleted leads
         leads = crud_leads.list_deleted_leads(db, limit=1000)
         st.info("**Recycle Bin Mode - Showing deleted leads only. Uncheck to see active leads.**")
     else:
         # Show normal leads (not deleted)
-        leads = crud_leads.list_leads(db, limit=1000, include_deleted=False)
+        leads = crud_leads.list_leads(db, limit=1000)
         # CRITICAL: Exclude active referrals (leads only appear here if not yet a referral)
         leads = [l for l in leads if not l.active_client]
     
@@ -207,7 +189,7 @@ def view_leads():
         # Stable Filtering: Use owner_id if available (fallback to name for old/unmigrated data)
         user_id = st.session_state.get('db_user_id')
         if user_id:
-             leads = [l for l in leads if l.owner_id == user_id or (l.owner_id is None and l.staff_name == st.session_state.username)]
+             leads = [l for l in leads if getattr(l, 'owner_id', None) == user_id or (getattr(l, 'owner_id', None) is None and l.staff_name == st.session_state.username)]
         else:
              leads = [l for l in leads if l.staff_name == st.session_state.username]
     
@@ -431,19 +413,19 @@ def view_leads():
                     with col4:
                         # History button
                         if st.button("History", key=f"history_btn_main_{lead.id}"):
+                            # CRITICAL: Clear modal state BEFORE toggling history
+                            # This prevents ghost popups from previous actions
+                            st.session_state.modal_open = False
+                            st.session_state.modal_action = None
+                            st.session_state.modal_lead_id = None
+                            st.session_state.modal_lead_name = None
+                            st.session_state.modal_data = {}
+                            st.session_state.pop('active_modal', None)
+                            
                             # Toggle history view
-                            key = f"show_history_main_{lead.id}"
+                            key = f"show_history_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
                             st.rerun()
-                
-                # End of expander
-
-                # Handle Mark Referral Modal Action
-                if 'active_modal' in st.session_state and st.session_state['active_modal']['modal_type'] == 'mark_ref_confirm':
-                    m = st.session_state['active_modal']
-                    # This logic runs because we called render_confirmation_modal at top level
-                    # But we need to define what happens if THIS specific modal is active
-                    pass # Handled by the generic action == True block below for unified handling
                 
                 # History View
                 if st.session_state.get(f"show_history_{lead.id}", False):
@@ -470,6 +452,15 @@ def view_leads():
                                 st.divider()
                     else:
                         st.caption("No history recorded yet.")
+
+                # End of expander
+
+                # Handle Mark Referral Modal Action
+                if 'active_modal' in st.session_state and st.session_state['active_modal']['modal_type'] == 'mark_ref_confirm':
+                    m = st.session_state['active_modal']
+                    # This logic runs because we called render_confirmation_modal at top level
+                    # But we need to define what happens if THIS specific modal is active
+                    pass # Handled by the generic action == True block below for unified handling
 
                 
                 # Edit form (shown when Edit button is clicked)

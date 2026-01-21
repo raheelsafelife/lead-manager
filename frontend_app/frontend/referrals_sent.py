@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache
 
 
 def view_referrals():
@@ -40,21 +40,7 @@ def view_referrals():
 
     # --- TOP-LEVEL NAVIGATION HANDLING ---
     
-    # Initialize status filter in session state
-    if 'referral_status_filter' not in st.session_state:
-        st.session_state.referral_status_filter = "All"
-    
-    # Initialize my referrals filter
-    if 'show_only_my_referrals' not in st.session_state:
-        st.session_state.show_only_my_referrals = True  # Default to showing only user's referrals
-    
-    # Initialize active/inactive filter for referrals
-    if 'referral_active_inactive_filter' not in st.session_state:
-        st.session_state.referral_active_inactive_filter = "Active"  # Default to showing only active referrals
-    
-    # Initialize recycle bin filter
-    if 'show_deleted_referrals' not in st.session_state:
-        st.session_state.show_deleted_referrals = False
+    # Filters are now initialized in init_session_state() in common.py
     
     # Recycle Bin Toggle
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
@@ -166,9 +152,7 @@ def view_referrals():
     st.write("**Filter by Referral Type:**")
     col_t1, col_t2, col_t3 = st.columns([1, 1, 3])
     
-    # Initialize referral type filter
-    if 'referral_type_filter' not in st.session_state:
-        st.session_state.referral_type_filter = "All"
+    # Referral Type filter is now initialized in init_session_state() in common.py
         
     with col_t1:
         if st.button("Regular", type="primary" if st.session_state.referral_type_filter == "Regular" else "secondary", key="filter_reg"):
@@ -189,9 +173,7 @@ def view_referrals():
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
     p_col1, p_col2, p_col3, p_col4 = st.columns([1, 1, 1, 1])
     
-    # Initialize priority filter
-    if 'referral_priority_filter' not in st.session_state:
-        st.session_state.referral_priority_filter = "All"
+    # Priority filter is now initialized in init_session_state() in common.py
     
     with p_col1:
         if st.button("High", key="rp_high", width="stretch",
@@ -218,8 +200,7 @@ def view_referrals():
     st.write("**Filter by Payor:**")
     agencies = crud_agencies.get_all_agencies(db)
     
-    if 'payor_filter' not in st.session_state:
-        st.session_state.payor_filter = "All"
+    # Payor filter is now initialized in init_session_state() in common.py
     
     if agencies:
         agency_names = ["All"] + [a.name for a in agencies]
@@ -237,8 +218,7 @@ def view_referrals():
     
     ccus = crud_ccus.get_all_ccus(db)
     
-    if 'ccu_filter' not in st.session_state:
-        st.session_state.ccu_filter = "All"
+    # CCU filter is now initialized in init_session_state() in common.py
     
     if ccus:
         ccu_names = ["All"] + [c.name for c in ccus]
@@ -252,7 +232,7 @@ def view_referrals():
     
     st.divider()
     
-    # Get leads based on recycle bin filter
+    # Get leads based on recycle bin filter (Direct query with eager loading)
     if st.session_state.show_deleted_referrals:
         # Show only deleted leads
         leads = crud_leads.list_deleted_leads(db, limit=1000)
@@ -266,7 +246,12 @@ def view_referrals():
     
     # Apply 'Show Only My Referrals' filter for regular users
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_referrals:
-        leads = [l for l in leads if l.staff_name == st.session_state.username]
+        # Stable Filtering: Use owner_id if available (fallback to name for old/unmigrated data)
+        user_id = st.session_state.get('db_user_id')
+        if user_id:
+             leads = [l for l in leads if getattr(l, 'owner_id', None) == user_id or (getattr(l, 'owner_id', None) is None and l.staff_name == st.session_state.username)]
+        else:
+             leads = [l for l in leads if l.staff_name == st.session_state.username]
     
     # Apply contact status filter
     if st.session_state.referral_status_filter != "All":
@@ -503,6 +488,15 @@ def view_referrals():
                     btn_col1, btn_col2 = st.columns(2)
                     with btn_col1:
                         if st.button("History", key=f"history_btn_ref_{lead.id}"):
+                            # CRITICAL: Clear modal state BEFORE toggling history
+                            # This prevents ghost popups from previous actions
+                            st.session_state.modal_open = False
+                            st.session_state.modal_action = None
+                            st.session_state.modal_lead_id = None
+                            st.session_state.modal_lead_name = None
+                            st.session_state.modal_data = {}
+                            st.session_state.pop('active_modal', None)
+                            
                             # Toggle history view
                             key = f"show_history_ref_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
@@ -518,6 +512,11 @@ def view_referrals():
                                 updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
 
                                 if updated_lead:
+                                    # Clear modal state to be safe
+                                    st.session_state.modal_open = False
+                                    st.session_state.modal_action = None
+                                    st.session_state.pop('active_modal', None)
+                                    
                                     st.warning(f"**Authorization unmarked for {lead.first_name} {lead.last_name}**")
                                     st.rerun()
                                 else:

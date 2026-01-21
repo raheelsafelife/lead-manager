@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
 
@@ -11,7 +11,11 @@ from ..utils.activity_logger import log_activity
 def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user_id: Optional[int] = None) -> models.Lead:
     """Create a new lead with activity logging"""
     lead = models.Lead(**lead_in.dict())
-    # The user wanted to use lead_in.staff_name, which is fine for the record
+    
+    # Ensure owner_id is set from function argument if not in schema
+    if user_id and lead.owner_id is None:
+        lead.owner_id = user_id
+        
     lead.created_by = lead_in.staff_name
     lead.updated_by = lead_in.staff_name
     
@@ -56,8 +60,13 @@ def check_duplicate_lead(db: Session, first_name: str, last_name: str, phone: st
 
 
 def list_leads(db: Session, skip: int = 0, limit: int = 50, include_deleted: bool = False) -> List[models.Lead]:
-    """List leads, optionally including deleted ones"""
-    query = db.query(models.Lead)
+    """List leads, optionally including deleted ones. Eagerly loads relationships for caching."""
+    query = db.query(models.Lead).options(
+        joinedload(models.Lead.agency),
+        joinedload(models.Lead.ccu),
+        joinedload(models.Lead.mco),
+        joinedload(models.Lead.agency_suboption)
+    )
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
     return (
@@ -216,9 +225,15 @@ def restore_lead(db: Session, lead_id: int, username: str, user_id: Optional[int
 
 
 def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[models.Lead]:
-    """List only deleted leads (recycle bin)"""
+    """List only deleted leads (recycle bin). Eagerly loads relationships for caching."""
     return (
         db.query(models.Lead)
+        .options(
+            joinedload(models.Lead.agency),
+            joinedload(models.Lead.ccu),
+            joinedload(models.Lead.mco),
+            joinedload(models.Lead.agency_suboption)
+        )
         .filter(models.Lead.deleted_at != None)
         .order_by(models.Lead.deleted_at.desc())
         .offset(skip)

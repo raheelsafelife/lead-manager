@@ -85,7 +85,8 @@ class LeadBase(BaseModel):
     # New fields
     ssn: Optional[str] = None
     email: Optional[str] = None
-    custom_user_id: Optional[str] = None  # Required in UI, optional in base for flexibility
+    custom_user_id: Optional[str] = None
+    owner_id: Optional[int] = None
 
 
 class LeadCreate(LeadBase):
@@ -127,6 +128,7 @@ class LeadUpdate(BaseModel):
     ssn: Optional[str] = None
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
+    owner_id: Optional[int] = None
 
 
 class LeadRead(LeadBase):

@@ -9,9 +9,10 @@ backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
 import streamlit as st
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
-from app.crud import crud_session_tokens
+from app.crud import crud_session_tokens, crud_leads
+from app import services_stats
 from streamlit.components.v1 import html
 import os
 
@@ -748,52 +749,65 @@ GLOBAL_CSS = """
 
 
 def close_modal():
-    """Clear any active modal from session state and rerun"""
+    """Clear any active modal from session state and rerun.
+    CRITICAL: All state must be cleared BEFORE st.rerun() to prevent race conditions."""
+    
+    # STEP 1: Clear ALL modal state variables (order matters - clear before rerun)
     st.session_state.pop('active_modal', None)
     st.session_state.show_delete_modal = False
-    
-    # Action-scoped state cleanup (Stability Refactor)
     st.session_state.modal_open = False
     st.session_state.modal_action = None
     st.session_state.modal_lead_id = None
     st.session_state.modal_lead_name = None
     st.session_state.modal_data = {}
     
+    # STEP 2: Clear any edit state that might persist
+    for key in list(st.session_state.keys()):
+        if key.startswith('editing_'):
+            del st.session_state[key]
+    
+    # STEP 3: Force a rerun ONLY after all state is cleared
     st.rerun()
+
+
+# --- PERFORMANCE OPTIMIZATION LAYER ---
+# Note: We don't cache SQLAlchemy ORM objects as they don't serialize well with st.cache_data
+# Instead, we use eager loading (joinedload) for performance optimization
+
+def get_leads_cached(include_deleted=False):
+    """Optimized retrieval of leads with eager-loaded relationships.
+    Uses joinedload for performance instead of caching."""
+    db = SessionLocal()
+    try:
+        if include_deleted:
+            return crud_leads.list_deleted_leads(db, limit=1000)
+        else:
+            return crud_leads.list_leads(db, limit=1000)
+    finally:
+        db.close()
+
+def clear_leads_cache():
+    """Placeholder for cache invalidation (no-op since we removed caching)"""
+    pass
+
+@st.cache_data(ttl=300) # Stats can live longer
+def get_stats_cached(func_name, *args, **kwargs):
+    """Generic cached wrapper for services_stats functions"""
+    db = SessionLocal()
+    try:
+        func = getattr(services_stats, func_name)
+        return func(db, *args, **kwargs)
+    finally:
+        db.close()
 
 
 def init_session_state():
     """Initialize all session state variables with secure token-based persistence"""
     db = SessionLocal()
     
-    # Initialize basic auth state if missing
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-
-    # Secure Token-Based Session Check
-    if not st.session_state.authenticated:
-        token = get_session_token()
-        
-        if token:
-            # Validate token against database
-            user = crud_session_tokens.validate_token(db, token)
-            
-            if user:
-                # Token is valid - auto-login
-                st.session_state.authenticated = True
-                st.session_state.username = user.username
-                st.session_state.user_role = user.role
-                st.session_state.db_user_id = user.id
-                st.session_state.employee_id = user.user_id
-                st.rerun()
-            else:
-                # Token is invalid or expired - clear it
-                clear_session_token()
-
-    # Ensure main_navigation is initialized for the radio button
+    # --- PAGE FILTER STATE (PERSISTENCE FIX) ---
     if 'main_navigation' not in st.session_state:
         st.session_state.main_navigation = "Dashboard"
-
     if 'username' not in st.session_state:
         st.session_state.username = None
     if 'user_role' not in st.session_state:
@@ -823,8 +837,72 @@ def init_session_state():
     if 'modal_data' not in st.session_state:
         st.session_state.modal_data = {}
     
+    if 'status_filter' not in st.session_state:
+        st.session_state.status_filter = "All"
+    if 'priority_filter' not in st.session_state:
+        st.session_state.priority_filter = "All"
+    if 'show_only_my_leads' not in st.session_state:
+        st.session_state.show_only_my_leads = True
+    if 'active_inactive_filter' not in st.session_state:
+        st.session_state.active_inactive_filter = "Active"
+    if 'show_deleted_leads' not in st.session_state:
+        st.session_state.show_deleted_leads = False
+    
+    # Referrals Filters
+    if 'referral_status_filter' not in st.session_state:
+        st.session_state.referral_status_filter = "All"
+    if 'show_only_my_referrals' not in st.session_state:
+        st.session_state.show_only_my_referrals = True
+    if 'referral_active_inactive_filter' not in st.session_state:
+        st.session_state.referral_active_inactive_filter = "Active"
+    if 'show_deleted_referrals' not in st.session_state:
+        st.session_state.show_deleted_referrals = False
+    if 'referral_type_filter' not in st.session_state:
+        st.session_state.referral_type_filter = "All"
+    if 'referral_priority_filter' not in st.session_state:
+        st.session_state.referral_priority_filter = "All"
+    if 'payor_filter' not in st.session_state:
+        st.session_state.payor_filter = "All"
+    if 'ccu_filter' not in st.session_state:
+        st.session_state.ccu_filter = "All"
+
+    # Confirmations Filters
+    if 'confirm_payor_filter' not in st.session_state:
+        st.session_state.confirm_payor_filter = "All"
+    if 'confirm_ccu_filter' not in st.session_state:
+        st.session_state.confirm_ccu_filter = "All"
+    if 'confirm_care_filter' not in st.session_state:
+        st.session_state.confirm_care_filter = "All"
+    
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
+
+    try:
+        # Initialize basic auth state if missing
+        if 'authenticated' not in st.session_state:
+            st.session_state.authenticated = False
+
+        # Secure Token-Based Session Check
+        if not st.session_state.authenticated:
+            token = get_session_token()
+            
+            if token:
+                # Validate token against database
+                user = crud_session_tokens.validate_token(db, token)
+                
+                if user:
+                    # Token is valid - auto-login
+                    st.session_state.authenticated = True
+                    st.session_state.username = user.username
+                    st.session_state.user_role = user.role
+                    st.session_state.db_user_id = user.id
+                    st.session_state.employee_id = user.user_id
+                    st.rerun()
+                else:
+                    # Token is invalid or expired - clear it
+                    clear_session_token()
+    finally:
+        db.close()
     
     # Start email scheduler (runs once per session)
     if 'email_scheduler_started' not in st.session_state:
@@ -1146,6 +1224,7 @@ def confirmation_modal_dialog(db, m):
             
             if success:
                 if msg: st.session_state['success_msg'] = msg
+                clear_leads_cache()
                 close_modal()
 
 @st.dialog("Delete Lead")
@@ -1166,14 +1245,15 @@ def show_delete_modal_dialog(db, lead_id, name):
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("CANCEL", use_container_width=True, key="dialog_cancel_delete_lead"):
+        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_delete_lead_{lead_id}"):
             st.session_state.show_delete_modal = False
             st.rerun()
     with col2:
-        if st.button("DELETE", type="primary", use_container_width=True, key="dialog_confirm_delete_lead"):
+        if st.button("DELETE", type="primary", use_container_width=True, key=f"dialog_confirm_delete_lead_{lead_id}"):
             from app.crud import crud_leads
             if crud_leads.delete_lead(db, lead_id, st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
                 st.session_state['success_msg'] = f"Success! Lead '{name}' moved to Recycle Bin."
+                clear_leads_cache()
             st.session_state.show_delete_modal = False
             st.rerun()
 
@@ -1261,29 +1341,52 @@ def show_edit_modal_dialog(db, m):
                 schema_data = LeadUpdate(**update_dict)
                 crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
                 st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
+                clear_leads_cache()
                 close_modal()
 
 def handle_active_modal(db):
     """
     Centralized handler for all active modals in the application.
-    (Updated with Stability Refactor logic)
+    (Updated with Stability Refactor logic + Ghost Popup Prevention)
     """
+    
+    # 0. ULTRA-DEFENSIVE: Detect and clear stale/incomplete modal state BEFORE processing
+    # This prevents ghost popups from incomplete state left over from previous interactions
+    has_modal_open = st.session_state.get('modal_open', False)
+    has_modal_action = st.session_state.get('modal_action')
+    has_active_modal = 'active_modal' in st.session_state
+    has_show_delete = st.session_state.get('show_delete_modal', False)
+    
+    # helper to wipe EVERYTHING
+    def _wipe_all_modal_state():
+        st.session_state.modal_open = False
+        st.session_state.modal_action = None
+        st.session_state.modal_lead_id = None
+        st.session_state.modal_lead_name = None
+        st.session_state.modal_data = {}
+        st.session_state.pop('active_modal', None)
+        st.session_state.show_delete_modal = False
+
+    # If modal_open is True but modal_action is None/empty, it's stale state - clear it
+    if has_modal_open and not has_modal_action and not has_active_modal and not has_show_delete:
+        _wipe_all_modal_state()
+        return
     
     # 1. SPECIAL DELETE MODAL (legacy support for view_leads.py)
     if st.session_state.get('show_delete_modal', False):
-        # Clear the trigger so it doesn't reappear on next rerun (e.g. navigation)
-        st.session_state.show_delete_modal = False
+        # Consume the trigger immediately
         lead_id = st.session_state.get('delete_lead_id')
         name = st.session_state.get('delete_lead_name', 'Unknown')
+        _wipe_all_modal_state() # Wipe all triggers before showing dialog
         show_delete_modal_dialog(db, lead_id, name)
         return
 
     # 2. HANDLE GENERIC ACTIVE_MODAL (Action-Scoped Priority)
     m = None
-    if st.session_state.get('modal_open', False):
-         # Clear the trigger so it doesn't reappear on next rerun
-         st.session_state.modal_open = False
-         
+    
+    # CRITICAL: Only process modal if modal_open is True AND modal_action is set
+    # This prevents ghost popups from stale state
+    if st.session_state.get('modal_open', False) and st.session_state.get('modal_action'):
          # Priority: Map action-scoped state to 'm' for compatibility
          m = {
              'modal_type': st.session_state.modal_action,
@@ -1297,15 +1400,26 @@ def handle_active_modal(db):
              'indicator': st.session_state.modal_data.get('indicator'),
              'message': st.session_state.modal_data.get('message')
          }
+         # CRITICAL: Wipe ALL triggers now that we've captured the data
+         _wipe_all_modal_state()
+         
     elif 'active_modal' in st.session_state:
          # Fallback: Legacy dictionary (consume it immediately)
          m = st.session_state.pop('active_modal')
+         # Ensure we also clear the other keys just in case
+         _wipe_all_modal_state()
+    else:
+         # No modal to show - ensure all modal state is cleared
+         _wipe_all_modal_state()
+         return
     
     if not m:
         return
     
+    # DEBUG LOGGING
+    print(f"[DEBUG] Modal Triggered: action={m.get('modal_type')}, id={m.get('target_id')}")
+    
     # Dispatch to specific dialog functions
-    # Note: We already cleared the session trigger above; the dialog persists in its own context
     if m['modal_type'] == 'save_edit_modal':
         show_edit_modal_dialog(db, m)
     else:
@@ -1316,7 +1430,14 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
     """
     Triggers a confirmation modal by setting isolated session state variables.
     """
-    # Simply set the session state variables (Stability Refactor)
+    # 1. HARD RESET any previous modal state to prevent ghosting
+    st.session_state.modal_open = False
+    st.session_state.modal_action = None
+    st.session_state.modal_lead_id = None
+    st.session_state.modal_data = {}
+    st.session_state.pop('active_modal', None)
+    
+    # 2. Set new state
     st.session_state.modal_open = True
     st.session_state.modal_action = modal_type
     st.session_state.modal_lead_id = target_id
@@ -1330,7 +1451,7 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
         'indicator': indicator
     }
     
-    # Maintain legacy dictionary for backward compatibility during transition
+    # 3. Maintain legacy dictionary for backward compatibility
     st.session_state['active_modal'] = {
         'modal_type': modal_type,
         'title': title,

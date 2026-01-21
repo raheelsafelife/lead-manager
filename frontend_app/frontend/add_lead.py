@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, clear_leads_cache
 
 
 def add_lead():
@@ -378,6 +378,9 @@ def add_lead():
                         owner_id=st.session_state.get('db_user_id')  # Save Owner ID for stable linking
                     )
                     lead = crud_leads.create_lead(db, lead_data, st.session_state.username, st.session_state.get('db_user_id'))
+                    
+                    # PERFORMANCE: Clear cache so the new lead appears in the list
+                    clear_leads_cache()
                     st.toast(f"Lead '{first_name} {last_name}' created successfully!", icon="✅")
                     st.success(f"**Success! Lead created successfully! (ID: {lead.id})**")
                     

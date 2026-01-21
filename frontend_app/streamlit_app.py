@@ -70,7 +70,7 @@ def main():
             st.title("Navigation")
             
             # Base pages
-            pages = ["Dashboard", "View Leads", "Add Lead", "Lead Discovery", "Referrals Sent", "Referral Confirm", "Activity Logs"]
+            pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Referral Confirm", "Activity Logs"]
             
             # Add Update Password for regular users only (admins have it in User Management)
             if st.session_state.user_role != "admin":
@@ -88,8 +88,20 @@ def main():
                 """Callback when main navigation changes"""
                 # Clear any sub-page state when navigating to a new main page
                 st.session_state.current_page = None
-                if 'active_modal' in st.session_state:
-                    del st.session_state['active_modal']
+                
+                # CRITICAL: Clear ALL modal state on navigation to prevent ghost popups
+                st.session_state.pop('active_modal', None)
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.modal_lead_id = None
+                st.session_state.modal_lead_name = None
+                st.session_state.modal_data = {}
+                st.session_state.show_delete_modal = False
+                
+                # Clear edit state
+                for key in list(st.session_state.keys()):
+                    if key.startswith('editing_'):
+                        del st.session_state[key]
             
             # Additional check: If Mark Referral Page is active, ensure we don't accidentally navigate away
             # unless the user explicitly clicked.

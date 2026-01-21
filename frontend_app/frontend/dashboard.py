@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email
+from frontend.common import prepare_lead_data_for_email, get_leads_cached, get_stats_cached, clear_leads_cache
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -40,8 +40,7 @@ def dashboard():
     """Main dashboard view"""
     db = SessionLocal()
     
-    # Load all leads once for drill-down capabilities
-    # We use a dataframe for easier filtering
+    # Load all leads once for drill-down capabilities (Direct query with eager loading)
     all_leads_list = crud_leads.list_leads(db, limit=10000)
     df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads_list])
     # Clean up sqlalchemy state objects from dict
@@ -54,6 +53,12 @@ def dashboard():
     
     # Logout button
     if st.button("Logout", key="logout"):
+        # CRITICAL: Clear all modal state on logout
+        st.session_state.modal_open = False
+        st.session_state.modal_action = None
+        st.session_state.pop('active_modal', None)
+        st.session_state.show_delete_modal = False
+        
         # Log logout
         if st.session_state.username:
             crud_activity_logs.create_activity_log(
@@ -87,6 +92,11 @@ def dashboard():
     # Admin button to view all user dashboards
     if st.session_state.user_role == "admin":
         if st.button("View All User Dashboards", width="stretch", type="primary"):
+            # Clear modal state
+            st.session_state.modal_open = False
+            st.session_state.modal_action = None
+            st.session_state.pop('active_modal', None)
+            
             st.session_state.show_user_dashboards = True
             st.rerun()
     
@@ -138,11 +148,12 @@ def dashboard():
     # Role-based statistics
     if show_cumulative:
         st.subheader("All Users Statistics" if st.session_state.user_role == "admin" else "Cumulative Statistics (All Users)")
-        stats = services_stats.get_basic_counts(db)
+        stats = get_stats_cached('get_basic_counts')
+        # Active leads query
         active_leads = db.query(crud_leads.models.Lead).filter(crud_leads.models.Lead.active_client == True).count()
     else:
         st.subheader(f"Your Statistics ({st.session_state.username})")
-        stats = services_stats.get_user_stats(db, st.session_state.username)
+        stats = get_stats_cached('get_user_stats', st.session_state.username)
         active_leads = stats.get("active_clients", 0)
         # Add total_users for consistency
         stats["total_users"] = "N/A"
@@ -190,7 +201,7 @@ def dashboard():
         # Show all staff data (cumulative view)
         with col1:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Staff</h4>", unsafe_allow_html=True)
-            staff_data = services_stats.leads_by_staff(db)
+            staff_data = get_stats_cached('leads_by_staff')
             if staff_data:
                 df_staff = pd.DataFrame(staff_data)
                 fig_staff = px.bar(df_staff, x='staff_name', y='count', 
@@ -221,7 +232,7 @@ def dashboard():
 
         with col2:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Source</h4>", unsafe_allow_html=True)
-            source_data = services_stats.leads_by_source(db)
+            source_data = get_stats_cached('leads_by_source')
             if source_data:
                 df_source = pd.DataFrame(source_data)
                 fig_source = px.bar(df_source, x='source', y='count', color_discrete_sequence=['#00506b'])
@@ -250,7 +261,7 @@ def dashboard():
         # Regular user sees their own comprehensive data
         with col1:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Monthly Leads</h4>", unsafe_allow_html=True)
-            monthly_data = services_stats.leads_by_month_for_user(db, st.session_state.username)
+            monthly_data = get_stats_cached('leads_by_month_for_user', st.session_state.username)
             if monthly_data:
                 df_monthly = pd.DataFrame(monthly_data)
                 fig_monthly = px.line(df_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
@@ -283,7 +294,7 @@ def dashboard():
 
         with col2:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Leads by Source</h4>", unsafe_allow_html=True)
-            source_data = services_stats.leads_by_source_for_user(db, st.session_state.username)
+            source_data = get_stats_cached('leads_by_source_for_user', st.session_state.username)
             if source_data:
                 df_source = pd.DataFrame(source_data)
                 fig_source_ind = px.bar(df_source, x='source', y='count', color_discrete_sequence=['#00506b'])
@@ -318,7 +329,7 @@ def dashboard():
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Leads by Status</h4>", unsafe_allow_html=True)
         try:
             if show_cumulative:
-                status_data = services_stats.leads_by_status(db)
+                status_data = get_stats_cached('leads_by_status')
             else:
                 # For users in individual view, filter status by their leads
                 results = (
@@ -364,10 +375,10 @@ def dashboard():
     with col2:
         if show_cumulative:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Monthly Leads (All)</h4>", unsafe_allow_html=True)
-            monthly_data = services_stats.monthly_leads(db)
+            monthly_data = get_stats_cached('monthly_leads')
         else:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Monthly Trend</h4>", unsafe_allow_html=True)
-            monthly_data = services_stats.leads_by_month_for_user(db, st.session_state.username)
+            monthly_data = get_stats_cached('leads_by_month_for_user', st.session_state.username)
 
         if monthly_data:
             df_monthly = pd.DataFrame(monthly_data)
@@ -404,7 +415,7 @@ def dashboard():
     with col1:
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Event Leads</h4>", unsafe_allow_html=True)
         if show_cumulative:
-            event_data = services_stats.leads_by_event(db)
+            event_data = get_stats_cached('leads_by_event')
         else:
             # Filter events by user
             results = (
@@ -447,7 +458,7 @@ def dashboard():
     with col2:
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Word of Mouth Breakdown</h4>", unsafe_allow_html=True)
         if show_cumulative:
-            wom_data = services_stats.word_of_mouth_breakdown(db)
+            wom_data = get_stats_cached('word_of_mouth_breakdown')
         else:
             # Filter word of mouth by user
             results = (
@@ -551,7 +562,7 @@ def dashboard():
 
         with col1:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Your Referral Trend</h4>", unsafe_allow_html=True)
-            referral_monthly = services_stats.referrals_by_month_for_user(db, st.session_state.username)
+            referral_monthly = get_stats_cached('referrals_by_month_for_user', st.session_state.username)
             if referral_monthly:
                 df_ref_monthly = pd.DataFrame(referral_monthly)
                 fig_ref_monthly = px.line(df_ref_monthly, x='month', y='count', markers=True, color_discrete_sequence=['#00506b'])
@@ -582,7 +593,7 @@ def dashboard():
 
         with col2:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referral Status</h4>", unsafe_allow_html=True)
-            ref_status_data = services_stats.referrals_by_status_for_user(db, st.session_state.username)
+            ref_status_data = get_stats_cached('referrals_by_status_for_user', st.session_state.username)
             if ref_status_data:
                 df_ref_status = pd.DataFrame(ref_status_data)
                 fig_ref_status = px.bar(df_ref_status, x='status', y='count', color_discrete_sequence=['#00506b'])
@@ -616,7 +627,7 @@ def dashboard():
 
         with col1:
             st.subheader("**Authorization Status**")
-            auth_data = services_stats.referrals_by_authorization_for_user(db, st.session_state.username)
+            auth_data = get_stats_cached('referrals_by_authorization_for_user', st.session_state.username)
             if auth_data:
                 df_auth = pd.DataFrame(auth_data)
                 fig_auth = px.bar(df_auth, x='authorized', y='count', color_discrete_sequence=['#00506b'])
@@ -650,7 +661,7 @@ def dashboard():
 
         with col2:
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Care Status</h4>", unsafe_allow_html=True)
-            care_data = services_stats.referrals_by_care_status_for_user(db, st.session_state.username)
+            care_data = get_stats_cached('referrals_by_care_status_for_user', st.session_state.username)
             if care_data:
                 df_care = pd.DataFrame(care_data)
                 fig_care = px.bar(df_care, x='care_status', y='count', color_discrete_sequence=['#00506b'])
@@ -686,7 +697,7 @@ def dashboard():
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referral Status</h4>", unsafe_allow_html=True)
         if show_cumulative:
             # Show all referrals by status
-            referral_status_data = services_stats.referral_status_breakdown(db)
+            referral_status_data = get_stats_cached('referral_status_breakdown')
         else:
             # Show user's referrals by status
             results = (
@@ -1121,7 +1132,7 @@ def discovery_tool():
     """Standalone page for custom lead exploratory analysis"""
     db = SessionLocal()
     
-    # Load all leads once for drill-down and analysis
+    # Load all leads once for drill-down and analysis (Direct query with eager loading  )
     all_leads_list = crud_leads.list_leads(db, limit=10000)
     df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads_list])
     if not df_all_leads.empty and '_sa_instance_state' in df_all_leads.columns:
@@ -1329,7 +1340,7 @@ def view_all_user_dashboards():
     # Get all approved users
     approved_users = crud_users.get_approved_users(db)
     
-    # Get all leads for efficient filtering
+    # Get all leads for efficient filtering (Direct query with eager loading)
     all_leads = crud_leads.list_leads(db, limit=10000)
     df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads])
     if not df_all_leads.empty and '_sa_instance_state' in df_all_leads.columns:
