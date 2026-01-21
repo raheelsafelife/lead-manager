@@ -87,6 +87,7 @@ class Lead(Base):
 
     # contact info
     phone = Column(String(50), nullable=False)
+    street = Column(String(255), nullable=True)
     city = Column(String(100), nullable=True)
     zip_code = Column(String(20), nullable=True)
 

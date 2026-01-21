@@ -14,7 +14,7 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -214,7 +214,6 @@ def view_referrals():
     
     # CCU Filter
     st.write("**Filter by CCU:**")
-    from app.crud import crud_ccus
     
     ccus = crud_ccus.get_all_ccus(db)
     
@@ -592,7 +591,6 @@ def view_referrals():
                             edit_agency_id = None
                             edit_ccu_id = None
                             if lead.active_client:
-                                from app.crud import crud_ccus
                                 agencies = crud_agencies.get_all_agencies(db)
                                 agency_options = {a.name: a.id for a in agencies}
                                 current_agency_name = lead.agency.name if lead.agency else "None"

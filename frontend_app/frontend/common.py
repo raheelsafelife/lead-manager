@@ -1163,7 +1163,7 @@ def confirmation_modal_dialog(db, m):
         # Action-scoped unique key for CONFIRM button
         if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['modal_type']}_{m['target_id']}"):
             # Execute backend action directly here
-            from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus
+            from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus, crud_events
             
             success = False
             msg = ""
@@ -1208,6 +1208,10 @@ def confirmation_modal_dialog(db, m):
             elif m['modal_type'] == 'delete_ccu':
                 crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
                 msg = "Success! CCU has been deleted."
+                success = True
+            elif m['modal_type'] == 'delete_event':
+                crud_events.delete_event(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                msg = "Success! Event has been deleted."
                 success = True
             elif m['modal_type'] == 'auth_received':
                 from app.schemas import LeadUpdate
@@ -1283,7 +1287,13 @@ def show_edit_modal_dialog(db, m):
             new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""))
             new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""))
             new_source = st.text_input("Source", value=str(lead.get('source') or ""))
+            
+            st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+            new_street = st.text_input("Street", value=str(lead.get('street') or ""))
             new_city = st.text_input("City", value=str(lead.get('city') or ""))
+            new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2)
+            new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""))
+            
         with col2:
             status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
             current_status = lead.get('last_contact_status', 'Intro Call')
@@ -1295,23 +1305,24 @@ def show_edit_modal_dialog(db, m):
             priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
             new_priority = st.selectbox("Priority", priority_options, index=priority_index)
             
+            dob_value = lead.get('dob')
+            if isinstance(dob_value, str) and dob_value:
+                try:
+                    from datetime import date as dt_date
+                    dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
+                except:
+                    dob_value = None
+            
+            from datetime import date
+            new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today())
             new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0))
             new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""))
+            
             new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""))
+            new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""))
             new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""))
         
-        dob_value = lead.get('dob')
-        if isinstance(dob_value, str) and dob_value:
-            try:
-                from datetime import date
-                dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
-            except:
-                dob_value = None
-        
-        from datetime import date
-        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today())
-        
-        new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""))
+        new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""), height=100)
         
         st.divider()
         c1, c2 = st.columns(2)
@@ -1328,11 +1339,15 @@ def show_edit_modal_dialog(db, m):
                     "staff_name": new_staff,
                     "source": new_source,
                     "city": new_city,
+                    "street": new_street,
+                    "state": new_state,
+                    "zip_code": new_zip,
                     "last_contact_status": new_status,
                     "priority": new_priority,
                     "dob": new_dob,
                     "medicaid_no": new_medicaid,
                     "e_contact_name": new_e_name,
+                    "e_contact_relation": new_e_relation,
                     "e_contact_phone": new_e_phone,
                     "active_client": lead.get('active_client'),
                     "comments": new_comments,

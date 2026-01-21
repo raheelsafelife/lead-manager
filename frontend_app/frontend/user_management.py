@@ -14,7 +14,7 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_mcos, crud_agency_suboptions
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_mcos, crud_agency_suboptions, crud_events
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -89,14 +89,15 @@ def admin_panel():
     db = SessionLocal()
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         " Pending Users", 
         " Password Resets", 
         " Approved Users", 
         " Create User", 
         " Change My Password",
         " Payor",
-        " CCU"
+        " CCU",
+        " Events"
     ])
     
     with tab1:
@@ -577,6 +578,61 @@ def admin_panel():
         else:
             st.info("**No CCUs found. Add your first CCU above.**")
     
+    with tab8:
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Manage Events</h4>", unsafe_allow_html=True)
+        st.write("Add or remove events that can be selected as lead sources.")
+        
+        # Add new Event
+        with st.expander(" Add New Event", expanded=False):
+            with st.form("add_event_admin_form"):
+                new_event_name = st.text_input("Event Name", placeholder="e.g. Health Fair 2026, Community Outreach...")
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    submit_event = st.form_submit_button(" Add Event", width="stretch", type="primary")
+                with col_btn2:
+                    st.form_submit_button(" Cancel", width="stretch")
+                
+                if submit_event and new_event_name:
+                    try:
+                        existing = crud_events.get_event_by_name(db, new_event_name)
+                        if existing:
+                            st.error(f"**Event '{new_event_name}' already exists**")
+                        else:
+                            crud_events.create_event(db, new_event_name, st.session_state.username, st.session_state.db_user_id)
+                            st.toast(f"Event '{new_event_name}' added!", icon="✅")
+                            st.success(f"**Success! Event '{new_event_name}' added successfully!**")
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"**Error: {e}**")
+        
+        st.divider()
+        
+        # List all Events
+        events = crud_events.get_all_events(db)
+        if events:
+            st.write(f"**Total Events: {len(events)}**")
+            st.divider()
+            
+            for event in events:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.markdown(f"<span style='font-size: 16px;'>**{event.event_name}**</span>", unsafe_allow_html=True)
+                    st.markdown(f"<span style='color: #6B7280; font-size: 0.85rem;'>Created: {render_time(event.created_at)} by {event.created_by}</span>", unsafe_allow_html=True)
+                with col2:
+                    if st.button("Delete", key=f"delete_event_btn_admin_{event.id}", help=f"Delete {event.event_name}", type="primary"):
+                        render_confirmation_modal(
+                            modal_type='delete_event',
+                            target_id=event.id,
+                            title='Delete Event?',
+                            message=f"Are you sure you want to delete event <strong>{event.event_name}</strong>?",
+                            icon='🗑️',
+                            type='error',
+                            confirm_label='DELETE'
+                        )
+                st.divider()
+        else:
+            st.info("**No events found. Add your first event above.**")
+
     db.close()
 
 

@@ -14,7 +14,7 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_events, crud_agency_suboptions
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -55,13 +55,74 @@ def add_lead():
         soc_date = st.date_input("SOC Date", value=date.today(), key="transfer_soc_date", label_visibility="collapsed")
     
     elif source == "Event":
-        # ... existing event logic ...
-        # (skipping for brevity in replacement)
-        pass # placeholder to keep context if needed, but I'll replace the whole block carefully
+        # Get all events from database
+        events = crud_events.get_all_events(db)
+        event_names = [e.event_name for e in events]
+        
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Event</h4>", unsafe_allow_html=True)
+        
+        if not event_names:
+            st.warning(" No events available.")
+            if st.session_state.user_role == "admin":
+                st.info("Add events using User Management -> Events")
+            selected_event_name = None
+            event_name = None
+        else:
+            event_list = ["None", "Other (Add New)"] + event_names
+            selected_event_name = st.selectbox("**Select Event**", event_list, key="event_name_select")
+            
+            # If "Other" is selected, show button to add new event (ADMIN ONLY)
+            if selected_event_name == "Other (Add New)":
+                if st.session_state.user_role == "admin":
+                    st.info("Click the button below to add a new event")
+                    if st.button(" Add New Event", key="add_new_event_btn", type="primary"):
+                        st.session_state['show_event_form'] = True
+                        st.rerun()
+                else:
+                    st.warning(" Only admins can add new events. Please contact your administrator.")
+                    selected_event_name = "None"
+            elif selected_event_name != "None":
+                event_name = selected_event_name
+            else:
+                event_name = None
+        
+        # Show event add form if triggered (ADMIN ONLY)
+        if st.session_state.get('show_event_form', False) and st.session_state.user_role == "admin":
+            with st.form("add_new_event_form_inline"):
+                st.write("**Add New Event:**")
+                new_event_val = st.text_input("**Event Name**", placeholder="e.g. Health Fair 2026...")
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    submit_new_event = st.form_submit_button(" Add Event", width="stretch", type="primary")
+                with col_btn2:
+                    cancel_new_event = st.form_submit_button(" Cancel", width="stretch")
+                
+                if submit_new_event and new_event_val:
+                    try:
+                        existing = crud_events.get_event_by_name(db, new_event_val)
+                        if existing:
+                            st.error(f" '{new_event_val}' already exists")
+                        else:
+                            crud_events.create_event(db, new_event_val, st.session_state.username, st.session_state.get('db_user_id'))
+                            st.toast(f"Event '{new_event_val}' added!", icon="✅")
+                            st.success(f"**Success! Event '{new_event_val}' added successfully!**")
+                            st.session_state['show_event_form'] = False
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"**Error creating event: {e}**")
+                
+                if cancel_new_event:
+                    st.session_state['show_event_form'] = False
+                    st.rerun()
+        
+        # Reset event_name if "Other" is still selected
+        if selected_event_name == "Other (Add New)":
+            event_name = None
+        
+        st.divider()
     
     elif source == "Direct Through CCU":
         # Get all agencies from database
-        from app.crud import crud_ccus
         agencies = crud_agencies.get_all_agencies(db)
         agency_names = [a.name for a in agencies]
         
@@ -120,11 +181,12 @@ def add_lead():
                             st.error(f" '{new_agency_name}' already exists")
                         else:
                             crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.get('db_user_id'))
-                            st.success(f" '{new_agency_name}' added successfully!")
+                            st.toast(f"Payor '{new_agency_name}' added!", icon="✅")
+                            st.success(f"**Success! Payor '{new_agency_name}' added successfully!**")
                             st.session_state['show_agency_form'] = False
                             st.rerun()
                     except Exception as e:
-                        st.error(f" Error: {e}")
+                        st.error(f"**Error creating payor: {e}**")
                 
                 if cancel_new_agency:
                     st.session_state['show_agency_form'] = False
@@ -136,7 +198,6 @@ def add_lead():
         
         # Payor Suboption Selection (if agency selected and agency_id exists)
         if agency_id:
-            from app.crud import crud_agency_suboptions
             suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency_id)
             
             if suboptions:
@@ -214,11 +275,12 @@ def add_lead():
                                 email=new_ccu_email or None,
                                 care_coordinator_name=new_ccu_coordinator or None
                             )
-                            st.success(f" CCU '{new_ccu_name}' added successfully!")
+                            st.toast(f"CCU '{new_ccu_name}' added!", icon="✅")
+                            st.success(f"**Success! CCU '{new_ccu_name}' added successfully!**")
                             st.session_state['show_ccu_form'] = False
                             st.rerun()
                     except Exception as e:
-                        st.error(f" Error: {e}")
+                        st.error(f"**Error creating CCU: {e}**")
                 
                 if cancel_new_ccu:
                     st.session_state['show_ccu_form'] = False
@@ -272,6 +334,7 @@ def add_lead():
             st.markdown('**Last Name** <span class="required-star">*</span>', unsafe_allow_html=True)
             last_name = st.text_input("Last Name", value="", label_visibility="collapsed")
             
+            dob = st.date_input("**Date of Birth**", value=None, min_value=date(1900, 1, 1), max_value=date.today())
             age = st.number_input("**Age / Year**", min_value=0, max_value=3000, value=0)
             
             email = st.text_input("**Email**")  # New field
@@ -279,20 +342,25 @@ def add_lead():
             st.markdown('**Phone** <span class="required-star">*</span>', unsafe_allow_html=True)
             phone = st.text_input("Phone", value="", label_visibility="collapsed")
             ssn = st.text_input("**SSN**")  # New field
-            city = st.text_input("**City**")
-            zip_code = st.text_input("**Zip Code**")
+            medicaid_no = st.text_input("**Medicaid Number**")
         
         with col2:
             st.markdown('**Contact Status** <span class="required-star">*</span>', unsafe_allow_html=True)
             last_contact_status = st.selectbox("Contact Status", 
                                               ["Intro Call", "Follow Up", "No Response", "Inactive"],
                                               label_visibility="collapsed")
-            dob = st.date_input("**Date of Birth**", value=None, min_value=date(1900, 1, 1), max_value=date.today())
-            medicaid_no = st.text_input("**Medicaid Number**")
+                                              
+            st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+            street = st.text_input("**Street**")
+            city = st.text_input("**City**")
+            state = st.text_input("**State**", value="IL", max_chars=2, help="2-letter state code (e.g. IL)")
+            zip_code = st.text_input("**Zip Code**")
+            
             e_contact_name = st.text_input("**Emergency Contact Name**")
+            e_contact_relation = st.text_input("**Relation**")
             e_contact_phone = st.text_input("**Emergency Contact Phone**")
             
-            comments = st.text_area("**Comments**")
+            comments = st.text_area("**Comments**", height=150)
         
         st.divider()
         st.markdown('<small>Fields marked with <span style="color:var(--required-star-pink)">*</span> are required</small>', unsafe_allow_html=True)
@@ -359,7 +427,9 @@ def add_lead():
                         ssn=ssn or None,
                         age=age if age > 0 else None,
                         custom_user_id=custom_user_id,
+                        street=street or None,
                         city=city or None,
+                        state=state or None,
                         zip_code=zip_code or None,
                         active_client=True if source == "Transfer" else False,
                         care_status="Care Start" if source == "Transfer" else None,
@@ -370,6 +440,7 @@ def add_lead():
                         dob=dob if dob else None,
                         medicaid_no=medicaid_no or None,
                         e_contact_name=e_contact_name or None,
+                        e_contact_relation=e_contact_relation or None,
                         e_contact_phone=e_contact_phone or None,
                         comments=comments or None,
                         agency_id=agency_id,
@@ -402,8 +473,7 @@ def add_lead():
                                             agency_name = agency.name
                                     
                                     if lead.agency_suboption_id:
-                                        from app.crud.crud_agency_suboptions import get_suboption_by_id
-                                        suboption = get_suboption_by_id(db, lead.agency_suboption_id)
+                                        suboption = crud_agency_suboptions.get_suboption_by_id(db, lead.agency_suboption_id)
                                         if suboption:
                                             agency_suboption = suboption.name
                                     

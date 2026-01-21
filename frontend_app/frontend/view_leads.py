@@ -14,7 +14,7 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -339,11 +339,15 @@ def view_leads():
                                 "staff_name": lead.staff_name,
                                 "source": lead.source,
                                 "city": lead.city,
+                                "street": getattr(lead, 'street', ''),
+                                "state": getattr(lead, 'state', ''),
+                                "zip_code": lead.zip_code,
                                 "last_contact_status": lead.last_contact_status,
                                 "priority": lead.priority,
                                 "dob": lead.dob,
                                 "medicaid_no": lead.medicaid_no,
                                 "e_contact_name": lead.e_contact_name,
+                                "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
                                 "e_contact_phone": lead.e_contact_phone,
                                 "active_client": lead.active_client,
                                 "comments": lead.comments
@@ -570,11 +574,12 @@ def mark_referral_page():
                         if existing:
                             st.error(f"**'{new_agency_name}' already exists**")
                         else:
-                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.user_id)
-                            st.success(f"**Added '{new_agency_name}'**")
+                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.db_user_id)
+                            st.toast(f"Payor '{new_agency_name}' added!", icon="✅")
+                            st.success(f"**Success! Added '{new_agency_name}'**")
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error: {e}**")
+                        st.error(f"**Error creating payor: {e}**")
 
     agencies = crud_agencies.get_all_agencies(db)
     agency_options = {a.name: a.id for a in agencies}
@@ -614,19 +619,19 @@ def mark_referral_page():
                         st.error(f"**'{new_ccu_name}' already exists**")
                     else:
                         crud_ccus.create_ccu(
-                            db, new_ccu_name, st.session_state.username, st.session_state.user_id,
+                            db, new_ccu_name, st.session_state.username, st.session_state.db_user_id,
                             address=new_ccu_address or None,
                             phone=new_ccu_phone or None,
                             fax=new_ccu_fax or None,
                             email=new_ccu_email or None,
                             care_coordinator_name=new_ccu_coord or None
                         )
-                        st.success(f"**Added '{new_ccu_name}'**")
+                        st.toast(f"CCU '{new_ccu_name}' added!", icon="✅")
+                        st.success(f"**Success! Added '{new_ccu_name}'**")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"**Error: {e}**")
+                    st.error(f"**Error creating CCU: {e}**")
 
-    from app.crud import crud_ccus
     ccus = crud_ccus.get_all_ccus(db)
     ccu_options = {c.name: c.id for c in ccus}
     

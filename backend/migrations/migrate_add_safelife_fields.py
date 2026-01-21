@@ -3,6 +3,14 @@ Database migration to add fields for SafeLife CCP Form integration
 Adds: relation_to_client, age, medicaid_status, address fields, ssn, email
 """
 from sqlalchemy import text
+import sys
+from pathlib import Path
+
+# Add backend to Python path
+backend_path = Path(__file__).parent.parent
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
+
 from app.db import SessionLocal
 
 def migrate_add_safelife_fields():
@@ -42,6 +50,11 @@ def migrate_add_safelife_fields():
         if 'address' not in columns:
             db.execute(text("ALTER TABLE leads ADD COLUMN address TEXT"))
             print("[OK] Added column: address")
+        
+        # Add street if not exists
+        if 'street' not in columns:
+            db.execute(text("ALTER TABLE leads ADD COLUMN street VARCHAR(255)"))
+            print("[OK] Added column: street")
         
         # Add state if not exists
         if 'state' not in columns:

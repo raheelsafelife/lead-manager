@@ -50,6 +50,23 @@ class AgencyRead(AgencyBase):
         from_attributes = True
 
 
+# -------- Event Schemas --------
+
+class EventBase(BaseModel):
+    event_name: str = Field(..., max_length=150)
+
+class EventCreate(EventBase):
+    pass
+
+class EventRead(EventBase):
+    id: int
+    created_at: datetime
+    created_by: str
+
+    class Config:
+        from_attributes = True
+
+
 # -------- Lead Schemas --------
 
 class LeadBase(BaseModel):
@@ -71,7 +88,9 @@ class LeadBase(BaseModel):
     priority: Optional[str] = "Medium"  # "High", "Medium", "Low"
     soc_date: Optional[date] = None  # Start of Care date
     phone: str
+    street: Optional[str] = None
     city: Optional[str] = None
+    state: Optional[str] = None
     zip_code: Optional[str] = None
     dob: Optional[date] = None
     age: Optional[int] = None
@@ -114,7 +133,9 @@ class LeadUpdate(BaseModel):
     priority: Optional[str] = None
     soc_date: Optional[date] = None
     phone: Optional[str] = None
+    street: Optional[str] = None
     city: Optional[str] = None
+    state: Optional[str] = None
     zip_code: Optional[str] = None
     dob: Optional[date] = None
     age: Optional[int] = None
