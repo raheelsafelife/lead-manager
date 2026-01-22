@@ -8,29 +8,22 @@ import sys
 from pathlib import Path
 
 # Set database path
-possible_paths = [
-    "/app/data/leads.db",  # Docker Internal
-    "data/leads.db",       # AWS Host / Local with data folder
-    "leads.db",            # Legacy root
-    "backend/leads.db",    # Stray location
-    "../leads.db"          # Stray relative
-]
-
-DB_PATH = None
-for p in possible_paths:
-    if os.path.exists(p):
-        DB_PATH = p
-        break
-
-if not DB_PATH:
-    # Default to root-relative path if possible
-    root_path = Path(__file__).parent.parent.parent
-    DB_PATH = str(root_path / "leads.db")
-
 # Add backend to path for SQLAlchemy models
 backend_path = Path(__file__).parent.parent
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
+
+try:
+    from app.db import DATABASE_URL, engine, Base
+    import app.models # Load all models
+    # Convert sqlite url to file path if needed for raw sqlite3 connection
+    if DATABASE_URL.startswith("sqlite:///"):
+        DB_PATH = DATABASE_URL.replace("sqlite:///", "")
+    else:
+        DB_PATH = "leads.db" # Fallback
+except ImportError:
+    print("❌ Error: Could not import app.db. Ensure backend is in path.")
+    sys.exit(1)
 
 def migrate():
     print(f"🚀 Starting Universal Migration on: {DB_PATH}")
@@ -40,12 +33,10 @@ def migrate():
     # Step 1: Force creation of all tables from models.py
     print("📌 Step 1: Syncing schema with models.py...")
     try:
-        from app.db import engine, Base
-        import app.models # Load all models
         Base.metadata.create_all(bind=engine)
         print("  ✓ Tables synchronized.")
     except Exception as e:
-        print(f"  ⚠️ Warning: create_all failed (might be path issue): {e}")
+        print(f"  ⚠️ Warning: create_all failed: {e}")
 
     # Step 2: Ensure specific columns exist (raw SQL fallback for SQLite safety)
     print("📌 Step 2: Verifying individual columns...")
