@@ -4,18 +4,20 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies for pandas and other libraries
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Robust pip installation
+RUN pip3 install --no-cache-dir --upgrade pip
+RUN pip3 install --no-cache-dir --default-timeout=100 -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .
