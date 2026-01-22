@@ -8,14 +8,24 @@ import sys
 from pathlib import Path
 
 # Set database path
-DB_PATH = "leads.db"
-if not os.path.exists(DB_PATH):
-    # Try alternate location if running from internal directory
-    DB_PATH = "../leads.db"
-    if not os.path.exists(DB_PATH):
-        # Default to root-relative path if possible
-        root_path = Path(__file__).parent.parent.parent
-        DB_PATH = str(root_path / "leads.db")
+possible_paths = [
+    "leads.db",
+    "backend/leads.db",
+    "../leads.db",
+    "/app/data/leads.db",
+    "data/leads.db"
+]
+
+DB_PATH = None
+for p in possible_paths:
+    if os.path.exists(p):
+        DB_PATH = p
+        break
+
+if not DB_PATH:
+    # Default to root-relative path if possible
+    root_path = Path(__file__).parent.parent.parent
+    DB_PATH = str(root_path / "leads.db")
 
 def migrate():
     print(f"🚀 Starting Universal Migration on: {DB_PATH}")
