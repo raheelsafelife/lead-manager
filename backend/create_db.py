@@ -90,9 +90,27 @@ if __name__ == "__main__":
             if not db.query(MCO).filter(MCO.name == name).first():
                 db.add(MCO(name=name, created_by="System"))
                 
-        # 3. Default CCU
-        if not db.query(CCU).filter(CCU.name == "General CCU").first():
-            db.add(CCU(name="General CCU", created_by="System"))
+        # 3. Comprehensive CCU List
+        list_ccus = [
+            'DuPage County CS Programs', 'Grundy County Health Department', 'Senior Services Ass. Elgin',
+            'Senior Services Ass. Aurora', 'Catholic Charities Of the Diocese of Joliet (Kankakee)',
+            'Senior Services Ass. Kendall', 'Senior Services of Will County', 'Lake County Senior Social Services (Lake)',
+            'Catholic Charities NWSS', 'Catholic Charities SSSS', 'CCSI Case Coordination, LLC (Area 5)',
+            'Catholic Charities SWSS', 'Premier Home Health Care (North)', 'Premier Home Health Care (South)',
+            'Catholic Charities OAS/NENW', 'CCSI Case Coordination, LLC (Area 6)', 'CCSI Case Coordination, LLC (Area 10)',
+            'CCSI Case Coordination, LLC (Area 8)', 'CCSI Case Coordination, LLC (Area 11)', 'CCSI Case Coordination, LLC (Area 12)',
+            'Solutions for Care', 'Aging Care Connections', 'Oak Park Township', 'Pathlights',
+            'Kenneth Young Center (Schaumburg)', 'North Shore Senior Center', 'Stickney Township Office on Aging',
+            'General CCU'
+        ]
+        ccu_count = 0
+        for name in list_ccus:
+            if not db.query(CCU).filter(CCU.name == name).first():
+                db.add(CCU(name=name, created_by="System"))
+                ccu_count += 1
+        
+        if ccu_count > 0:
+            print(f"  ✓ Seeded {ccu_count} new CCUs.")
             
         db.commit()
         print("--- BASE DATA SEEDING COMPLETE ---")
