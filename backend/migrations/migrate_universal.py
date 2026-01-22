@@ -127,6 +127,7 @@ def migrate():
     except Exception as e:
         print(f"\n❌ Error during migration: {e}")
         conn.rollback()
+        sys.exit(1)
     finally:
         conn.close()
 
