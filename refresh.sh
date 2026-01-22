@@ -12,7 +12,10 @@ echo "🚀 Starting Universal Docker Refresh..."
 echo "🛑 Stopping existing services..."
 docker compose down --remove-orphans 2>/dev/null || docker-compose down --remove-orphans 2>/dev/null
 
-# 2. Force cleanup of any containers matching the project prefix
+# 2. Clear stray local databases that cause migration confusion on AWS host
+echo "🧹 Cleaning stray database files..."
+rm -f leads.db backend/leads.db backend/Leads.db 2>/dev/null
+# Keep ./data/leads.db as it is the persistent one
 # This catches containers that docker-compose might miss due to state mismatches
 echo "🧹 Clearing trapped containers..."
 PROJECT_NAME=$(basename $(pwd))
@@ -32,8 +35,21 @@ if [ -d ".git" ]; then
 fi
 
 # 5. Build and Start using the modern Compose V2
-echo "🏗️  Rebuilding and Starting services (Background)..."
-docker compose up -d --build
+echo "🏗️  Rebuilding and Starting services..."
+docker compose build --no-cache
+docker compose up -d
+
+echo "⏳ Waiting for database setup to complete..."
+docker compose wait setup
+SETUP_EXIT_CODE=$?
+
+if [ $SETUP_EXIT_CODE -ne 0 ]; then
+    echo "❌ ERROR: Database setup failed! Printing logs..."
+    docker compose logs setup
+    exit 1
+fi
+
+echo "✅ Database setup successful."
 
 # Run migrations locally to ensure DB is up to date
 if [ -d "venv" ] || [ -d ".venv" ] || [ -d "ENV" ] || [ -f "requirements.txt" ]; then
