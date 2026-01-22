@@ -15,8 +15,10 @@ if __name__ == "__main__":
             print(f"Created directory: {db_dir}")
 
     # Create tables if they don't exist
-    print(f"[DB] Creating tables...", flush=True)
+    print(f"[DB] Creating tables using {DATABASE_URL}...", flush=True)
+    import app.models # Load all models to register with Base
     Base.metadata.create_all(bind=engine)
+    print("  ✓ Tables synchronized.")
     
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()

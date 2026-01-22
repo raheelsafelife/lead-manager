@@ -478,6 +478,7 @@ def admin_panel():
                     try:
                         existing = crud_ccus.get_ccu_by_name(db, new_ccu_name)
                         if existing:
+                            st.toast(f"CCU Conflict: {new_ccu_name}", icon="⚠️")
                             st.error(f"**CCU '{new_ccu_name}' already exists**")
                         else:
                             crud_ccus.create_ccu(
@@ -492,7 +493,8 @@ def admin_panel():
                             st.success(f"**Success! CCU '{new_ccu_name}' added successfully!**")
                             st.rerun()
                     except Exception as e:
-                        st.error(f" Error: {e}")
+                        st.toast("Error adding CCU", icon="❌")
+                        st.error(f"**Error adding CCU: {e}**")
         
         st.divider()
         

@@ -25,13 +25,15 @@ if [ ! -z "$STUCK_CONTAINERS" ]; then
 fi
 
 # 3. Prune dangling resources to clear metadata errors (KeyError fix)
-echo "💎 Pruning system metadata..."
-docker system prune -f --volumes
+echo "💎 Clearing disk space and system metadata..."
+df -h | grep '^/dev/' || df -h
+docker system prune -af --volumes
 
-# 4. Pull latest changes if on AWS (optional, but helpful)
+# 4. Pull latest changes
 if [ -d ".git" ]; then
-    echo "📥 Pulling latest code from Git..."
-    git pull origin main
+    echo "📥 Forcing clean pull from Git..."
+    git fetch origin main
+    git reset --hard origin/main
 fi
 
 # 5. Build and Start using the modern Compose V2
