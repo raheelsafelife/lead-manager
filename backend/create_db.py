@@ -18,7 +18,32 @@ if __name__ == "__main__":
     print(f"[DB] Creating tables using {DATABASE_URL}...", flush=True)
     import app.models # Load all models to register with Base
     Base.metadata.create_all(bind=engine)
-    print("  ✓ Tables synchronized.")
+    print("  [OK] Tables synchronized.")
+    
+    # PERFORMANCE INDEXES: Ensure critical indexes exist for fast search/filter
+    from sqlalchemy import text
+    performance_indexes = [
+        ("idx_leads_owner_id", "leads", "owner_id"),
+        ("idx_leads_staff_name", "leads", "staff_name"),
+        ("idx_leads_active_client", "leads", "active_client"),
+        ("idx_leads_last_contact_status", "leads", "last_contact_status"),
+        ("idx_leads_priority", "leads", "priority"),
+        ("idx_leads_deleted_at", "leads", "deleted_at"),
+        ("idx_leads_source", "leads", "source"),
+        ("idx_leads_created_at", "leads", "created_at DESC")
+    ]
+    
+    db_idx = SessionLocal()
+    try:
+        for idx_name, table, column in performance_indexes:
+            try:
+                db_idx.execute(text(f"CREATE INDEX IF NOT EXISTS {idx_name} ON {table} ({column})"))
+                db_idx.commit()
+            except Exception as e:
+                db_idx.rollback()
+        print("  [OK] Performance indexes verified/created.")
+    finally:
+        db_idx.close()
     
     # SEEDING: Ensure at least one admin exists
     db = SessionLocal()
@@ -146,7 +171,7 @@ if __name__ == "__main__":
                 if changed: ccu_updated += 1
         
         if ccu_added > 0 or ccu_updated > 0:
-            print(f"  ✓ CCUs: {ccu_added} added, {ccu_updated} updated with details.")
+            print(f"  [OK] CCUs: {ccu_added} added, {ccu_updated} updated with details.")
             
         db.commit()
         print("--- BASE DATA SEEDING COMPLETE ---")

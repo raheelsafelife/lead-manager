@@ -14,7 +14,8 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+# Local import to fix circular dependency
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -24,6 +25,13 @@ from frontend.common import prepare_lead_data_for_email, get_priority_tag, rende
 
 def view_referrals():
     """View and manage referrals only"""
+    # Force module reload
+    import sys
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
+    for mod in modules_to_reload:
+        del sys.modules[mod]
+    
+    from app.crud.crud_leads import search_leads, count_search_leads, update_lead
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:
         msg = st.session_state.pop('success_msg')
@@ -89,18 +97,21 @@ def view_referrals():
         if st.button("Active", key="ref_active_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "Active" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Active"
+            st.session_state.referrals_page = 0
             st.rerun()
     
     with ref_act_col2:
         if st.button("Inactive", key="ref_inactive_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Inactive"
+            st.session_state.referrals_page = 0
             st.rerun()
     
     with ref_act_col3:
         if st.button("All", key="ref_all_active_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "All" else "secondary"):
             st.session_state.referral_active_inactive_filter = "All"
+            st.session_state.referrals_page = 0
             st.rerun()
     
     st.divider()
@@ -146,6 +157,7 @@ def view_referrals():
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_referrals_btn", use_container_width=True):
+            st.session_state.referrals_page = 0
             st.rerun()
         
     # Referral Type Filter Buttons
@@ -208,6 +220,7 @@ def view_referrals():
         
         if selected_payor != st.session_state.payor_filter:
             st.session_state.payor_filter = selected_payor
+            st.session_state.referrals_page = 0
             st.rerun()
     else:
         st.info("No payors available. Add payors in User Management -> Payor.")
@@ -225,77 +238,80 @@ def view_referrals():
         
         if selected_ccu != st.session_state.ccu_filter:
             st.session_state.ccu_filter = selected_ccu
+            st.session_state.referrals_page = 0
             st.rerun()
     else:
         st.info("No CCUs available. Add CCUs in User Management -> CCU.")
     
     st.divider()
     
-    # Get leads based on recycle bin filter (Direct query with eager loading)
-    if st.session_state.show_deleted_referrals:
-        # Show only deleted leads
-        leads = crud_leads.list_deleted_leads(db, limit=1000)
-        st.info("🗑️ **Recycle Bin Mode** - Showing deleted referrals only. Uncheck to see active referrals.")
-    else:
-        # Show normal leads (not deleted)
-        leads = crud_leads.list_leads(db, limit=1000)
+    # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     
-    # FILTER: Only show referrals (active_client = True) that are NOT yet authorized
-    leads = [l for l in leads if l.active_client == True and l.authorization_received == False]
+    # Track current page in session state
+    if 'referrals_page' not in st.session_state:
+        st.session_state.referrals_page = 0
     
-    # Apply 'Show Only My Referrals' filter for regular users
+    page_size = 50
+    skip = st.session_state.referrals_page * page_size
+    
+    # Owner filter logic
+    owner_id = st.session_state.get('db_user_id')
+    only_my_referrals = False
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_referrals:
-        # Stable Filtering: Use owner_id if available (fallback to name for old/unmigrated data)
-        user_id = st.session_state.get('db_user_id')
-        if user_id:
-             leads = [l for l in leads if getattr(l, 'owner_id', None) == user_id or (getattr(l, 'owner_id', None) is None and l.staff_name == st.session_state.username)]
-        else:
-             leads = [l for l in leads if l.staff_name == st.session_state.username]
+        only_my_referrals = True
     
-    # Apply contact status filter
-    if st.session_state.referral_status_filter != "All":
-        leads = [l for l in leads if l.last_contact_status == st.session_state.referral_status_filter]
+    # SQL-level search and count
+    leads = search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        status_filter=st.session_state.referral_status_filter,
+        priority_filter=st.session_state.referral_priority_filter,
+        active_inactive_filter=st.session_state.referral_active_inactive_filter,
+        owner_id=owner_id,
+        only_my_leads=only_my_referrals,
+        include_deleted=st.session_state.show_deleted_referrals,
+        exclude_clients=False, # We want active clients here
+        auth_received_filter=False,
+        skip=skip,
+        limit=page_size
+    )
     
-    # Apply other filters
-    if search_name:
-        leads = [l for l in leads if search_name.lower() in f"{l.first_name} {l.last_name}".lower()]
-    if filter_staff:
-        leads = [l for l in leads if filter_staff.lower() in l.staff_name.lower()]
-    if filter_source:
-        leads = [l for l in leads if filter_source.lower() in l.source.lower()]
-        
-    # Apply Payor filter
-    if st.session_state.payor_filter != "All":
-        leads = [l for l in leads if l.agency and l.agency.name == st.session_state.payor_filter]
+    # Post-process for referrals sent (Filtering handled at SQL level)
+    # Note: search_leads now supports authorization_received filter
+    leads = [l for l in leads if l.active_client == True]
     
-    # Apply CCU filter
-    if st.session_state.ccu_filter != "All":
-        leads = [l for l in leads if l.ccu and l.ccu.name == st.session_state.ccu_filter]
+    total_leads = count_search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        status_filter=st.session_state.referral_status_filter,
+        priority_filter=st.session_state.referral_priority_filter,
+        active_inactive_filter=st.session_state.referral_active_inactive_filter,
+        owner_id=owner_id,
+        only_my_leads=only_my_referrals,
+        include_deleted=st.session_state.show_deleted_referrals,
+        exclude_clients=False,
+        auth_received_filter=False
+    )
     
-    # Apply Referral Type filter
-    if st.session_state.referral_type_filter != "All":
-        leads = [l for l in leads if l.referral_type == st.session_state.referral_type_filter]
-    
-    # Apply Priority filter
-    if st.session_state.referral_priority_filter != "All":
-        leads = [l for l in leads if l.priority == st.session_state.referral_priority_filter]
-    
-    # Apply active/inactive filter
-    if st.session_state.referral_active_inactive_filter == "Active":
-        leads = [l for l in leads if l.last_contact_status != "Inactive"]
-    elif st.session_state.referral_active_inactive_filter == "Inactive":
-        leads = [l for l in leads if l.last_contact_status == "Inactive"]
-    # If "All", no filtering needed
+    # UI Metadata
+    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
+    current_page_display = st.session_state.referrals_page + 1 if total_leads > 0 else 0
     
     # Show count with filter info
     filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Priority: {st.session_state.referral_priority_filter}"
-    if st.session_state.user_role != "admin" and st.session_state.show_only_my_referrals:
+    if only_my_referrals:
         filter_info += f" | Showing: My Referrals Only"
     
     if st.session_state.show_deleted_referrals:
-        st.write(f"**Showing {len(leads)} deleted referrals**")
+        st.write(f"**Showing {len(leads)} deleted referrals of {total_leads} total**")
     else:
-        st.write(f"**Showing {len(leads)} referrals** ({filter_info})")
+        st.write(f"**Showing {len(leads)} referrals of {total_leads} total** ({filter_info})")
+    
+    st.caption(f"Page {current_page_display} of {num_pages}")
     
     # Display referrals
     if leads:
@@ -401,7 +417,7 @@ def view_referrals():
                 col1, col2, col3, col4 = st.columns([1.0, 1.0, 2.0, 2.0])
                 with col1:
                     if can_modify and st.button("Edit", key=f"edit_lead_btn_ref_{lead.id}"):
-                        # Prepare lead data for edit modal
+                        # Prepare lead data for edit modal (Comprehensive set with safety)
                         lead_dict = {
                             "id": lead.id,
                             "first_name": lead.first_name,
@@ -409,16 +425,25 @@ def view_referrals():
                             "phone": lead.phone,
                             "staff_name": lead.staff_name,
                             "source": lead.source,
+                            "event_name": getattr(lead, 'event_name', None),
+                            "word_of_mouth_type": getattr(lead, 'word_of_mouth_type', None),
+                            "other_source_type": getattr(lead, 'other_source_type', None),
                             "city": lead.city,
+                            "street": getattr(lead, 'street', ''),
+                            "state": getattr(lead, 'state', ''),
+                            "zip_code": getattr(lead, 'zip_code', ''),
                             "last_contact_status": lead.last_contact_status,
                             "priority": lead.priority,
                             "dob": lead.dob,
+                            "age": getattr(lead, 'age', None),
                             "medicaid_no": lead.medicaid_no,
                             "e_contact_name": lead.e_contact_name,
+                            "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
                             "e_contact_phone": lead.e_contact_phone,
                             "active_client": lead.active_client,
-                            "comments": lead.comments,
-                            "age": lead.age
+                            "agency_id": lead.agency_id,
+                            "ccu_id": lead.ccu_id,
+                            "comments": lead.comments
                         }
                         # Action-scoped state (Stability Refactor)
                         st.session_state.modal_open = True
@@ -451,6 +476,7 @@ def view_referrals():
                                 confirm_label='DELETE',
                                 indicator='This will move it to the Recycle Bin.'
                             )
+                
                 with col3:
                     # Show automatic email status
                     if lead.last_contact_status != "Inactive":
@@ -464,11 +490,11 @@ def view_referrals():
                 if reminders:
                     st.caption(f" Email History ({len(reminders)} sent):")
                     for reminder in reminders[:3]:  # Show last 3
-                        status_icon = "" if reminder.status == "sent" else ""
+                        status_icon = "📧" if reminder.status == "sent" else "❌"
                         st.markdown(f"<span style='font-size: 0.85rem; color: #6B7280;'>{status_icon} {render_time(reminder.sent_at)} -> {reminder.recipient_email}</span>", unsafe_allow_html=True)
                 
                 with col3:
-                    # Unmark Referral button (always shows unmark since we're in referrals view)
+                    # Unmark Referral button
                     if can_modify:
                         if st.button("Unmark Referral", key=f"unmark_ref_btn_ref_{lead.id}", type="primary", use_container_width=True):
                             render_confirmation_modal(
@@ -488,12 +514,8 @@ def view_referrals():
                     with btn_col1:
                         if st.button("History", key=f"history_btn_ref_{lead.id}"):
                             # CRITICAL: Clear modal state BEFORE toggling history
-                            # This prevents ghost popups from previous actions
                             st.session_state.modal_open = False
                             st.session_state.modal_action = None
-                            st.session_state.modal_lead_id = None
-                            st.session_state.modal_lead_name = None
-                            st.session_state.modal_data = {}
                             st.session_state.pop('active_modal', None)
                             
                             # Toggle history view
@@ -504,31 +526,24 @@ def view_referrals():
                     with btn_col2:
                         # Authorization Received button - toggleable
                         if lead.authorization_received:
-                            # Show unmark button if already authorized
                             if st.button("Unmark Auth", key=f"unmark_auth_btn_ref_{lead.id}",
                                        help="Remove authorization received status", type="primary"):
                                 update_data = LeadUpdate(authorization_received=False)
-                                updated_lead = crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
-
+                                updated_lead = update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                                 if updated_lead:
-                                    # Clear modal state to be safe
                                     st.session_state.modal_open = False
                                     st.session_state.modal_action = None
                                     st.session_state.pop('active_modal', None)
-                                    
                                     st.warning(f"**Authorization unmarked for {lead.first_name} {lead.last_name}**")
                                     st.rerun()
-                                else:
-                                    st.error("**Failed to unmark authorization**")
                         else:
-                            # Show mark as received button if not authorized
                             if st.button("Mark Authentication", key=f"mark_auth_btn_ref_{lead.id}", 
                                        help="Mark as authorized and move to Referral Confirm", type="primary", use_container_width=True):
                                 render_confirmation_modal(
                                     modal_type='auth_received',
                                     target_id=lead.id,
                                     title='Authorization Received?',
-                                    message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?<br><br><span style='color: #6B7280;'>💡 This will move it to 'Referral Confirm'.</span>",
+                                    message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?",
                                     icon='✅',
                                     type='info',
                                     confirm_label='MARK RECEIVED'
@@ -538,142 +553,42 @@ def view_referrals():
                 if st.session_state.get(f"show_history_ref_{lead.id}", False):
                     st.info(f"Activity History for {lead.first_name} {lead.last_name}")
                     history_logs = crud_activity_logs.get_lead_history(db, lead.id)
-                    
                     if history_logs:
                         for log in history_logs:
                             label = get_action_label(log.action_type)
-                            time_ago = format_time_ago(log.timestamp, st.session_state.get('user_timezone'))
-                            with st.container():
-                                timeframe = render_time(log.timestamp, style="ago")
-                                st.markdown(f"**{label}** - {timeframe}", unsafe_allow_html=True)
-                                st.markdown(f"By **{log.username}** on {render_time(log.timestamp)}", unsafe_allow_html=True)
-                                
-                                if log.description:
-                                    st.write(log.description)
-                                
-                                if log.old_value and log.new_value:
-                                    changes = format_changes(log.old_value, log.new_value)
-                                    if changes:
-                                        for field, old_val, new_val in changes:
-                                            st.caption(f"- {field}: {old_val} -> {new_val}")
-                                st.divider()
+                            timeframe = render_time(log.timestamp, style="ago")
+                            st.markdown(f"**{label}** - {timeframe}", unsafe_allow_html=True)
+                            st.markdown(f"By **{log.username}** on {render_time(log.timestamp)}", unsafe_allow_html=True)
+                            if log.description: st.write(log.description)
+                            if log.old_value and log.new_value:
+                                changes = format_changes(log.old_value, log.new_value)
+                                if changes:
+                                    for field, old_val, new_val in changes:
+                                        st.caption(f"- {field}: {old_val} -> {new_val}")
+                            st.divider()
                     else:
                         st.caption("No history recorded yet.")
-
-                
-                # Edit form (shown when Edit button is clicked)
-                if st.session_state.get(f'editing_{lead.id}', False):
-                    st.divider()
-                    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Edit Referral</h4>", unsafe_allow_html=True)
-                    
-                    with st.form(f"edit_ref_form_{lead.id}"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            edit_staff_name = st.text_input("**Staff Name** *", value=lead.staff_name)
-                            edit_first_name = st.text_input("**First Name** *", value=lead.first_name)
-                            edit_last_name = st.text_input("**Last Name** *", value=lead.last_name)
-                            
-                            edit_age = st.number_input("**Age / Year**", min_value=0, max_value=3000, value=int(lead.age or 0))
-                            
-                            source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
-                            edit_source = st.selectbox("**Source** *", 
-                                                      source_options,
-                                                      index=source_options.index(lead.source) if lead.source in source_options else source_options.index("Other"))
-                            edit_phone = st.text_input("**Phone** *", value=lead.phone)
-                            edit_priority = st.selectbox("**Priority**", ["High", "Medium", "Low"], 
-                                                        index=["High", "Medium", "Low"].index(lead.priority) if lead.priority in ["High", "Medium", "Low"] else 1)
-                            st.markdown(get_priority_tag(edit_priority), unsafe_allow_html=True)
-                            edit_city = st.text_input("**City**", value=lead.city or "")
-                            edit_zip_code = st.text_input("**Zip Code**", value=lead.zip_code or "")
-                            
-                            # Payor Selection (only if active client)
-                            edit_agency_id = None
-                            edit_ccu_id = None
-                            if lead.active_client:
-                                agencies = crud_agencies.get_all_agencies(db)
-                                agency_options = {a.name: a.id for a in agencies}
-                                current_agency_name = lead.agency.name if lead.agency else "None"
-                                edit_agency_name = st.selectbox("**Payor**", ["None"] + list(agency_options.keys()), 
-                                                              index=(["None"] + list(agency_options.keys())).index(current_agency_name) if current_agency_name in agency_options else 0)
-                                
-                                # Get payor ID
-                                edit_agency_id = agency_options.get(edit_agency_name) if edit_agency_name != "None" else None
-                                
-                                # Payor Suboption Selection (if agency selected)
-                                edit_agency_suboption_id = None
-                                if edit_agency_id:
-                                    from app.crud import crud_agency_suboptions
-                                    suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=edit_agency_id)
-                                    
-                                    if suboptions:
-                                        suboption_options = {s.name: s.id for s in suboptions}
-                                        current_suboption_name = lead.agency_suboption.name if lead.agency_suboption else "None"
-                                        edit_suboption_name = st.selectbox("**Suboption**", ["None"] + list(suboption_options.keys()),
-                                                                          index=(["None"] + list(suboption_options.keys())).index(current_suboption_name) if current_suboption_name in suboption_options else 0)
-                                        edit_agency_suboption_id = suboption_options.get(edit_suboption_name) if edit_suboption_name != "None" else None
-                                
-                                # CCU Selection
-                                ccus = crud_ccus.get_all_ccus(db)
-                                ccu_options = {c.name: c.id for c in ccus}
-                                current_ccu_name = lead.ccu.name if lead.ccu else "None"
-                                
-                                if ccus:
-                                    edit_ccu_name = st.selectbox("**CCU**", ["None"] + list(ccu_options.keys()),
-                                                               index=(["None"] + list(ccu_options.keys())).index(current_ccu_name) if current_ccu_name in ccu_options else 0)
-                                    edit_ccu_id = ccu_options.get(edit_ccu_name) if edit_ccu_name != "None" else None
-                        
-                        
-                        with col2:
-                            edit_status = st.selectbox("Contact Status", 
-                                                      ["Intro Call", "Follow Up", "No Response", "Inactive"],
-                                                      index=["Intro Call", "Follow Up", "No Response", "Inactive"].index(lead.last_contact_status) if lead.last_contact_status in ["Intro Call", "Follow Up", "No Response", "Inactive"] else 0)
-                            edit_dob = st.date_input("Date of Birth", value=lead.dob, min_value=date(1900, 1, 1), max_value=date.today())
-                            edit_medicaid_no = st.text_input("Medicaid Number", value=lead.medicaid_no or "")
-                            edit_e_contact_name = st.text_input("Emergency Contact Name", value=lead.e_contact_name or "")
-                            edit_e_contact_phone = st.text_input("Emergency Contact Phone", value=lead.e_contact_phone or "")
-                            edit_comments = st.text_area("Comments", value=lead.comments or "")
-                        
-                        st.divider()
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            save = st.form_submit_button("Save Changes", width="stretch", type="primary")
-                        with col2:
-                            cancel = st.form_submit_button(" Cancel", width="stretch")
-                        
-                        if save:
-                            update_data = LeadUpdate(
-                                staff_name=edit_staff_name,
-                                first_name=edit_first_name,
-                                last_name=edit_last_name,
-                                source=edit_source,
-                                phone=edit_phone,
-                                age=edit_age if edit_age > 0 else None,
-                                city=edit_city or None,
-                                zip_code=edit_zip_code or None,
-                                active_client=True,  # Keep as referral
-                                last_contact_status=edit_status,
-                                priority=edit_priority,
-                                dob=edit_dob if edit_dob else None,
-                                medicaid_no=edit_medicaid_no or None,
-                                e_contact_name=edit_e_contact_name or None,
-                                e_contact_relation=None,
-                                e_contact_phone=edit_e_contact_phone or None,
-                                comments=edit_comments or None,
-                                agency_id=edit_agency_id,
-                                agency_suboption_id=edit_agency_suboption_id,
-                                ccu_id=edit_ccu_id
-                            )
-                            
-                            crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
-                            st.session_state[f'editing_{lead.id}'] = False
-                            st.success("**Referral updated successfully!**")
-                            st.rerun()
-                        
-                        if cancel:
-                            st.session_state[f'editing_{lead.id}'] = False
-                            st.rerun()
     else:
         st.info("No referrals found")
+    
+    # --- PAGINATION UI CONTROLS ---
+    if total_leads > page_size:
+        st.divider()
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+        
+        with nav_col1:
+            if st.session_state.referrals_page > 0:
+                if st.button("← Previous Page", use_container_width=True, key="prev_ref_pg"):
+                    st.session_state.referrals_page -= 1
+                    st.rerun()
+        
+        with nav_col2:
+            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} referrals</p>", unsafe_allow_html=True)
+            
+        with nav_col3:
+            if st.session_state.referrals_page < num_pages - 1:
+                if st.button("Next Page →", use_container_width=True, key="next_ref_pg"):
+                    st.session_state.referrals_page += 1
+                    st.rerun()
     
     db.close()

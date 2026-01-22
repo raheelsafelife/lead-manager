@@ -399,7 +399,12 @@ def admin_panel():
         # Add new agency
         with st.expander(" Add New Payor", expanded=False):
             with st.form("add_agency_admin_form"):
-                new_agency_name = st.text_input("Payor Name", placeholder="e.g. IDoA, MCO, DCFS...")
+                new_agency_name = st.text_input("Payor Name *", placeholder="e.g. IDoA, MCO, DCFS...")
+                new_agency_address = st.text_input("Address", placeholder="e.g. 123 Main St, Chicago, IL")
+                new_agency_phone = st.text_input("Phone", placeholder="e.g. (555) 123-4567")
+                new_agency_fax = st.text_input("Fax", placeholder="e.g. (555) 123-4568")
+                new_agency_email = st.text_input("Email", placeholder="e.g. contact@payor.com")
+                
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
                     submit_agency = st.form_submit_button(" Add Payor", width="stretch", type="primary")
@@ -412,7 +417,11 @@ def admin_panel():
                         if existing:
                             st.error(f"**Agency '{new_agency_name}' already exists**")
                         else:
-                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.db_user_id)
+                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.db_user_id,
+                                                        address=new_agency_address or None,
+                                                        phone=new_agency_phone or None,
+                                                        fax=new_agency_fax or None,
+                                                        email=new_agency_email or None)
                             st.toast(f"Payor '{new_agency_name}' added!", icon="✅")
                             st.success(f"**Success! Payor '{new_agency_name}' added successfully!**")
                             st.rerun()
@@ -427,14 +436,20 @@ def admin_panel():
             st.write(f"**Total Agencies: {len(agencies)}**")
             st.divider()
             
-            
-            
             for agency in agencies:
-                col1, col2 = st.columns([4, 1])
+                col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
                 with col1:
                     st.markdown(f"<span style='font-size: 16px;'>**{agency.name}**</span>", unsafe_allow_html=True)
                     st.markdown(f"<span style='color: #6B7280; font-size: 0.85rem;'>Created: {render_time(agency.created_at)} by {agency.created_by}</span>", unsafe_allow_html=True)
                 with col2:
+                    if st.button("Details", key=f"details_agency_btn_admin_{agency.id}", help="View Details", type="primary"):
+                        st.session_state[f"viewing_agency_{agency.id}"] = not st.session_state.get(f"viewing_agency_{agency.id}", False)
+                        st.rerun()
+                with col3:
+                    if st.button("Edit", key=f"edit_agency_btn_admin_{agency.id}", help="Edit Payor", type="primary"):
+                        st.session_state[f"editing_agency_{agency.id}"] = not st.session_state.get(f"editing_agency_{agency.id}", False)
+                        st.rerun()
+                with col4:
                     if st.button("Delete", key=f"delete_agency_btn_admin_{agency.id}", help=f"Delete {agency.name}", type="primary"):
                         render_confirmation_modal(
                             modal_type='delete_agency',
@@ -446,10 +461,45 @@ def admin_panel():
                             confirm_label='DELETE'
                         )
 
+                # Show agency details
+                if st.session_state.get(f"viewing_agency_{agency.id}", False):
+                    with st.container():
+                        st.markdown("**Payor Details:**")
+                        detail_col1, detail_col2 = st.columns(2)
+                        with detail_col1:
+                            st.write(f"**Address:** {agency.address or 'N/A'}")
+                            st.write(f"**Phone:** {agency.phone or 'N/A'}")
+                        with detail_col2:
+                            st.write(f"**Fax:** {agency.fax or 'N/A'}")
+                            st.write(f"**Email:** {agency.email or 'N/A'}")
                 
-                # Suboptions removed as per request
-                # suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency.id)
-                # ... check git history if needed
+                # Inline edit form
+                if st.session_state.get(f"editing_agency_{agency.id}", False):
+                    with st.form(f"edit_agency_form_{agency.id}"):
+                        edit_name = st.text_input("Payor Name", value=agency.name)
+                        edit_address = st.text_input("Address", value=agency.address or "")
+                        edit_phone = st.text_input("Phone", value=agency.phone or "")
+                        edit_fax = st.text_input("Fax", value=agency.fax or "")
+                        edit_email = st.text_input("Email", value=agency.email or "")
+                        col_x, col_y = st.columns(2)
+                        with col_x:
+                            if st.form_submit_button("Save"):
+                                try:
+                                    crud_agencies.update_agency(db, agency.id, edit_name, st.session_state.username, st.session_state.db_user_id,
+                                                                address=edit_address or None,
+                                                                phone=edit_phone or None,
+                                                                fax=edit_fax or None,
+                                                                email=edit_email or None)
+                                    st.session_state[f"editing_agency_{agency.id}"] = False
+                                    st.toast(f"Payor '{edit_name}' updated!", icon="✅")
+                                    st.success("**Success! Updated payor details**")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"**Error: {str(e)}**")
+                        with col_y:
+                            if st.form_submit_button(" Cancel"):
+                                st.session_state[f"editing_agency_{agency.id}"] = False
+                                st.rerun()
                 
                 st.divider()
         else:

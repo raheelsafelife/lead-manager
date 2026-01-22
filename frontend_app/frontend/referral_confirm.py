@@ -14,7 +14,8 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+# Local import to fix circular dependency
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -24,6 +25,13 @@ from frontend.common import prepare_lead_data_for_email, render_time, get_leads_
 
 def display_referral_confirm(lead, db, highlight=False):
     """Helper function to display a single referral in the confirm page"""
+    # Force module reload
+    import sys
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
+    for mod in modules_to_reload:
+        del sys.modules[mod]
+    
+    from app.crud.crud_leads import update_lead
 
     # Show care status indicator in the expander title
     care_indicator = ""
@@ -79,13 +87,6 @@ def display_referral_confirm(lead, db, highlight=False):
             else:
                 st.success("**Authorization Received**")
             
-            # Allow unmarking authorization (Revert to Referrals Sent)
-            if st.button("Undo Authorization (Move to Referrals Sent)", key=f"unmark_auth_btn_confirm_{lead.id}", type="secondary", use_container_width=True):
-                 update_data = LeadUpdate(authorization_received=False)
-                 crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
-                 clear_leads_cache()
-                 st.toast(f"Authorization undone for {lead.first_name}", icon="↩️")
-                 st.rerun()
 
             st.divider()
 
@@ -119,11 +120,90 @@ def display_referral_confirm(lead, db, highlight=False):
         else:
             st.warning("**Care status not set yet**")
 
+        # Sub-Action Buttons: Edit, History, Undo Auth
+        st.write("**Manage Referral:**")
+        sub_col1, sub_col2, sub_col3 = st.columns(3)
+        
+        with sub_col1:
+            if st.button("Edit", key=f"edit_btn_confirm_{lead.id}", use_container_width=True):
+                # Prepare lead dictionary for modal
+                lead_dict = {
+                    "id": lead.id,
+                    "first_name": lead.first_name,
+                    "last_name": lead.last_name,
+                    "phone": lead.phone,
+                    "staff_name": lead.staff_name,
+                    "source": lead.source,
+                    "event_name": getattr(lead, 'event_name', None),
+                    "word_of_mouth_type": getattr(lead, 'word_of_mouth_type', None),
+                    "other_source_type": getattr(lead, 'other_source_type', None),
+                    "city": lead.city,
+                    "street": getattr(lead, 'street', ''),
+                    "state": getattr(lead, 'state', ''),
+                    "zip_code": getattr(lead, 'zip_code', ''),
+                    "last_contact_status": lead.last_contact_status,
+                    "priority": lead.priority,
+                    "dob": lead.dob,
+                    "age": getattr(lead, 'age', None),
+                    "medicaid_no": lead.medicaid_no,
+                    "e_contact_name": lead.e_contact_name,
+                    "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
+                    "e_contact_phone": lead.e_contact_phone,
+                    "active_client": lead.active_client,
+                    "agency_id": lead.agency_id,
+                    "ccu_id": lead.ccu_id,
+                    "comments": lead.comments
+                }
+                
+                # Action-scoped state (Stability Refactor)
+                st.session_state.modal_open = True
+                st.session_state.modal_action = 'save_edit_modal'
+                st.session_state.modal_lead_id = lead.id
+                st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
+                st.session_state.modal_data = {
+                    'title': f"{lead.first_name} {lead.last_name}",
+                    'lead_data': lead_dict
+                }
+                
+                # Legacy active_modal mapping
+                st.session_state['active_modal'] = {
+                    'modal_type': 'save_edit_modal',
+                    'target_id': lead.id,
+                    'title': f"{lead.first_name} {lead.last_name}",
+                    'lead_data': lead_dict
+                }
+                st.rerun()
+
+        with sub_col2:
+            if st.button("History", key=f"history_btn_confirm_{lead.id}", use_container_width=True):
+                # CRITICAL: Clear modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                # Toggle history
+                key = f"show_history_conf_{lead.id}"
+                st.session_state[key] = not st.session_state.get(key, False)
+                st.rerun()
+                
+        with sub_col3:
+            if st.button("Undo Auth", key=f"undo_auth_btn_confirm_{lead.id}", 
+                         help="Remove authorization and move back to Referrals Sent", use_container_width=True):
+                # CRITICAL: Clear modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
+                update_data = LeadUpdate(authorization_received=False)
+                if update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                    clear_leads_cache()
+                    st.toast(f"Auth undone for {lead.first_name}", icon="↩️")
+                    st.rerun()
+
         st.divider()
 
-        # Action Buttons: Care Start, Not Start, History
+        # Action Buttons: Care Start, Not Start
         st.write("**Select Care Status:**")
-        col_start, col_not_start, col_history = st.columns(3)
+        col_start, col_not_start = st.columns(2)
 
         with col_start:
             if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
@@ -138,10 +218,9 @@ def display_referral_confirm(lead, db, highlight=False):
                     care_status="Care Start",
                     soc_date=today
                 )
-                crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
                 st.toast(f"Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
-                st.success(f"**Care Started! SOC: {today.strftime('%m/%d/%Y')}**")
                 st.rerun()
 
         with col_not_start:
@@ -155,24 +234,14 @@ def display_referral_confirm(lead, db, highlight=False):
                     care_status="Not Start",
                     soc_date=None
                 )
-                crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+                update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
                 st.toast("Care Not Started", icon="⏳")
                 st.warning("**Care Not Started**")
                 st.rerun()
 
-        with col_history:
-            if st.button("History", key=f"history_btn_confirm_{lead.id}", width="stretch"):
-                # CRITICAL: Clear modal state
-                st.session_state.modal_open = False
-                st.session_state.modal_action = None
-                st.session_state.pop('active_modal', None)
-                
-                st.session_state[f'show_confirm_history_{lead.id}'] = not st.session_state.get(f'show_confirm_history_{lead.id}', False)
-                st.rerun()
-
         # History View - Show last 5 updates only
-        if st.session_state.get(f'show_confirm_history_{lead.id}', False):
+        if st.session_state.get(f"show_history_conf_{lead.id}", False):
             st.divider()
             st.markdown("<h4 style='font-weight: bold; color: #111827;'>Last 5 Updates</h4>", unsafe_allow_html=True)
             history_logs = crud_activity_logs.get_lead_history(db, lead.id)
@@ -199,49 +268,44 @@ def display_referral_confirm(lead, db, highlight=False):
 
 def referral_confirm():
     """Referral Confirm page - Shows all clients with authorization received"""
+    # Force module reload
+    import sys
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
+    for mod in modules_to_reload:
+        del sys.modules[mod]
+    
+    from app.crud.crud_leads import search_leads, count_search_leads
     st.markdown('<div class="main-header">Referral Confirm</div>', unsafe_allow_html=True)
 
     db = SessionLocal()
-
-    # Get all leads with authorization received (Direct query with eager loading)
-    all_leads = crud_leads.list_leads(db, limit=1000)
-
-    # Filter: Only referrals (active_client = True) with authorization_received = True
-    authorized_referrals = [l for l in all_leads if l.active_client == True and l.authorization_received == True]
+    
+    # Use native SQL filtering for both count and the main list
+    auth_filter = True
 
     # Check if we should focus on a specific referral
     specific_lead_id = st.session_state.get('referral_confirm_lead_id')
     if specific_lead_id:
-        # Find the specific lead
-        specific_lead = None
-        for lead in authorized_referrals:
-            if lead.id == specific_lead_id:
-                specific_lead = lead
-                break
+        # Find the specific lead using SQL instead of memory
+        from app.crud.crud_leads import get_lead
+        specific_lead = get_lead(db, specific_lead_id)
+        if specific_lead and not specific_lead.authorization_received:
+            specific_lead = None
 
         if specific_lead:
-            # Show the specific referral first with a highlight
-            st.success(f"**Focused Referral: {specific_lead.first_name} {specific_lead.last_name}**")
-            st.divider()
-
-            # Display the specific referral
+            # Display the specific referral (always shown regardless of page)
             display_referral_confirm(specific_lead, db, highlight=True)
-
-            # Clear the specific lead ID after displaying
-            st.session_state.pop('referral_confirm_lead_id', None)
-
-            st.divider()
-            st.markdown("<h4 style='font-weight: bold; color: #111827;'>All Other Authorized Referrals</h4>", unsafe_allow_html=True)
-
-            # Remove the specific lead from the list to avoid duplication
-            authorized_referrals = [l for l in authorized_referrals if l.id != specific_lead_id]
         else:
             # Clear the invalid lead ID if referral not found
             if 'referral_confirm_lead_id' in st.session_state:
                 st.session_state.pop('referral_confirm_lead_id', None)
 
-    # Show count
-    st.write(f"**Total Clients with Authorization: {len(authorized_referrals)}**")
+    # Total count for the header
+    total_authorized = count_search_leads(
+        db,
+        exclude_clients=False,
+        auth_received_filter=True
+    )
+    st.write(f"**Total Clients with Authorization: {total_authorized}**")
     
     st.divider()
 
@@ -256,6 +320,7 @@ def referral_confirm():
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
+            st.session_state.confirm_page = 0
             st.rerun()
 
     # Payor Filter
@@ -298,50 +363,112 @@ def referral_confirm():
     with col_all:
         if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "All"
+            st.session_state.confirm_page = 0
             st.rerun()
     
     with col_start:
         if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Care Start"
+            st.session_state.confirm_page = 0
             st.rerun()
     
     with col_not_start:
         if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Not Start"
+            st.session_state.confirm_page = 0
             st.rerun()
     
     st.divider()
     
-    # Apply filters
-    if st.session_state.confirm_care_filter == "Care Start":
-        authorized_referrals = [l for l in authorized_referrals if l.care_status == "Care Start"]
-    elif st.session_state.confirm_care_filter == "Not Start":
-        authorized_referrals = [l for l in authorized_referrals if l.care_status == "Not Start"]
+    # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     
-    if search_name:
-        authorized_referrals = [l for l in authorized_referrals if search_name.lower() in f"{l.first_name} {l.last_name}".lower()]
-    if filter_staff:
-        authorized_referrals = [l for l in authorized_referrals if filter_staff.lower() in l.staff_name.lower()]
-    if filter_source:
-        authorized_referrals = [l for l in authorized_referrals if filter_source.lower() in l.source.lower()]
+    # Track current page in session state
+    if 'confirm_page' not in st.session_state:
+        st.session_state.confirm_page = 0
+    
+    page_size = 20 # Detail heavy, so smaller page size
+    skip = st.session_state.confirm_page * page_size
+    
+    # SQL-level search and count
+    leads = search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        status_filter=None, # Care status filtered below/via custom logic
+        priority_filter=None,
+        active_inactive_filter=None,
+        owner_id=None,
+        only_my_leads=False,
+        include_deleted=False,
+        exclude_clients=False, # We want active clients
+        auth_received_filter=True, # SQL FILTERING
+        skip=skip,
+        limit=page_size
+    )
+    
+    # Post-filter (Filtering now handled at SQL level)
+    leads = [l for l in leads if l.active_client == True]
+    
+    if st.session_state.confirm_care_filter == "Care Start":
+        leads = [l for l in leads if l.care_status == "Care Start"]
+    elif st.session_state.confirm_care_filter == "Not Start":
+        leads = [l for l in leads if l.care_status == "Not Start"]
         
     if st.session_state.confirm_payor_filter != "All":
-        authorized_referrals = [l for l in authorized_referrals if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
+        leads = [l for l in leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
     
     if st.session_state.confirm_ccu_filter != "All":
-        authorized_referrals = [l for l in authorized_referrals if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
+        leads = [l for l in leads if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
+
+    total_leads = count_search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        exclude_clients=False,
+        auth_received_filter=True
+    )
+    
+    # UI Metadata
+    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
+    current_page_display = st.session_state.confirm_page + 1 if total_leads > 0 else 0
 
     # Show filtered count
-    st.caption(f"Showing: {len(authorized_referrals)} clients")
+    st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
+    st.caption(f"Page {current_page_display} of {num_pages}")
     
-    if not authorized_referrals:
+    if not leads:
         st.info("**No clients match the selected filter.**")
         st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
         db.close()
         return
     
     # Display each authorized referral
-    for lead in authorized_referrals:
+    for lead in leads:
+        # Avoid duplicating focused lead if it happens to be on this page
+        if 'specific_lead_id' in locals() and lead.id == specific_lead_id:
+            continue
         display_referral_confirm(lead, db)
+    
+    # --- PAGINATION UI CONTROLS ---
+    if total_leads > page_size:
+        st.divider()
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+        
+        with nav_col1:
+            if st.session_state.confirm_page > 0:
+                if st.button("← Previous Page", use_container_width=True, key="prev_conf_pg"):
+                    st.session_state.confirm_page -= 1
+                    st.rerun()
+        
+        with nav_col2:
+            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} clients</p>", unsafe_allow_html=True)
+            
+        with nav_col3:
+            if st.session_state.confirm_page < num_pages - 1:
+                if st.button("Next Page →", use_container_width=True, key="next_conf_pg"):
+                    st.session_state.confirm_page += 1
+                    st.rerun()
     
     db.close()

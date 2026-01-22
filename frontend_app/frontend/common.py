@@ -11,7 +11,7 @@ sys.path.insert(0, str(backend_path))
 import streamlit as st
 from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
-from app.crud import crud_session_tokens, crud_leads
+from app.crud import crud_session_tokens # crud_leads moved to local import
 from app import services_stats
 from streamlit.components.v1 import html
 import os
@@ -777,6 +777,7 @@ def close_modal():
 def get_leads_cached(include_deleted=False):
     """Optimized retrieval of leads with eager-loaded relationships.
     Uses joinedload for performance instead of caching."""
+    from app.crud import crud_leads
     db = SessionLocal()
     try:
         if include_deleted:
@@ -1266,7 +1267,7 @@ def show_edit_modal_dialog(db, m):
     """
     Native Streamlit dialog for editing a lead.
     """
-    from app.crud import crud_leads
+    from app.crud import crud_leads, crud_agencies, crud_ccus, crud_events
     from app.schemas import LeadUpdate
     from datetime import datetime
 
@@ -1279,58 +1280,170 @@ def show_edit_modal_dialog(db, m):
             
     # Fetch lead data for form
     lead = m['lead_data']
-    with st.form(f"edit_lead_modal_form_{m['target_id']}"):
-        col1, col2 = st.columns(2)
-        with col1:
-            new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""))
-            new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""))
-            new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""))
-            new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""))
-            new_source = st.text_input("Source", value=str(lead.get('source') or ""))
-            
-            st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-            new_street = st.text_input("Street", value=str(lead.get('street') or ""))
-            new_city = st.text_input("City", value=str(lead.get('city') or ""))
-            new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2)
-            new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""))
-            
-        with col2:
-            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
-            current_status = lead.get('last_contact_status', 'Intro Call')
-            status_index = status_options.index(current_status) if current_status in status_options else 0
-            new_status = st.selectbox("Status", status_options, index=status_index)
-            
-            priority_options = ["High", "Medium", "Low"]
-            current_priority = lead.get('priority', 'Medium')
-            priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
-            new_priority = st.selectbox("Priority", priority_options, index=priority_index)
-            
-            dob_value = lead.get('dob')
-            if isinstance(dob_value, str) and dob_value:
-                try:
-                    from datetime import date as dt_date
-                    dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
-                except:
-                    dob_value = None
-            
-            from datetime import date
-            new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today())
-            new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0))
-            new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""))
-            
-            new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""))
-            new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""))
-            new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""))
+    # Remove st.form to allow immediate reactivity for toggle and selectboxes
+    # with st.form(f"edit_lead_modal_form_{m['target_id']}"):  <-- Removed
+    col1, col2 = st.columns(2)
+    with col1:
+        new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""), key=f"edit_first_{m['target_id']}")
+        new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""), key=f"edit_last_{m['target_id']}")
+        new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""), key=f"edit_phone_{m['target_id']}")
+        new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""), key=f"edit_staff_{m['target_id']}")
+        # Source Dropdown
+        source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
+        current_src = lead.get('source', 'Other')
+        src_idx = source_options.index(current_src) if current_src in source_options else source_options.index("Other")
+        new_source = st.selectbox("Source", source_options, index=src_idx, key=f"edit_source_{m['target_id']}")
         
-        new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""), height=100)
+        # Conditional Source Fields
+        new_event_name = lead.get('event_name')
+        new_soc_date = lead.get('soc_date')
+        new_other_source = lead.get('other_source_type')
+        new_word_of_mouth = lead.get('word_of_mouth_type')
         
+        if new_source == "Event":
+            events = crud_events.get_all_events(db)
+            event_list = [e.event_name for e in events]
+            curr_event = lead.get('event_name')
+            e_idx = event_list.index(curr_event) if curr_event in event_list else 0
+            new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
+        elif new_source == "Transfer":
+            new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}")
+        elif new_source == "Other":
+            new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
+        elif new_source == "Word of Mouth":
+            wom_options = ["Caregiver", "Community", "Client", "Staff"]
+            curr_wom = lead.get('word_of_mouth_type')
+            w_idx = wom_options.index(curr_wom) if curr_wom in wom_options else 0
+            new_word_of_mouth = st.selectbox("Type", wom_options, index=w_idx, key=f"edit_wom_{m['target_id']}")
+
+        st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+        new_street = st.text_input("Street", value=str(lead.get('street') or ""), key=f"edit_street_{m['target_id']}")
+        new_city = st.text_input("City", value=str(lead.get('city') or ""), key=f"edit_city_{m['target_id']}")
+        new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2, key=f"edit_state_{m['target_id']}")
+        new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
+        
+    with col2:
+        status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+        current_status = lead.get('last_contact_status', 'Intro Call')
+        # Normalize for matching
+        if current_status == "Active": current_status = "Intro Call"
+        status_idx = status_options.index(current_status) if current_status in status_options else 0
+        new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
+        
+        priority_options = ["High", "Medium", "Low"]
+        current_priority = lead.get('priority', 'Medium')
+        priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
+        new_priority = st.selectbox("Priority", priority_options, index=priority_index, key=f"edit_priority_{m['target_id']}")
+        
+        dob_value = lead.get('dob')
+        if isinstance(dob_value, str) and dob_value:
+            try:
+                from datetime import date as dt_date
+                dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
+            except:
+                dob_value = None
+        
+        from datetime import date
+        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}")
+        new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0), key=f"edit_age_{m['target_id']}")
+        new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
+        
+        new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")
+        new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""), key=f"edit_erelation_{m['target_id']}")
+        new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""), key=f"edit_ephone_{m['target_id']}")
+    
+    new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""), height=100, key=f"edit_comments_{m['target_id']}")
+    
+    # --- GLOBAL ENTITY UPDATES (CCU / PAYOR) ---
+    enable_global = st.checkbox("Edit CCU/Payor", value=False, key=f"enable_entity_mgmt_{m['target_id']}")
+    
+    if enable_global:
         st.divider()
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.form_submit_button("CANCEL", use_container_width=True):
-                close_modal() # Custom helper from common.py
-        with c2:
-            if st.form_submit_button("SAVE CHANGES", type="primary", use_container_width=True):
+        ent_col1, ent_col2 = st.columns(2)
+        
+        # PAYOR (AGENCY)
+        with ent_col1:
+            agencies = crud_agencies.get_all_agencies(db)
+            agency_map = {a.name: a.id for a in agencies}
+            agency_list = ["None"] + list(agency_map.keys())
+            
+            curr_agency_id = lead.get('agency_id')
+            curr_agency_name = "None"
+            if curr_agency_id:
+                for name, aid in agency_map.items():
+                    if aid == curr_agency_id:
+                        curr_agency_name = name
+                        break
+            
+            new_agency_name_sel = st.selectbox("Payor", agency_list, index=agency_list.index(curr_agency_name), key=f"edit_agency_sel_{m['target_id']}")
+            new_agency_id = agency_map.get(new_agency_name_sel)
+            
+            if new_agency_id:
+                exp_a_key = f"expand_a_edit_{m['target_id']}_{new_agency_id}"
+                if exp_a_key not in st.session_state:
+                    st.session_state[exp_a_key] = False
+                    
+                with st.expander(f"Edit {new_agency_name_sel} (Globally)", expanded=st.session_state[exp_a_key]):
+                    agency_obj = crud_agencies.get_agency(db, new_agency_id)
+                    u_a_addr = st.text_input("Payor Address", value=agency_obj.address or "", key=f"global_a_addr_{new_agency_id}")
+                    u_a_phone = st.text_input("Payor Phone", value=agency_obj.phone or "", key=f"global_a_phone_{new_agency_id}")
+                    u_a_fax = st.text_input("Payor Fax", value=getattr(agency_obj, 'fax', '') or "", key=f"global_a_fax_{new_agency_id}")
+                    u_a_email = st.text_input("Payor Email", value=agency_obj.email or "", key=f"global_a_email_{new_agency_id}")
+                    if st.button("Update Payor Details", key=f"global_a_save_{new_agency_id}"):
+                        crud_agencies.update_agency(db, new_agency_id, new_agency_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
+                                                   address=u_a_addr, phone=u_a_phone, fax=u_a_fax, email=u_a_email)
+                        st.session_state[exp_a_key] = False
+                        st.success(f"**Global Update Successful!** Payor '{new_agency_name_sel}' has been updated locally and across all leads.")
+                        st.toast(f"Payor Updated Globally!", icon="✅")
+                        # st.rerun() removed to keep popup open
+
+        # CCU
+        with ent_col2:
+            ccus = crud_ccus.get_all_ccus(db)
+            ccu_map = {c.name: c.id for c in ccus}
+            ccu_list = ["None"] + list(ccu_map.keys())
+            
+            curr_ccu_id = lead.get('ccu_id')
+            curr_ccu_name = "None"
+            if curr_ccu_id:
+                for name, cid in ccu_map.items():
+                    if cid == curr_ccu_id:
+                        curr_ccu_name = name
+                        break
+                        
+            new_ccu_name_sel = st.selectbox("CCU", ccu_list, index=ccu_list.index(curr_ccu_name), key=f"edit_ccu_sel_{m['target_id']}")
+            new_ccu_id = ccu_map.get(new_ccu_name_sel)
+            
+            if new_ccu_id:
+                exp_c_key = f"expand_c_edit_{m['target_id']}_{new_ccu_id}"
+                if exp_c_key not in st.session_state:
+                    st.session_state[exp_c_key] = False
+                    
+                with st.expander(f"Edit {new_ccu_name_sel} (Globally)", expanded=st.session_state[exp_c_key]):
+                    ccu_obj = crud_ccus.get_ccu_by_id(db, new_ccu_id)
+                    u_c_addr = st.text_input("CCU Address", value=ccu_obj.address or "", key=f"global_c_addr_{new_ccu_id}")
+                    u_c_phone = st.text_input("CCU Phone", value=ccu_obj.phone or "", key=f"global_c_phone_{new_ccu_id}")
+                    u_c_fax = st.text_input("CCU Fax", value=getattr(ccu_obj, 'fax', '') or "", key=f"global_c_fax_{new_ccu_id}")
+                    u_c_email = st.text_input("CCU Email", value=getattr(ccu_obj, 'email', '') or "", key=f"global_c_email_{new_ccu_id}")
+                    u_c_coord = st.text_input("Coordinator", value=ccu_obj.care_coordinator_name or "", key=f"global_c_coord_{new_ccu_id}")
+                    if st.button("Update CCU Details", key=f"global_c_save_{new_ccu_id}"):
+                        crud_ccus.update_ccu(db, new_ccu_id, new_ccu_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
+                                            address=u_c_addr, phone=u_c_phone, fax=u_c_fax, email=u_c_email, care_coordinator_name=u_c_coord)
+                        st.session_state[exp_c_key] = False
+                        st.success(f"**Global Update Successful!** CCU '{new_ccu_name_sel}' has been updated locally and across all leads.")
+                        st.toast(f"CCU Updated Globally!", icon="✅")
+                        # st.rerun() removed to keep popup open
+    else:
+        new_agency_id = lead.get('agency_id')
+        new_ccu_id = lead.get('ccu_id')
+    
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("CANCEL", use_container_width=True, key=f"edit_cancel_{m['target_id']}"):
+            close_modal() # Custom helper from common.py
+    with c2:
+        if st.button("SAVE CHANGES", type="primary", use_container_width=True, key=f"edit_save_{m['target_id']}"):
                 # Update dictionary
                 update_dict = {
                     "first_name": new_first,
@@ -1338,6 +1451,10 @@ def show_edit_modal_dialog(db, m):
                     "phone": new_phone,
                     "staff_name": new_staff,
                     "source": new_source,
+                    "event_name": new_event_name,
+                    "soc_date": new_soc_date,
+                    "other_source_type": new_other_source,
+                    "word_of_mouth_type": new_word_of_mouth,
                     "city": new_city,
                     "street": new_street,
                     "state": new_state,
@@ -1351,7 +1468,9 @@ def show_edit_modal_dialog(db, m):
                     "e_contact_phone": new_e_phone,
                     "active_client": lead.get('active_client'),
                     "comments": new_comments,
-                    "age": new_age if new_age > 0 else None
+                    "age": new_age if new_age > 0 else None,
+                    "agency_id": new_agency_id,
+                    "ccu_id": new_ccu_id
                 }
                 schema_data = LeadUpdate(**update_dict)
                 crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))

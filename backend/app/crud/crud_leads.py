@@ -1,10 +1,11 @@
+# Force Reload
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
 
 from .. import models
 from ..schemas import LeadCreate, LeadUpdate
-from ..utils.activity_logger import log_activity
+# from ..utils.activity_logger import log_activity # Moved to local import
 
 
 # ------- CREATE -------
@@ -24,6 +25,7 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
     db.refresh(lead)
     
     # Log the activity - use the passed in username/user_id or defaults
+    from ..utils.activity_logger import log_activity
     log_activity(
         db=db,
         user_id=user_id,
@@ -133,6 +135,7 @@ def update_lead(
             keywords.append("agency")
         
         # Log the activity
+        from ..utils.activity_logger import log_activity
         log_activity(
             db=db,
             user_id=user_id,
@@ -181,6 +184,7 @@ def delete_lead(db: Session, lead_id: int, username: str, user_id: Optional[int]
     db.commit()
     
     # Log the activity
+    from ..utils.activity_logger import log_activity
     log_activity(
         db=db,
         user_id=user_id,
@@ -209,6 +213,7 @@ def restore_lead(db: Session, lead_id: int, username: str, user_id: Optional[int
     db.commit()
     
     # Log the activity
+    from ..utils.activity_logger import log_activity
     log_activity(
         db=db,
         user_id=user_id,
@@ -240,3 +245,151 @@ def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[mode
         .limit(limit)
         .all()
     )
+
+
+def search_leads(
+    db: Session,
+    search_query: Optional[str] = None,
+    staff_filter: Optional[str] = None,
+    source_filter: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    priority_filter: Optional[str] = None,
+    active_inactive_filter: Optional[str] = None,
+    owner_id: Optional[int] = None,
+    only_my_leads: bool = False,
+    include_deleted: bool = False,
+    exclude_clients: bool = True,
+    auth_received_filter: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 50
+) -> List[models.Lead]:
+    """
+    Search leads with comprehensive SQL-level filtering and pagination.
+    Super fast performance.
+    """
+    query = db.query(models.Lead).options(
+        joinedload(models.Lead.agency),
+        joinedload(models.Lead.ccu),
+        joinedload(models.Lead.mco),
+        joinedload(models.Lead.agency_suboption)
+    )
+    
+    # 1. Deleted State
+    if include_deleted:
+        query = query.filter(models.Lead.deleted_at != None)
+    else:
+        query = query.filter(models.Lead.deleted_at == None)
+        
+    # 2. Exclude active clients (for main leads view)
+    if exclude_clients and not include_deleted:
+        query = query.filter(models.Lead.active_client == False)
+    
+    # 2.5 Authorization Received Filter
+    if auth_received_filter is not None:
+        query = query.filter(models.Lead.authorization_received == auth_received_filter)
+    
+    # 3. Ownership / My Leads
+    if only_my_leads:
+        if owner_id:
+            query = query.filter(models.Lead.owner_id == owner_id)
+        # fallback to staff name if needed is handled via schema usually
+        
+    # 4. Search Query (Name)
+    if search_query:
+        search_query = f"%{search_query}%"
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.first_name.ilike(search_query),
+            models.Lead.last_name.ilike(search_query)
+        ))
+        
+    # 5. Staff Filter
+    if staff_filter:
+        query = query.filter(models.Lead.staff_name.ilike(f"%{staff_filter}%"))
+        
+    # 6. Source Filter
+    if source_filter:
+        query = query.filter(models.Lead.source.ilike(f"%{source_filter}%"))
+        
+    # 7. Status Filter
+    if status_filter and status_filter != "All":
+        query = query.filter(models.Lead.last_contact_status == status_filter)
+        
+    # 8. Priority Filter
+    if priority_filter and priority_filter != "All":
+        query = query.filter(models.Lead.priority == priority_filter)
+        
+    # 9. Active/Inactive Filter
+    if active_inactive_filter == "Active":
+        query = query.filter(models.Lead.last_contact_status != "Inactive")
+    elif active_inactive_filter == "Inactive":
+        query = query.filter(models.Lead.last_contact_status == "Inactive")
+        
+    # 10. Order and Pagination
+    return (
+        query
+        .order_by(models.Lead.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def count_search_leads(
+    db: Session,
+    search_query: Optional[str] = None,
+    staff_filter: Optional[str] = None,
+    source_filter: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    priority_filter: Optional[str] = None,
+    active_inactive_filter: Optional[str] = None,
+    owner_id: Optional[int] = None,
+    only_my_leads: bool = False,
+    include_deleted: bool = False,
+    exclude_clients: bool = True,
+    auth_received_filter: Optional[bool] = None
+) -> int:
+    """Returns the total count of leads matching the search criteria (for pagination)"""
+    from sqlalchemy import func
+    query = db.query(func.count(models.Lead.id))
+    
+    if include_deleted:
+        query = query.filter(models.Lead.deleted_at != None)
+    else:
+        query = query.filter(models.Lead.deleted_at == None)
+        
+    if exclude_clients and not include_deleted:
+        query = query.filter(models.Lead.active_client == False)
+        
+    if auth_received_filter is not None:
+        query = query.filter(models.Lead.authorization_received == auth_received_filter)
+        
+    if only_my_leads and owner_id:
+        query = query.filter(models.Lead.owner_id == owner_id)
+        
+    if search_query:
+        search_query = f"%{search_query}%"
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.first_name.ilike(search_query),
+            models.Lead.last_name.ilike(search_query)
+        ))
+        
+    if staff_filter:
+        query = query.filter(models.Lead.staff_name.ilike(f"%{staff_filter}%"))
+        
+    if source_filter:
+        query = query.filter(models.Lead.source.ilike(f"%{source_filter}%"))
+        
+    if status_filter and status_filter != "All":
+        query = query.filter(models.Lead.last_contact_status == status_filter)
+        
+    if priority_filter and priority_filter != "All":
+        query = query.filter(models.Lead.priority == priority_filter)
+        
+    if active_inactive_filter == "Active":
+        query = query.filter(models.Lead.last_contact_status != "Inactive")
+    elif active_inactive_filter == "Inactive":
+        query = query.filter(models.Lead.last_contact_status == "Inactive")
+        
+    return query.scalar()

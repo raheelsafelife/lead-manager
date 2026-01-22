@@ -37,6 +37,10 @@ class UserRead(UserBase):
 
 class AgencyBase(BaseModel):
     name: str = Field(..., max_length=150)
+    address: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=50)
+    fax: Optional[str] = Field(None, max_length=50)
+    email: Optional[str] = Field(None, max_length=255)
 
 class AgencyCreate(AgencyBase):
     pass
@@ -45,6 +49,8 @@ class AgencyRead(AgencyBase):
     id: int
     created_at: datetime
     created_by: str
+    updated_at: Optional[datetime] = None
+    updated_by: Optional[str] = None
 
     class Config:
         from_attributes = True

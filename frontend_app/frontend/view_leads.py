@@ -14,7 +14,8 @@ from datetime import datetime, date
 import json
 from app.db import SessionLocal
 from app import services_stats
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
+# Local import to fix circular dependency
 from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
@@ -24,6 +25,17 @@ from frontend.common import prepare_lead_data_for_email, get_priority_tag, rende
 
 def view_leads():
     """View and manage leads"""
+    # CRITICAL: Force module reload to clear Streamlit's cache
+    import sys
+    import importlib
+    
+    # Remove all crud_leads related modules from cache
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k or 'activity_logger' in k]
+    for mod in modules_to_reload:
+        del sys.modules[mod]
+    
+    # Now import fresh
+    from app.crud.crud_leads import search_leads, count_search_leads, list_leads, get_lead, update_lead, delete_lead, restore_lead, list_deleted_leads
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:
         msg = st.session_state.pop('success_msg')
@@ -88,18 +100,21 @@ def view_leads():
         if st.button("Active", key="active_filter", width="stretch",
                     type="primary" if st.session_state.active_inactive_filter == "Active" else "secondary"):
             st.session_state.active_inactive_filter = "Active"
+            st.session_state.leads_page = 0
             st.rerun()
     
     with act_col2:
         if st.button("Inactive", key="inactive_filter", width="stretch",
                     type="primary" if st.session_state.active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.active_inactive_filter = "Inactive"
+            st.session_state.leads_page = 0
             st.rerun()
     
     with act_col3:
         if st.button("All", key="all_active_filter", width="stretch",
                     type="primary" if st.session_state.active_inactive_filter == "All" else "secondary"):
             st.session_state.active_inactive_filter = "All"
+            st.session_state.leads_page = 0
             st.rerun()
     
     st.divider()
@@ -112,24 +127,28 @@ def view_leads():
         if st.button("Intro Call", width="stretch", 
                     type="primary" if st.session_state.status_filter == "Intro Call" else "secondary"):
             st.session_state.status_filter = "Intro Call"
+            st.session_state.leads_page = 0
             st.rerun()
     
     with col2:
         if st.button("Follow Up", width="stretch",
                     type="primary" if st.session_state.status_filter == "Follow Up" else "secondary"):
             st.session_state.status_filter = "Follow Up"
+            st.session_state.leads_page = 0
             st.rerun()
     
     with col3:
         if st.button("No Response", width="stretch",
                     type="primary" if st.session_state.status_filter == "No Response" else "secondary"):
             st.session_state.status_filter = "No Response"
+            st.session_state.leads_page = 0
             st.rerun()
     
     with col4:
         if st.button("All", width="stretch",
                     type="primary" if st.session_state.status_filter == "All" else "secondary"):
             st.session_state.status_filter = "All"
+            st.session_state.leads_page = 0
             st.rerun()
     
     # Priority Filter Buttons
@@ -140,21 +159,25 @@ def view_leads():
         if st.button("High", key="p_high", width="stretch",
                     type="primary" if st.session_state.priority_filter == "High" else "secondary"):
             st.session_state.priority_filter = "High"
+            st.session_state.leads_page = 0
             st.rerun()
     with p_col2:
         if st.button("Medium", key="p_medium", width="stretch",
                     type="primary" if st.session_state.priority_filter == "Medium" else "secondary"):
             st.session_state.priority_filter = "Medium"
+            st.session_state.leads_page = 0
             st.rerun()
     with p_col3:
         if st.button("Low", key="p_low", width="stretch",
                     type="primary" if st.session_state.priority_filter == "Low" else "secondary"):
             st.session_state.priority_filter = "Low"
+            st.session_state.leads_page = 0
             st.rerun()
     with p_col4:
         if st.button("All Priorities", key="p_all", width="stretch",
                     type="primary" if st.session_state.priority_filter == "All" else "secondary"):
             st.session_state.priority_filter = "All"
+            st.session_state.leads_page = 0
             st.rerun()
     
     st.divider()
@@ -170,57 +193,66 @@ def view_leads():
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_leads_btn", use_container_width=True):
+            st.session_state.leads_page = 0
             st.rerun()
     
-    # Get leads based on recycle bin filter (Direct query with eager loading)
-    if st.session_state.show_deleted_leads:
-        # Show only deleted leads
-        leads = crud_leads.list_deleted_leads(db, limit=1000)
-        st.info("**Recycle Bin Mode - Showing deleted leads only. Uncheck to see active leads.**")
-    else:
-        # Show normal leads (not deleted)
-        leads = crud_leads.list_leads(db, limit=1000)
-        # CRITICAL: Exclude active referrals (leads only appear here if not yet a referral)
-        leads = [l for l in leads if not l.active_client]
+    # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     
-    # Apply 'Show Only My Leads' filter for regular users
-    # Apply 'Show Only My Leads' filter for regular users
+    # Track current page in session state
+    if 'leads_page' not in st.session_state:
+        st.session_state.leads_page = 0
+    
+    page_size = 50
+    skip = st.session_state.leads_page * page_size
+    
+    # Owner filter logic
+    owner_id = st.session_state.get('db_user_id')
+    only_my_leads = False
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
-        # Stable Filtering: Use owner_id if available (fallback to name for old/unmigrated data)
-        user_id = st.session_state.get('db_user_id')
-        if user_id:
-             leads = [l for l in leads if getattr(l, 'owner_id', None) == user_id or (getattr(l, 'owner_id', None) is None and l.staff_name == st.session_state.username)]
-        else:
-             leads = [l for l in leads if l.staff_name == st.session_state.username]
+        only_my_leads = True
     
-    # Apply contact status filter
-    if st.session_state.status_filter != "All":
-        leads = [l for l in leads if l.last_contact_status == st.session_state.status_filter]
+    # SQL-level search and count
+    leads = search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        status_filter=st.session_state.status_filter,
+        priority_filter=st.session_state.priority_filter,
+        active_inactive_filter=st.session_state.active_inactive_filter,
+        owner_id=owner_id,
+        only_my_leads=only_my_leads,
+        include_deleted=st.session_state.show_deleted_leads,
+        exclude_clients=not st.session_state.show_deleted_leads,
+        skip=skip,
+        limit=page_size
+    )
     
-    # Apply priority filter
-    if st.session_state.priority_filter != "All":
-        leads = [l for l in leads if l.priority == st.session_state.priority_filter]
+    total_leads = count_search_leads(
+        db,
+        search_query=search_name if search_name else None,
+        staff_filter=filter_staff if filter_staff else None,
+        source_filter=filter_source if filter_source else None,
+        status_filter=st.session_state.status_filter,
+        priority_filter=st.session_state.priority_filter,
+        active_inactive_filter=st.session_state.active_inactive_filter,
+        owner_id=owner_id,
+        only_my_leads=only_my_leads,
+        include_deleted=st.session_state.show_deleted_leads,
+        exclude_clients=not st.session_state.show_deleted_leads
+    )
     
-    # Apply active/inactive filter
-    if st.session_state.active_inactive_filter == "Active":
-        leads = [l for l in leads if l.last_contact_status != "Inactive"]
-    elif st.session_state.active_inactive_filter == "Inactive":
-        leads = [l for l in leads if l.last_contact_status == "Inactive"]
-    # If "All", no filtering needed
-    
-    # Apply other filters
-    if search_name:
-        leads = [l for l in leads if search_name.lower() in f"{l.first_name} {l.last_name}".lower()]
-    if filter_staff:
-        leads = [l for l in leads if filter_staff.lower() in l.staff_name.lower()]
-    if filter_source:
-        leads = [l for l in leads if filter_source.lower() in l.source.lower()]
+    # UI Metadata
+    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
+    current_page_display = st.session_state.leads_page + 1 if total_leads > 0 else 0
     
     # Show count with filter info
     filter_info = f"Active Status: {st.session_state.active_inactive_filter} | Status: {st.session_state.status_filter} | Priority: {st.session_state.priority_filter}"
-    if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
+    if only_my_leads:
         filter_info += f" | Showing: My Leads Only"
-    st.write(f"**Showing {len(leads)} leads ({filter_info})**")
+    
+    st.write(f"**Showing {len(leads)} leads of {total_leads} total ({filter_info})**")
+    st.caption(f"Page {current_page_display} of {num_pages}")
     
     # Display leads
     if leads:
@@ -301,7 +333,7 @@ def view_leads():
                         conf_col1, conf_col2 = st.columns(2)
                         with conf_col1:
                             if st.button("✅ Yes, Restore", key=f"yes_restore_{lead.id}", type="primary"):
-                                if crud_leads.restore_lead(db, lead.id, st.session_state.username, st.session_state.get('db_user_id')):
+                                if restore_lead(db, lead.id, st.session_state.username, st.session_state.get('db_user_id')):
                                     st.session_state['success_msg'] = f"Success! {lead.first_name} {lead.last_name} has been restored to active leads."
                                     st.session_state.pop(f'confirm_restore_{lead.id}', None)
                                     st.rerun()
@@ -338,6 +370,9 @@ def view_leads():
                                 "phone": lead.phone,
                                 "staff_name": lead.staff_name,
                                 "source": lead.source,
+                                "event_name": lead.event_name,
+                                "word_of_mouth_type": lead.word_of_mouth_type,
+                                "other_source_type": lead.other_source_type,
                                 "city": lead.city,
                                 "street": getattr(lead, 'street', ''),
                                 "state": getattr(lead, 'state', ''),
@@ -345,11 +380,14 @@ def view_leads():
                                 "last_contact_status": lead.last_contact_status,
                                 "priority": lead.priority,
                                 "dob": lead.dob,
+                                "age": lead.age,
                                 "medicaid_no": lead.medicaid_no,
                                 "e_contact_name": lead.e_contact_name,
                                 "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
                                 "e_contact_phone": lead.e_contact_phone,
                                 "active_client": lead.active_client,
+                                "agency_id": lead.agency_id,
+                                "ccu_id": lead.ccu_id,
                                 "comments": lead.comments
                             }
                             # Action-scoped state (Stability Refactor)
@@ -478,11 +516,32 @@ def view_leads():
     else:
         st.info("No leads found")
     
+    # --- PAGINATION UI CONTROLS ---
+    if total_leads > page_size:
+        st.divider()
+        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
+        
+        with nav_col1:
+            if st.session_state.leads_page > 0:
+                if st.button("← Previous Page", use_container_width=True):
+                    st.session_state.leads_page -= 1
+                    st.rerun()
+        
+        with nav_col2:
+            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} leads</p>", unsafe_allow_html=True)
+            
+        with nav_col3:
+            if st.session_state.leads_page < num_pages - 1:
+                if st.button("Next Page →", use_container_width=True):
+                    st.session_state.leads_page += 1
+                    st.rerun()
+    
     db.close()
 
 
 def mark_referral_page():
     """Hidden page for marking a lead as referral with Payor and CCU selection"""
+    from app.crud.crud_leads import get_lead, update_lead
     st.markdown('<div class="main-header">Mark Referral</div>', unsafe_allow_html=True)
     
     db = SessionLocal()
@@ -499,7 +558,7 @@ def mark_referral_page():
         return
     
     # Get the lead
-    lead = crud_leads.get_lead(db, lead_id)
+    lead = get_lead(db, lead_id)
     
     if not lead:
         st.error("**Lead not found**")
@@ -689,7 +748,7 @@ def mark_referral_page():
                 # agency_suboption_id=final_agency_suboption_id, # Removed
                 ccu_id=selected_ccu_id
             )
-            crud_leads.update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+            update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
             
             # Send email reminder
             try:

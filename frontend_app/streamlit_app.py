@@ -28,7 +28,7 @@ from frontend.referrals_sent import view_referrals
 from frontend.referral_confirm import referral_confirm
 from frontend.activity_logs import view_activity_logs
 from frontend.user_management import admin_panel, update_password, render_historian
-from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
+from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
 from app.db import SessionLocal
 from app.email_scheduler import start_scheduler
 

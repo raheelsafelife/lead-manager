@@ -3,9 +3,16 @@ from typing import List, Optional
 from .. import models
 from ..utils.activity_logger import log_activity
 
-def create_agency(db: Session, name: str, username: str, user_id: Optional[int] = None) -> models.Agency:
+def create_agency(db: Session, name: str, username: str, user_id: Optional[int] = None, **kwargs) -> models.Agency:
     """Create a new agency"""
-    agency = models.Agency(name=name, created_by=username)
+    agency = models.Agency(
+        name=name, 
+        created_by=username,
+        address=kwargs.get('address'),
+        phone=kwargs.get('phone'),
+        fax=kwargs.get('fax'),
+        email=kwargs.get('email')
+    )
     db.add(agency)
     db.commit()
     db.refresh(agency)
@@ -20,7 +27,13 @@ def create_agency(db: Session, name: str, username: str, user_id: Optional[int] 
         entity_id=agency.id,
         entity_name=agency.name,
         description=f"Agency '{agency.name}' created",
-        new_value={"name": agency.name},
+        new_value={
+            "name": agency.name,
+            "address": agency.address,
+            "phone": agency.phone,
+            "fax": agency.fax,
+            "email": agency.email
+        },
         keywords="agency,create"
     )
     
@@ -35,15 +48,31 @@ def get_agency_by_name(db: Session, name: str) -> Optional[models.Agency]:
 def get_all_agencies(db: Session) -> List[models.Agency]:
     return db.query(models.Agency).order_by(models.Agency.name).all()
 
-def update_agency(db: Session, agency_id: int, name: str, username: str, user_id: Optional[int] = None) -> Optional[models.Agency]:
-    """Update an agency name"""
+def update_agency(db: Session, agency_id: int, name: str, username: str, user_id: Optional[int] = None, **kwargs) -> Optional[models.Agency]:
+    """Update an agency's registration details"""
     agency = get_agency(db, agency_id)
     if not agency:
         return None
     
-    old_name = agency.name
-    if old_name != name:
+    old_data = {
+        "name": agency.name,
+        "address": agency.address,
+        "phone": agency.phone,
+        "fax": agency.fax,
+        "email": agency.email
+    }
+    
+    changed = False
+    if agency.name != name:
         agency.name = name
+        changed = True
+        
+    for field in ['address', 'phone', 'fax', 'email']:
+        if field in kwargs and getattr(agency, field) != kwargs[field]:
+            setattr(agency, field, kwargs[field])
+            changed = True
+            
+    if changed:
         agency.updated_by = username
         db.commit()
         db.refresh(agency)
@@ -57,9 +86,15 @@ def update_agency(db: Session, agency_id: int, name: str, username: str, user_id
             entity_type="Agency",
             entity_id=agency.id,
             entity_name=agency.name,
-            description=f"Agency updated from '{old_name}' to '{name}'",
-            old_value={"name": old_name},
-            new_value={"name": name},
+            description=f"Agency '{agency.name}' contact details updated",
+            old_value=old_data,
+            new_value={
+                "name": agency.name,
+                "address": agency.address,
+                "phone": agency.phone,
+                "fax": agency.fax,
+                "email": agency.email
+            },
             keywords="agency,update"
         )
         

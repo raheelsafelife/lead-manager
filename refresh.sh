@@ -38,6 +38,7 @@ fi
 
 # 5. Build and Start using the modern Compose V2
 echo "🏗️  Rebuilding and Starting services..."
+mkdir -p data && chmod -R 777 data
 docker compose build --no-cache
 docker compose up -d
 
@@ -52,17 +53,6 @@ if [ $SETUP_EXIT_CODE -ne 0 ]; then
 fi
 
 echo "✅ Database setup successful."
-
-# Run migrations locally to ensure DB is up to date
-if [ -d "venv" ] || [ -d ".venv" ] || [ -d "ENV" ] || [ -f "requirements.txt" ]; then
-    echo "🔄 Running universal migrations..."
-    # Run the universal schema migration first
-    python backend/migrations/migrate_universal.py || python3 backend/migrations/migrate_universal.py
-    
-    echo "🔄 Running data mapping migrations..."
-    # Run data-specific migrations
-    python backend/migrate_add_owner_id.py || python3 backend/migrate_add_owner_id.py
-fi
 
 echo "✅ Refresh Complete! Your app is starting at https://ccpleads.safelifehomehealth.com/"
 echo "Check logs with: docker compose logs -f"

@@ -142,6 +142,12 @@ class Agency(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), unique=True, nullable=False, index=True)
+    
+    # Contact Info
+    address = Column(String(255), nullable=True)
+    phone = Column(String(50), nullable=True)
+    fax = Column(String(50), nullable=True)
+    email = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_by = Column(String(100), nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)

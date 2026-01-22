@@ -6,7 +6,7 @@ Professional helpers for logging activities with beautiful formatting
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.crud import crud_activity_logs
+# from app.crud import crud_activity_logs # Moved to local import
 import json
 try:
     from zoneinfo import ZoneInfo
@@ -44,6 +44,7 @@ def log_activity(
             keywords="lead,create,event"
         )
     """
+    from app.crud import crud_activity_logs
     return crud_activity_logs.create_activity_log(
         db=db,
         user_id=user_id,

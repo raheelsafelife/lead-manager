@@ -26,20 +26,20 @@ except ImportError:
     sys.exit(1)
 
 def migrate():
-    print(f"🚀 Starting Universal Migration on: {DB_PATH}")
+    print(f"Starting Universal Migration on: {DB_PATH}")
     if not os.path.exists(DB_PATH):
-        print(f"⚠️ Warning: Database file not found at {DB_PATH}. It will be created.")
+        print(f"Warning: Database file not found at {DB_PATH}. It will be created.")
 
     # Step 1: Force creation of all tables from models.py
-    print("📌 Step 1: Syncing schema with models.py...")
+    print("Step 1: Syncing schema with models.py...")
     try:
         Base.metadata.create_all(bind=engine)
         print("  ✓ Tables synchronized.")
     except Exception as e:
-        print(f"  ⚠️ Warning: create_all failed: {e}")
+        print(f"  Warning: create_all failed: {e}")
 
     # Step 2: Ensure specific columns exist (raw SQL fallback for SQLite safety)
-    print("📌 Step 2: Verifying individual columns...")
+    print("Step 2: Verifying individual columns...")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -121,11 +121,46 @@ def migrate():
                 print(f"  + Adding {col_name} ({col_type})...")
                 cursor.execute(f"ALTER TABLE leads ADD COLUMN {col_name} {col_type}")
 
+        # --- AGENCIES TABLE ---
+        print("\nChecking 'agencies' table...")
+        cursor.execute("PRAGMA table_info(agencies)")
+        agency_cols = [info[1] for info in cursor.fetchall()]
+        
+        agency_updates = [
+            ('address', 'VARCHAR(255)'),
+            ('phone', 'VARCHAR(50)'),
+            ('fax', 'VARCHAR(50)'),
+            ('email', 'VARCHAR(255)')
+        ]
+        
+        for col_name, col_type in agency_updates:
+            if col_name not in agency_cols:
+                print(f"  + Adding {col_name}...")
+                cursor.execute(f"ALTER TABLE agencies ADD COLUMN {col_name} {col_type}")
+
+        # --- CCU TABLE ---
+        print("\nChecking 'ccus' table...")
+        cursor.execute("PRAGMA table_info(ccus)")
+        ccu_cols = [info[1] for info in cursor.fetchall()]
+        
+        ccu_updates = [
+            ('address', 'VARCHAR(255)'),
+            ('phone', 'VARCHAR(50)'),
+            ('fax', 'VARCHAR(50)'),
+            ('email', 'VARCHAR(255)'),
+            ('care_coordinator_name', 'VARCHAR(150)')
+        ]
+        
+        for col_name, col_type in ccu_updates:
+            if col_name not in ccu_cols:
+                print(f"  + Adding {col_name}...")
+                cursor.execute(f"ALTER TABLE ccus ADD COLUMN {col_name} {col_type}")
+
         conn.commit()
-        print("\n✅ Migration completed successfully!")
+        print("\nMigration completed successfully!")
         
     except Exception as e:
-        print(f"\n❌ Error during migration: {e}")
+        print(f"\nError during migration: {e}")
         conn.rollback()
         sys.exit(1)
     finally:
