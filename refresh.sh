@@ -35,10 +35,14 @@ fi
 echo "🏗️  Rebuilding and Starting services (Background)..."
 docker compose up -d --build
 
-# Run the new migration locally as well if running locally
-if [ -d "venv" ] || [ -d ".venv" ] || [ -d "ENV" ]; then
-    echo "🔄 Running migrations..."
-    # Attempt to use the activated python or system python
+# Run migrations locally to ensure DB is up to date
+if [ -d "venv" ] || [ -d ".venv" ] || [ -d "ENV" ] || [ -f "requirements.txt" ]; then
+    echo "🔄 Running universal migrations..."
+    # Run the universal schema migration first
+    python backend/migrations/migrate_universal.py || python3 backend/migrations/migrate_universal.py
+    
+    echo "🔄 Running data mapping migrations..."
+    # Run data-specific migrations
     python backend/migrate_add_owner_id.py || python3 backend/migrate_add_owner_id.py
 fi
 
