@@ -1405,16 +1405,19 @@ def show_edit_modal_dialog(db, m):
                     
                 with st.expander(f"Edit {new_agency_name_sel} (Globally)", expanded=st.session_state[exp_a_key]):
                     agency_obj = crud_agencies.get_agency(db, new_agency_id)
-                    u_a_addr = st.text_input("Payor Address", value=agency_obj.address or "", key=f"global_a_addr_{new_agency_id}")
-                    u_a_phone = st.text_input("Payor Phone", value=agency_obj.phone or "", key=f"global_a_phone_{new_agency_id}")
-                    u_a_fax = st.text_input("Payor Fax", value=getattr(agency_obj, 'fax', '') or "", key=f"global_a_fax_{new_agency_id}")
-                    u_a_email = st.text_input("Payor Email", value=agency_obj.email or "", key=f"global_a_email_{new_agency_id}")
-                    if st.button("Update Payor Details", key=f"global_a_save_{new_agency_id}"):
-                        crud_agencies.update_agency(db, new_agency_id, new_agency_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
-                                                   address=u_a_addr, phone=u_a_phone, fax=u_a_fax, email=u_a_email)
-                        st.session_state[exp_a_key] = False
-                        st.success(f"**Global Update Successful!** Payor '{new_agency_name_sel}' has been updated locally and across all leads.")
-                        st.toast(f"Payor Updated Globally!", icon="✅")
+                    if agency_obj:
+                        u_a_addr = st.text_input("Payor Address", value=agency_obj.address or "", key=f"global_a_addr_{new_agency_id}")
+                        u_a_phone = st.text_input("Payor Phone", value=agency_obj.phone or "", key=f"global_a_phone_{new_agency_id}")
+                        u_a_fax = st.text_input("Payor Fax", value=getattr(agency_obj, 'fax', '') or "", key=f"global_a_fax_{new_agency_id}")
+                        u_a_email = st.text_input("Payor Email", value=agency_obj.email or "", key=f"global_a_email_{new_agency_id}")
+                        if st.button("Update Payor Details", key=f"global_a_save_{new_agency_id}"):
+                            crud_agencies.update_agency(db, new_agency_id, new_agency_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
+                                                       address=u_a_addr, phone=u_a_phone, fax=u_a_fax, email=u_a_email)
+                            st.session_state[exp_a_key] = False
+                            st.success(f"**Global Update Successful!** Payor '{new_agency_name_sel}' has been updated locally and across all leads.")
+                            st.toast(f"Payor Updated Globally!", icon="✅")
+                    else:
+                        st.error("Payor details not found.")
                         # st.rerun() removed to keep popup open
 
         # CCU
@@ -1441,17 +1444,20 @@ def show_edit_modal_dialog(db, m):
                     
                 with st.expander(f"Edit {new_ccu_name_sel} (Globally)", expanded=st.session_state[exp_c_key]):
                     ccu_obj = crud_ccus.get_ccu_by_id(db, new_ccu_id)
-                    u_c_addr = st.text_input("CCU Address", value=ccu_obj.address or "", key=f"global_c_addr_{new_ccu_id}")
-                    u_c_phone = st.text_input("CCU Phone", value=ccu_obj.phone or "", key=f"global_c_phone_{new_ccu_id}")
-                    u_c_fax = st.text_input("CCU Fax", value=getattr(ccu_obj, 'fax', '') or "", key=f"global_c_fax_{new_ccu_id}")
-                    u_c_email = st.text_input("CCU Email", value=getattr(ccu_obj, 'email', '') or "", key=f"global_c_email_{new_ccu_id}")
-                    u_c_coord = st.text_input("Coordinator", value=ccu_obj.care_coordinator_name or "", key=f"global_c_coord_{new_ccu_id}")
-                    if st.button("Update CCU Details", key=f"global_c_save_{new_ccu_id}"):
-                        crud_ccus.update_ccu(db, new_ccu_id, new_ccu_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
-                                            address=u_c_addr, phone=u_c_phone, fax=u_c_fax, email=u_c_email, care_coordinator_name=u_c_coord)
-                        st.session_state[exp_c_key] = False
-                        st.success(f"**Global Update Successful!** CCU '{new_ccu_name_sel}' has been updated locally and across all leads.")
-                        st.toast(f"CCU Updated Globally!", icon="✅")
+                    if ccu_obj:
+                        u_c_addr = st.text_input("CCU Address", value=ccu_obj.address or "", key=f"global_c_addr_{new_ccu_id}")
+                        u_c_phone = st.text_input("CCU Phone", value=ccu_obj.phone or "", key=f"global_c_phone_{new_ccu_id}")
+                        u_c_fax = st.text_input("CCU Fax", value=getattr(ccu_obj, 'fax', '') or "", key=f"global_c_fax_{new_ccu_id}")
+                        u_c_email = st.text_input("CCU Email", value=getattr(ccu_obj, 'email', '') or "", key=f"global_c_email_{new_ccu_id}")
+                        u_c_coord = st.text_input("Coordinator", value=ccu_obj.care_coordinator_name or "", key=f"global_c_coord_{new_ccu_id}")
+                        if st.button("Update CCU Details", key=f"global_c_save_{new_ccu_id}"):
+                            crud_ccus.update_ccu(db, new_ccu_id, new_ccu_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
+                                                address=u_c_addr, phone=u_c_phone, fax=u_c_fax, email=u_c_email, care_coordinator_name=u_c_coord)
+                            st.session_state[exp_c_key] = False
+                            st.success(f"**Global Update Successful!** CCU '{new_ccu_name_sel}' has been updated locally and across all leads.")
+                            st.toast(f"CCU Updated Globally!", icon="✅")
+                    else:
+                        st.error("CCU details not found.")
                         # st.rerun() removed to keep popup open
     else:
         new_agency_id = lead.get('agency_id')
