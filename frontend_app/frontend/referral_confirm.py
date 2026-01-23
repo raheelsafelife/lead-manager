@@ -98,9 +98,52 @@ def display_referral_confirm(lead, db, highlight=False):
             st.write(f"**Phone:** {lead.phone}")
             st.write(f"**Source:** {lead.source}")
             if lead.agency:
-                st.info(f"**Payor:** {lead.agency.name}")
+                with st.container():
+                    st.info(f"**Payor Information:**")
+                    try:
+                        st.write(f"**Name:** {lead.agency.name}")
+                        # Safely get Agency fields to avoid AttributeError due to caching
+                        a_addr = getattr(lead.agency, 'address', None)
+                        a_phone = getattr(lead.agency, 'phone', None)
+                        a_fax = getattr(lead.agency, 'fax', None)
+                        a_email = getattr(lead.agency, 'email', None)
+
+                        if a_addr: st.write(f"**Address:** {a_addr}")
+                        if a_phone: st.write(f"**Phone:** {a_phone}")
+                        if a_fax: st.write(f"**Fax:** {a_fax}")
+                        if a_email: st.write(f"**Email:** {a_email}")
+                    except AttributeError:
+                        st.warning("Payor details temporarily unavailable due to system cache. Please refresh.")
+
             if lead.ccu:
-                st.info(f"**CCU:** {lead.ccu.name}")
+                with st.container():
+                    st.info(f"**CCU Information:**")
+                    try:
+                        st.write(f"**Name:** {lead.ccu.name}")
+                        # Safely get new fields to avoid AttributeError due to caching
+                        c_street = getattr(lead.ccu, 'street', None)
+                        c_city = getattr(lead.ccu, 'city', None)
+                        c_state = getattr(lead.ccu, 'state', None)
+                        c_zip = getattr(lead.ccu, 'zip_code', None)
+                        c_coord = getattr(lead.ccu, 'care_coordinator_name', None)
+
+                        # Display individual address components if available, otherwise fallback to full address
+                        if any([c_street, c_city, c_state, c_zip]):
+                            addr_parts = []
+                            if c_street: addr_parts.append(c_street)
+                            if c_city: addr_parts.append(c_city)
+                            if c_state: addr_parts.append(c_state)
+                            if c_zip: addr_parts.append(c_zip)
+                            st.write(f"**Address:** {', '.join(addr_parts)}")
+                        elif lead.ccu.address:
+                            st.write(f"**Address:** {lead.ccu.address}")
+                        
+                        if lead.ccu.phone: st.write(f"**Phone:** {lead.ccu.phone}")
+                        if lead.ccu.fax: st.write(f"**Fax:** {lead.ccu.fax}")
+                        if lead.ccu.email: st.write(f"**Email:** {lead.ccu.email}")
+                        if c_coord: st.write(f"**Coordinator:** {c_coord}")
+                    except AttributeError:
+                        st.warning("CCU details temporarily unavailable due to system cache. Please refresh.")
 
         with col2:
             st.write(f"**Status:** {lead.last_contact_status}")
@@ -196,7 +239,9 @@ def display_referral_confirm(lead, db, highlight=False):
                 update_data = LeadUpdate(authorization_received=False)
                 if update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id')):
                     clear_leads_cache()
-                    st.toast(f"Auth undone for {lead.first_name}", icon="↩️")
+                    msg = f"Success! Authorization undone for {lead.first_name} {lead.last_name}. Moved back to Referrals Sent."
+                    st.toast(msg, icon="↩️")
+                    st.session_state['success_msg'] = msg
                     st.rerun()
 
         st.divider()
@@ -220,7 +265,9 @@ def display_referral_confirm(lead, db, highlight=False):
                 )
                 update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
-                st.toast(f"Care Started! SOC: {today.strftime('%m/%d/%Y')}", icon="✅")
+                msg = f"Success! Care Started for {lead.first_name} {lead.last_name}. SOC: {today.strftime('%m/%d/%Y')}"
+                st.toast(msg, icon="✅")
+                st.session_state['success_msg'] = msg
                 st.rerun()
 
         with col_not_start:
@@ -236,8 +283,9 @@ def display_referral_confirm(lead, db, highlight=False):
                 )
                 update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
-                st.toast("Care Not Started", icon="⏳")
-                st.warning("**Care Not Started**")
+                msg = f"Success! Care marked as 'Not Start' for {lead.first_name} {lead.last_name}."
+                st.toast(msg, icon="⏳")
+                st.session_state['success_msg'] = msg
                 st.rerun()
 
         # History View - Show last 5 updates only
@@ -275,6 +323,16 @@ def referral_confirm():
         del sys.modules[mod]
     
     from app.crud.crud_leads import search_leads, count_search_leads
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(f"**{msg}**")
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(f"**{msg}**")
+
     st.markdown('<div class="main-header">Referral Confirm</div>', unsafe_allow_html=True)
 
     db = SessionLocal()

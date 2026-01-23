@@ -24,12 +24,23 @@ def get_ccu_by_name(db: Session, name: str):
 
 
 def create_ccu(db: Session, name: str, created_by: str, created_by_id: int, 
-               address: str = None, phone: str = None, fax: str = None, email: str = None, 
+               address: str = None, street: str = None, city: str = None, 
+               state: str = None, zip_code: str = None,
+               phone: str = None, fax: str = None, email: str = None, 
                care_coordinator_name: str = None):
     """Create a new CCU"""
+    # Auto-format address if components provided but full address is missing
+    if not address and (street or city or state or zip_code):
+        parts = [p for p in [street, city, state, zip_code] if p]
+        address = ", ".join(parts)
+        
     ccu = CCU(
         name=name,
         address=address,
+        street=street,
+        city=city,
+        state=state,
+        zip_code=zip_code,
         phone=phone,
         fax=fax,
         email=email,
@@ -81,14 +92,25 @@ def delete_ccu(db: Session, ccu_id: int, deleted_by: str, deleted_by_id: int):
 
 
 def update_ccu(db: Session, ccu_id: int, name: str, updated_by: str, updated_by_id: int,
-               address: str = None, phone: str = None, fax: str = None, email: str = None,
+               address: str = None, street: str = None, city: str = None,
+               state: str = None, zip_code: str = None,
+               phone: str = None, fax: str = None, email: str = None,
                care_coordinator_name: str = None):
     """Update a CCU"""
+    # Auto-format address if components provided but full address is missing
+    if not address and (street or city or state or zip_code):
+        parts = [p for p in [street, city, state, zip_code] if p]
+        address = ", ".join(parts)
+        
     ccu = get_ccu_by_id(db, ccu_id)
     if ccu:
         old_name = ccu.name
         ccu.name = name
         ccu.address = address
+        ccu.street = street
+        ccu.city = city
+        ccu.state = state
+        ccu.zip_code = zip_code
         ccu.phone = phone
         ccu.fax = fax
         ccu.email = email

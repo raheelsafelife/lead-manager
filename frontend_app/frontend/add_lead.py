@@ -26,6 +26,16 @@ def add_lead():
     """Add new lead"""
     st.markdown('<div class="main-header"> Add New Lead</div>', unsafe_allow_html=True)
     
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(f"**{msg}**")
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(f"**{msg}**")
+    
     db = SessionLocal()
     
     # Source Selection OUTSIDE form for dynamic updates
@@ -103,13 +113,14 @@ def add_lead():
                         if existing:
                             st.error(f" '{new_event_val}' already exists")
                         else:
-                            crud_events.create_event(db, new_event_val, st.session_state.username, st.session_state.get('db_user_id'))
-                            st.toast(f"Event '{new_event_val}' added!", icon="✅")
-                            st.success(f"**Success! Event '{new_event_val}' added successfully!**")
+                            msg = f"Success! Event '{new_event_val}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.session_state['show_event_form'] = False
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error creating event: {e}**")
+                        st.session_state['error_msg'] = f"Error adding Event: {str(e)}"
+                        st.rerun()
                 
                 if cancel_new_event:
                     st.session_state['show_event_form'] = False
@@ -180,13 +191,14 @@ def add_lead():
                         if existing:
                             st.error(f" '{new_agency_name}' already exists")
                         else:
-                            crud_agencies.create_agency(db, new_agency_name, st.session_state.username, st.session_state.get('db_user_id'))
-                            st.toast(f"Payor '{new_agency_name}' added!", icon="✅")
-                            st.success(f"**Success! Payor '{new_agency_name}' added successfully!**")
+                            msg = f"Success! Payor '{new_agency_name}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.session_state['show_agency_form'] = False
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error creating payor: {e}**")
+                        st.session_state['error_msg'] = f"Error adding Payor: {str(e)}"
+                        st.rerun()
                 
                 if cancel_new_agency:
                     st.session_state['show_agency_form'] = False
@@ -249,7 +261,10 @@ def add_lead():
             with st.form("add_new_ccu_form"):
                 st.write("**Add New CCU:**")
                 new_ccu_name = st.text_input("**CCU Name** *", placeholder="e.g. CCU North, CCU South...")
-                new_ccu_address = st.text_input("**Address**", placeholder="e.g. 123 Main St, Chicago, IL")
+                new_ccu_street = st.text_input("**Street**", placeholder="e.g. 123 Main St")
+                new_ccu_city = st.text_input("**City**", placeholder="e.g. Chicago")
+                new_ccu_state = st.text_input("**State**", value="IL", max_chars=2, help="2-letter state code")
+                new_ccu_zip = st.text_input("**Zip Code**", placeholder="e.g. 60601")
                 new_ccu_phone = st.text_input("**Phone**", placeholder="e.g. (555) 123-4567")
                 new_ccu_fax = st.text_input("**Fax**", placeholder="e.g. (555) 123-4568")
                 new_ccu_email = st.text_input("**Email**", placeholder="e.g. contact@ccu.com")
@@ -269,18 +284,23 @@ def add_lead():
                         else:
                             crud_ccus.create_ccu(
                                 db, new_ccu_name, st.session_state.username, st.session_state.get('db_user_id'),
-                                address=new_ccu_address or None,
+                                street=new_ccu_street or None,
+                                city=new_ccu_city or None,
+                                state=new_ccu_state or None,
+                                zip_code=new_ccu_zip or None,
                                 phone=new_ccu_phone or None,
                                 fax=new_ccu_fax or None,
                                 email=new_ccu_email or None,
                                 care_coordinator_name=new_ccu_coordinator or None
                             )
-                            st.toast(f"CCU '{new_ccu_name}' added!", icon="✅")
-                            st.success(f"**Success! CCU '{new_ccu_name}' added successfully!**")
+                            msg = f"Success! CCU '{new_ccu_name}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.session_state['show_ccu_form'] = False
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error creating CCU: {e}**")
+                        st.session_state['error_msg'] = f"Error adding CCU: {str(e)}"
+                        st.rerun()
                 
                 if cancel_new_ccu:
                     st.session_state['show_ccu_form'] = False
@@ -452,8 +472,9 @@ def add_lead():
                     
                     # PERFORMANCE: Clear cache so the new lead appears in the list
                     clear_leads_cache()
-                    st.toast(f"Lead '{first_name} {last_name}' created successfully!", icon="✅")
-                    st.success(f"**Success! Lead created successfully! (ID: {lead.id})**")
+                    msg = f"Success! Lead '{first_name} {last_name}' created successfully!"
+                    st.toast(msg, icon="✅")
+                    st.session_state['success_msg'] = msg
                     
                     # Auto-send email to lead creator (always for non-inactive leads)
                     if lead.last_contact_status != "Inactive":

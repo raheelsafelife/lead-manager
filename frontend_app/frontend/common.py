@@ -1200,7 +1200,7 @@ def confirmation_modal_dialog(db, m):
                 success = True
             elif m['modal_type'] == 'reject_user':
                 crud_users.reject_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "User has been rejected."
+                msg = "Success! User request has been rejected."
                 success = True
             elif m['modal_type'] == 'delete_agency':
                 crud_agencies.delete_agency(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
@@ -1224,8 +1224,17 @@ def confirmation_modal_dialog(db, m):
                 from app.schemas import LeadUpdate
                 update_data = LeadUpdate(active_client=False, referral_type=None)
                 if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
-                    msg = "Success! Client unmarked as referral."
+                    msg = "Success! Client has been unmarked as a referral."
                     success = True
+            elif m['modal_type'] == 'update_password':
+                new_pwd = st.session_state.get('pending_password_update', {}).get('new_password')
+                if new_pwd:
+                    if crud_users.update_user_credentials(db, m['target_id'], new_pwd, st.session_state.username, st.session_state.db_user_id):
+                        msg = "Success! Your password has been updated."
+                        success = True
+                        st.session_state.pop('pending_password_update', None)
+                    else:
+                        st.error("**Failed to update password**")
             
             if success:
                 if msg: st.session_state['success_msg'] = msg

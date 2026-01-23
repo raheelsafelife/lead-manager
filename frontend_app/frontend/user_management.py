@@ -170,8 +170,9 @@ def admin_panel():
                             else:
                                 try:
                                     crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.db_user_id)
-                                    st.toast(f"Password reset for {user.username}!", icon="✅")
-                                    st.success(f"**Password reset for {user.username}!**")
+                                    msg = f"Success! Password has been reset for user '{user.username}'."
+                                    st.toast(msg, icon="✅")
+                                    st.session_state['success_msg'] = msg
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"**Error: {e}**")
@@ -246,8 +247,9 @@ def admin_panel():
                                     if new_password:
                                         crud_users.admin_reset_password(db, user.id, new_password, st.session_state.username, st.session_state.db_user_id)
                                     st.session_state[f"editing_user_{user.id}"] = False
-                                    st.toast(f"User '{user.username}' updated!", icon="✅")
-                                    st.success("**Updated Successfully!**")
+                                    msg = f"Success! User '{user.username}' updated successfully."
+                                    st.toast(msg, icon="✅")
+                                    st.session_state['success_msg'] = msg
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"**Error: {e}**")
@@ -422,11 +424,13 @@ def admin_panel():
                                                         phone=new_agency_phone or None,
                                                         fax=new_agency_fax or None,
                                                         email=new_agency_email or None)
-                            st.toast(f"Payor '{new_agency_name}' added!", icon="✅")
-                            st.success(f"**Success! Payor '{new_agency_name}' added successfully!**")
+                            msg = f"Success! Payor '{new_agency_name}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error: {e}**")
+                        st.session_state['error_msg'] = f"Error adding Payor: {str(e)}"
+                        st.rerun()
         
         st.divider()
         
@@ -491,11 +495,14 @@ def admin_panel():
                                                                 fax=edit_fax or None,
                                                                 email=edit_email or None)
                                     st.session_state[f"editing_agency_{agency.id}"] = False
-                                    st.toast(f"Payor '{edit_name}' updated!", icon="✅")
-                                    st.success("**Success! Updated payor details**")
+                                    msg = f"Success! Payor '{edit_name}' updated successfully!"
+                                    st.toast(msg, icon="✅")
+                                    st.session_state['success_msg'] = msg
+                                    st.session_state[f"editing_agency_{agency.id}"] = False
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"**Error: {str(e)}**")
+                                    st.session_state['error_msg'] = f"Error updating Payor: {str(e)}"
+                                    st.rerun()
                         with col_y:
                             if st.form_submit_button(" Cancel"):
                                 st.session_state[f"editing_agency_{agency.id}"] = False
@@ -539,12 +546,13 @@ def admin_panel():
                                 email=new_ccu_email or None,
                                 care_coordinator_name=new_ccu_coordinator or None
                             )
-                            st.toast(f"CCU '{new_ccu_name}' added!", icon="✅")
-                            st.success(f"**Success! CCU '{new_ccu_name}' added successfully!**")
+                            msg = f"Success! CCU '{new_ccu_name}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.rerun()
                     except Exception as e:
-                        st.toast("Error adding CCU", icon="❌")
-                        st.error(f"**Error adding CCU: {e}**")
+                        st.session_state['error_msg'] = f"Error adding CCU: {str(e)}"
+                        st.rerun()
         
         st.divider()
         
@@ -615,12 +623,14 @@ def admin_panel():
                                         email=edit_email or None,
                                         care_coordinator_name=edit_coordinator or None
                                     )
+                                    msg = f"Success! CCU '{edit_name}' updated successfully!"
+                                    st.toast(msg, icon="✅")
+                                    st.session_state['success_msg'] = msg
                                     st.session_state[f"editing_ccu_{ccu.id}"] = False
-                                    st.toast(f"CCU '{edit_name}' updated!", icon="✅")
-                                    st.success("**Success! Updated CCU details**")
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"**Error: {str(e)}**")
+                                    st.session_state['error_msg'] = f"Error updating CCU: {str(e)}"
+                                    st.rerun()
                         with col_y:
                             if st.form_submit_button(" Cancel"):
                                 st.session_state[f"editing_ccu_{ccu.id}"] = False
@@ -651,11 +661,13 @@ def admin_panel():
                             st.error(f"**Event '{new_event_name}' already exists**")
                         else:
                             crud_events.create_event(db, new_event_name, st.session_state.username, st.session_state.db_user_id)
-                            st.toast(f"Event '{new_event_name}' added!", icon="✅")
-                            st.success(f"**Success! Event '{new_event_name}' added successfully!**")
+                            msg = f"Success! Event '{new_event_name}' added successfully!"
+                            st.toast(msg, icon="✅")
+                            st.session_state['success_msg'] = msg
                             st.rerun()
                     except Exception as e:
-                        st.error(f"**Error: {e}**")
+                        st.session_state['error_msg'] = f"Error adding Event: {str(e)}"
+                        st.rerun()
         
         st.divider()
         

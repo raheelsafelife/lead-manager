@@ -27,9 +27,11 @@ def view_referrals():
     """View and manage referrals only"""
     # Force module reload
     import sys
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
+    # Essential for development: Force reload of backend modules when they've changed
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_' in k or 'app.models' in k or 'services_stats' in k]
     for mod in modules_to_reload:
-        del sys.modules[mod]
+        if mod in sys.modules:
+            del sys.modules[mod]
     
     from app.crud.crud_leads import search_leads, count_search_leads, update_lead
     # Display persistent status messages if they exist
@@ -337,9 +339,52 @@ def view_referrals():
                     st.write(f"**Status:** {lead.last_contact_status}")
                     st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
                     if lead.agency:
-                        st.info(f"**Payor:** {lead.agency.name}")
+                        with st.container():
+                            st.info(f"**Payor Information:**")
+                            try:
+                                st.write(f"**Name:** {lead.agency.name}")
+                                # Safely get Agency fields to avoid AttributeError due to caching
+                                a_addr = getattr(lead.agency, 'address', None)
+                                a_phone = getattr(lead.agency, 'phone', None)
+                                a_fax = getattr(lead.agency, 'fax', None)
+                                a_email = getattr(lead.agency, 'email', None)
+
+                                if a_addr: st.write(f"**Address:** {a_addr}")
+                                if a_phone: st.write(f"**Phone:** {a_phone}")
+                                if a_fax: st.write(f"**Fax:** {a_fax}")
+                                if a_email: st.write(f"**Email:** {a_email}")
+                            except AttributeError:
+                                st.warning("Payor details temporarily unavailable due to system cache. Please refresh.")
+
                     if lead.ccu:
-                        st.info(f"**CCU:** {lead.ccu.name}")
+                        with st.container():
+                            st.info(f"**CCU Information:**")
+                            try:
+                                st.write(f"**Name:** {lead.ccu.name}")
+                                # Safely get new fields to avoid AttributeError due to caching
+                                c_street = getattr(lead.ccu, 'street', None)
+                                c_city = getattr(lead.ccu, 'city', None)
+                                c_state = getattr(lead.ccu, 'state', None)
+                                c_zip = getattr(lead.ccu, 'zip_code', None)
+                                c_coord = getattr(lead.ccu, 'care_coordinator_name', None)
+
+                                # Display individual address components if available, otherwise fallback to full address
+                                if any([c_street, c_city, c_state, c_zip]):
+                                    addr_parts = []
+                                    if c_street: addr_parts.append(c_street)
+                                    if c_city: addr_parts.append(c_city)
+                                    if c_state: addr_parts.append(c_state)
+                                    if c_zip: addr_parts.append(c_zip)
+                                    st.write(f"**Address:** {', '.join(addr_parts)}")
+                                elif lead.ccu.address:
+                                    st.write(f"**Address:** {lead.ccu.address}")
+                                
+                                if lead.ccu.phone: st.write(f"**Phone:** {lead.ccu.phone}")
+                                if lead.ccu.fax: st.write(f"**Fax:** {lead.ccu.fax}")
+                                if lead.ccu.email: st.write(f"**Email:** {lead.ccu.email}")
+                                if c_coord: st.write(f"**Coordinator:** {c_coord}")
+                            except AttributeError:
+                                st.warning("CCU details temporarily unavailable due to system cache. Please refresh.")
                     # Authorization Status
                     if lead.authorization_received:
                         soc_str = lead.soc_date.strftime('%m/%d/%Y') if lead.soc_date else 'Not Set'
@@ -534,7 +579,9 @@ def view_referrals():
                                     st.session_state.modal_open = False
                                     st.session_state.modal_action = None
                                     st.session_state.pop('active_modal', None)
-                                    st.warning(f"**Authorization unmarked for {lead.first_name} {lead.last_name}**")
+                                    msg = f"Success! Authorization unmarked for {lead.first_name} {lead.last_name}."
+                                    st.toast(msg, icon="↩️")
+                                    st.session_state['success_msg'] = msg
                                     st.rerun()
                         else:
                             if st.button("Mark Authentication", key=f"mark_auth_btn_ref_{lead.id}", 

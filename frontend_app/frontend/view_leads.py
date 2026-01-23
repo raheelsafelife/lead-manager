@@ -27,12 +27,11 @@ def view_leads():
     """View and manage leads"""
     # CRITICAL: Force module reload to clear Streamlit's cache
     import sys
-    import importlib
-    
-    # Remove all crud_leads related modules from cache
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k or 'activity_logger' in k]
+    # Essential for development: Force reload of backend modules when they've changed
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_' in k or 'app.models' in k or 'services_stats' in k]
     for mod in modules_to_reload:
-        del sys.modules[mod]
+        if mod in sys.modules:
+            del sys.modules[mod]
     
     # Now import fresh
     from app.crud.crud_leads import search_leads, count_search_leads, list_leads, get_lead, update_lead, delete_lead, restore_lead, list_deleted_leads
@@ -334,7 +333,9 @@ def view_leads():
                         with conf_col1:
                             if st.button("✅ Yes, Restore", key=f"yes_restore_{lead.id}", type="primary"):
                                 if restore_lead(db, lead.id, st.session_state.username, st.session_state.get('db_user_id')):
-                                    st.session_state['success_msg'] = f"Success! {lead.first_name} {lead.last_name} has been restored to active leads."
+                                    msg = f"Success! {lead.first_name} {lead.last_name} has been restored to active leads."
+                                    st.toast(msg, icon="✅")
+                                    st.session_state['success_msg'] = msg
                                     st.session_state.pop(f'confirm_restore_{lead.id}', None)
                                     st.rerun()
                                 else:
@@ -541,6 +542,19 @@ def view_leads():
 
 def mark_referral_page():
     """Hidden page for marking a lead as referral with Payor and CCU selection"""
+    import sys
+    # Robustly clear CRUD modules from memory to pick up new signatures
+    # We must clear the full package path names that Streamlit uses
+    for mod_name in list(sys.modules.keys()):
+        if 'app.crud.crud_ccus' in mod_name or 'app.crud.crud_leads' in mod_name:
+            del sys.modules[mod_name]
+    
+    # Import fresh and update GLOBAL references so the rest of the function uses them
+    global crud_ccus, crud_leads
+    from app.crud import crud_ccus as fresh_ccus, crud_leads as fresh_leads
+    crud_ccus = fresh_ccus
+    crud_leads = fresh_leads
+    
     from app.crud.crud_leads import get_lead, update_lead
     st.markdown('<div class="main-header">Mark Referral</div>', unsafe_allow_html=True)
     
@@ -661,7 +675,10 @@ def mark_referral_page():
     with st.expander("Add New CCU", expanded=False):
         with st.form("add_ccu_referral_form"):
             new_ccu_name = st.text_input("CCU Name *")
-            new_ccu_address = st.text_input("Address")
+            new_ccu_street = st.text_input("Street")
+            new_ccu_city = st.text_input("City")
+            new_ccu_state = st.text_input("State", value="IL", max_chars=2)
+            new_ccu_zip = st.text_input("Zip Code")
             new_ccu_phone = st.text_input("Phone")
             new_ccu_fax = st.text_input("Fax")
             new_ccu_email = st.text_input("Email")
@@ -679,7 +696,10 @@ def mark_referral_page():
                     else:
                         crud_ccus.create_ccu(
                             db, new_ccu_name, st.session_state.username, st.session_state.db_user_id,
-                            address=new_ccu_address or None,
+                            street=new_ccu_street or None,
+                            city=new_ccu_city or None,
+                            state=new_ccu_state or None,
+                            zip_code=new_ccu_zip or None,
                             phone=new_ccu_phone or None,
                             fax=new_ccu_fax or None,
                             email=new_ccu_email or None,
@@ -708,31 +728,56 @@ def mark_referral_page():
             selected_ccu = crud_ccus.get_ccu_by_id(db, selected_ccu_id)
             if selected_ccu:
                 with st.expander(" Edit CCU Details (Update)", expanded=True):
-                    with st.form(f"edit_ccu_ref_form_{selected_ccu.id}"):
-                        col_e1, col_e2 = st.columns(2)
-                        with col_e1:
-                            u_name = st.text_input("Name", value=selected_ccu.name)
-                            u_phone = st.text_input("Phone", value=selected_ccu.phone or "")
-                            u_fax = st.text_input("Fax", value=selected_ccu.fax or "")
-                        with col_e2:
-                            u_email = st.text_input("Email", value=selected_ccu.email or "")
-                            u_coord = st.text_input("Coordinator", value=selected_ccu.care_coordinator_name or "")
-                            u_addr = st.text_input("Address", value=selected_ccu.address or "")
-                        
-                        if st.form_submit_button("Update CCU Details", width="stretch"):
-                            try:
-                                crud_ccus.update_ccu(
-                                    db, selected_ccu.id, u_name, st.session_state.username, st.session_state.get('user_id'),
-                                    address=u_addr or None,
-                                    phone=u_phone or None,
-                                    fax=u_fax or None,
-                                    email=u_email or None,
-                                    care_coordinator_name=u_coord or None
-                                )
+                    try:
+                        with st.form(f"edit_ccu_ref_form_{selected_ccu.id}"):
+                            col_e1, col_e2 = st.columns(2)
+                            with col_e1:
+                                u_name = st.text_input("Name", value=selected_ccu.name)
+                                # Safely get attributes with getattr to handle Streamlit caching issues
+                                val_street = getattr(selected_ccu, 'street', '') or ""
+                                val_city = getattr(selected_ccu, 'city', '') or ""
+                                val_state = getattr(selected_ccu, 'state', 'IL') or "IL"
+                                val_zip = getattr(selected_ccu, 'zip_code', '') or ""
+                                
+                                u_street = st.text_input("Street", value=val_street)
+                                u_city = st.text_input("City", value=val_city)
+                                u_state = st.text_input("State", value=val_state, max_chars=2)
+                                u_zip = st.text_input("Zip Code", value=val_zip)
+                                u_phone = st.text_input("Phone", value=selected_ccu.phone or "")
+                                u_fax = st.text_input("Fax", value=selected_ccu.fax or "")
+                            with col_e2:
+                                u_email = st.text_input("Email", value=selected_ccu.email or "")
+                                u_coord = st.text_input("Coordinator", value=getattr(selected_ccu, 'care_coordinator_name', '') or "")
+                            
+                            if st.form_submit_button("Update CCU Details", use_container_width=True):
+                                try:
+                                    crud_ccus.update_ccu(
+                                        db, selected_ccu.id, u_name, st.session_state.username, st.session_state.get('db_user_id'),
+                                        street=u_street or None,
+                                        city=u_city or None,
+                                        state=u_state or None,
+                                        zip_code=u_zip or None,
+                                        phone=u_phone or None,
+                                        fax=u_fax or None,
+                                        email=u_email or None,
+                                        care_coordinator_name=u_coord or None
+                                    )
+                                except TypeError as te:
+                                    if "unexpected keyword argument 'street'" in str(te):
+                                        # Fallback for extreme caching cases
+                                        crud_ccus.update_ccu(
+                                            db, selected_ccu.id, u_name, st.session_state.username, st.session_state.get('db_user_id')
+                                        )
+                                        st.warning("CCU updated with name only due to system cache. Full details will be available after server restart.")
+                                    else:
+                                        raise te
                                 st.success("**CCU Updated!**")
                                 st.rerun()
-                            except Exception as e:
-                                st.error(f"**Error: {e}**")
+                    except AttributeError as e:
+                        st.error(f"**Cache Error:** The application is using an older version of the CCU model. Please restart the application (run refresh.sh) to clear the system cache.")
+                        st.info(f"Technical details: {e}")
+                    except Exception as e:
+                        st.error(f"**Error:** {e}")
 
     st.divider()
     
@@ -749,6 +794,10 @@ def mark_referral_page():
                 ccu_id=selected_ccu_id
             )
             update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
+            
+            msg = f"Success! {lead.first_name} {lead.last_name} marked as a {ref_type} referral."
+            st.toast(msg, icon="✅")
+            st.session_state['success_msg'] = msg
             
             # Send email reminder
             try:

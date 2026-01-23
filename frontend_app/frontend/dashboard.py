@@ -49,6 +49,17 @@ def dashboard():
             df_all_leads = df_all_leads.drop('_sa_instance_state', axis=1)
 
     st.markdown(f'<div class="main-header">PERFORMANCE METRICS DASHBOARD</div>', unsafe_allow_html=True)
+    
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(f"**{msg}**")
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(f"**{msg}**")
+
     st.markdown(f"Welcome, **{st.session_state.username}**!")
     
     # Logout button
@@ -1139,6 +1150,16 @@ def discovery_tool():
         df_all_leads = df_all_leads.drop('_sa_instance_state', axis=1)
 
     st.markdown('<div class="main-header">LEAD DISCOVERY TOOL</div>', unsafe_allow_html=True)
+    
+    # Display persistent status messages if they exist
+    if 'success_msg' in st.session_state:
+        msg = st.session_state.pop('success_msg')
+        st.toast(msg, icon="✅")
+        st.success(f"**{msg}**")
+    if 'error_msg' in st.session_state:
+        msg = st.session_state.pop('error_msg')
+        st.toast(msg, icon="❌")
+        st.error(f"**{msg}**")
     
     st.info("**Discover Hidden Patterns:** Select any two features to cross-reference and analyze your leads.")
     
