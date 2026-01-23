@@ -44,8 +44,13 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
 
 # ------- READ -------
 def get_lead(db: Session, lead_id: int, include_deleted: bool = False) -> Optional[models.Lead]:
-    """Get a lead by ID, optionally including deleted leads"""
-    query = db.query(models.Lead).filter(models.Lead.id == lead_id)
+    """Get a lead by ID, optionally including deleted leads. Eagerly loads relationships."""
+    query = db.query(models.Lead).options(
+        joinedload(models.Lead.agency),
+        joinedload(models.Lead.ccu),
+        joinedload(models.Lead.mco),
+        joinedload(models.Lead.agency_suboption)
+    ).filter(models.Lead.id == lead_id)
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
     return query.first()

@@ -25,11 +25,7 @@ from frontend.common import prepare_lead_data_for_email, render_time, get_leads_
 
 def display_referral_confirm(lead, db, highlight=False):
     """Helper function to display a single referral in the confirm page"""
-    # Force module reload
-    import sys
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
-    for mod in modules_to_reload:
-        del sys.modules[mod]
+    pass # Removed module reloads
     
     from app.crud.crud_leads import update_lead
 
@@ -316,12 +312,6 @@ def display_referral_confirm(lead, db, highlight=False):
 
 def referral_confirm():
     """Referral Confirm page - Shows all clients with authorization received"""
-    # Force module reload
-    import sys
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_leads' in k]
-    for mod in modules_to_reload:
-        del sys.modules[mod]
-    
     from app.crud.crud_leads import search_leads, count_search_leads
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:
