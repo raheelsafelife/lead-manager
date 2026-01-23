@@ -58,9 +58,9 @@ def view_activity_logs():
         elif date_filter == "Custom Range":
             col_a, col_b = st.columns(2)
             with col_a:
-                start_date = st.date_input("From", value=datetime.now() - timedelta(days=7))
+                start_date = st.date_input("From", value=datetime.now() - timedelta(days=7), format="MM/DD/YYYY")
             with col_b:
-                end_date = st.date_input("To", value=datetime.now())
+                end_date = st.date_input("To", value=datetime.now(), format="MM/DD/YYYY")
     
     with col2:
         # User filter

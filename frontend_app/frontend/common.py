@@ -1316,7 +1316,7 @@ def show_edit_modal_dialog(db, m):
             e_idx = event_list.index(curr_event) if curr_event in event_list else 0
             new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
         elif new_source == "Transfer":
-            new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}")
+            new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
         elif new_source == "Other":
             new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
         elif new_source == "Word of Mouth":
@@ -1353,7 +1353,18 @@ def show_edit_modal_dialog(db, m):
                 dob_value = None
         
         from datetime import date
-        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}")
+        
+        # Callback for age calculation in edit modal
+        def on_edit_dob_change():
+            dob_key = f"edit_dob_{m['target_id']}"
+            age_key = f"edit_age_{m['target_id']}"
+            if st.session_state.get(dob_key):
+                today = date.today()
+                dob = st.session_state[dob_key]
+                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                st.session_state[age_key] = age
+
+        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}", on_change=on_edit_dob_change, format="MM/DD/YYYY")
         new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0), key=f"edit_age_{m['target_id']}")
         new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
         

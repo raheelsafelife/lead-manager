@@ -38,7 +38,21 @@ def add_lead():
     
     db = SessionLocal()
     
-    # Source Selection OUTSIDE form for dynamic updates
+    # Main Form Container
+    st.markdown('<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: white;">', unsafe_allow_html=True)
+    
+    # Initialization for automation
+    if 'age_input' not in st.session_state:
+        st.session_state.age_input = 0
+
+    def on_dob_change():
+        if st.session_state.dob_input:
+            today = date.today()
+            dob = st.session_state.dob_input
+            calc_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            st.session_state.age_input = calc_age
+
+    # Source Selection
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Lead Source</h4>", unsafe_allow_html=True)
     st.markdown('Source <span class="required-star">*</span>', unsafe_allow_html=True)
     source = st.selectbox("Source", [
@@ -49,9 +63,9 @@ def add_lead():
         "Word of Mouth",
         "Transfer",
         "Other"
-    ], label_visibility="collapsed")
+    ], label_visibility="collapsed", key="lead_source_select")
     
-    # Conditional fields based on source (OUTSIDE form)
+    # Conditional fields based on source
     event_name = None
     word_of_mouth_type = None
     other_source_type = None
@@ -62,13 +76,11 @@ def add_lead():
     
     if source == "Transfer":
         st.markdown('SOC Date (Start of Care) <span class="required-star">*</span>', unsafe_allow_html=True)
-        soc_date = st.date_input("SOC Date", value=date.today(), key="transfer_soc_date", label_visibility="collapsed")
+        soc_date = st.date_input("SOC Date", value=date.today(), key="transfer_soc_date", label_visibility="collapsed", format="MM/DD/YYYY")
     
     elif source == "Event":
-        # Get all events from database
         events = crud_events.get_all_events(db)
         event_names = [e.event_name for e in events]
-        
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Event</h4>", unsafe_allow_html=True)
         
         if not event_names:
@@ -76,12 +88,9 @@ def add_lead():
             if st.session_state.user_role == "admin":
                 st.info("Add events using User Management -> Events")
             selected_event_name = None
-            event_name = None
         else:
             event_list = ["None", "Other (Add New)"] + event_names
             selected_event_name = st.selectbox("**Select Event**", event_list, key="event_name_select")
-            
-            # If "Other" is selected, show button to add new event (ADMIN ONLY)
             if selected_event_name == "Other (Add New)":
                 if st.session_state.user_role == "admin":
                     st.info("Click the button below to add a new event")
@@ -89,71 +98,45 @@ def add_lead():
                         st.session_state['show_event_form'] = True
                         st.rerun()
                 else:
-                    st.warning(" Only admins can add new events. Please contact your administrator.")
+                    st.warning(" Only admins can add new events.")
                     selected_event_name = "None"
             elif selected_event_name != "None":
                 event_name = selected_event_name
-            else:
-                event_name = None
-        
-        # Show event add form if triggered (ADMIN ONLY)
+
         if st.session_state.get('show_event_form', False) and st.session_state.user_role == "admin":
-            with st.form("add_new_event_form_inline"):
+            with st.container(border=True):
                 st.write("**Add New Event:**")
-                new_event_val = st.text_input("**Event Name**", placeholder="e.g. Health Fair 2026...")
+                new_event_val = st.text_input("**Event Name**", placeholder="e.g. Health Fair 2026...", key="new_event_val_input")
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
-                    submit_new_event = st.form_submit_button(" Add Event", width="stretch", type="primary")
+                    if st.button(" Add Event", width="stretch", type="primary", key="submit_new_event_btn"):
+                        if new_event_val:
+                            try:
+                                existing = crud_events.get_event_by_name(db, new_event_val)
+                                if existing: st.error(f" '{new_event_val}' already exists")
+                                else:
+                                    st.session_state['success_msg'] = f"Success! Event '{new_event_val}' added successfully!"
+                                    st.session_state['show_event_form'] = False
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"Error adding Event: {str(e)}")
                 with col_btn2:
-                    cancel_new_event = st.form_submit_button(" Cancel", width="stretch")
-                
-                if submit_new_event and new_event_val:
-                    try:
-                        existing = crud_events.get_event_by_name(db, new_event_val)
-                        if existing:
-                            st.error(f" '{new_event_val}' already exists")
-                        else:
-                            msg = f"Success! Event '{new_event_val}' added successfully!"
-                            st.toast(msg, icon="✅")
-                            st.session_state['success_msg'] = msg
-                            st.session_state['show_event_form'] = False
-                            st.rerun()
-                    except Exception as e:
-                        st.session_state['error_msg'] = f"Error adding Event: {str(e)}"
+                    if st.button(" Cancel", width="stretch", key="cancel_new_event_btn"):
+                        st.session_state['show_event_form'] = False
                         st.rerun()
-                
-                if cancel_new_event:
-                    st.session_state['show_event_form'] = False
-                    st.rerun()
-        
-        # Reset event_name if "Other" is still selected
-        if selected_event_name == "Other (Add New)":
-            event_name = None
-        
         st.divider()
     
     elif source == "Direct Through CCU":
-        # Get all agencies from database
         agencies = crud_agencies.get_all_agencies(db)
         agency_names = [a.name for a in agencies]
-        
-        # Initialize variables
-        agency_id = None
-        agency_suboption_id = None
-        
         st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Payor</h4>", unsafe_allow_html=True)
         
         if not agency_names:
             st.warning(" No payors available.")
-            if st.session_state.user_role == "admin":
-                st.info("Add payors using User Management -> Payor")
             selected_agency_name = None
-            agency_id = None
         else:
             agency_list = ["None", "Other (Add New)"] + agency_names
             selected_agency_name = st.selectbox("**Select Payor**", agency_list, key="agency_name_select")
-            
-            # If "Other" is selected, show button to add new agency (ADMIN ONLY)
             if selected_agency_name == "Other (Add New)":
                 if st.session_state.user_role == "admin":
                     st.info("Click the button below to add a new payor")
@@ -161,234 +144,173 @@ def add_lead():
                         st.session_state['show_agency_form'] = True
                         st.rerun()
                 else:
-                    st.warning(" Only admins can add new payors. Please contact your administrator.")
-                    st.info("You can find existing payors in the dropdown or contact admin.")
+                    st.warning(" Only admins can add new payors.")
                     selected_agency_name = "None"
             elif selected_agency_name != "None":
-                # Get the agency ID
-                agency_id = None
                 for agency in agencies:
                     if agency.name == selected_agency_name:
                         agency_id = agency.id
                         break
-            else:
-                agency_id = None
-        
-        # Show payor add form if triggered (ADMIN ONLY)
+
         if st.session_state.get('show_agency_form', False) and st.session_state.user_role == "admin":
-            with st.form("add_new_agency_form"):
+            with st.container(border=True):
                 st.write("**Add New Payor:**")
-                new_agency_name = st.text_input("**Payor Name**", placeholder="e.g. IDoA, MCO, DCFS...")
+                new_agency_name = st.text_input("**Payor Name**", placeholder="e.g. IDoA, MCO, DCFS...", key="new_agency_name_input")
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
-                    submit_new_agency = st.form_submit_button(" Add Payor", width="stretch", type="primary")
+                    if st.button(" Add Payor", width="stretch", type="primary", key="submit_new_agency_btn"):
+                        if new_agency_name:
+                            try:
+                                existing = crud_agencies.get_agency_by_name(db, new_agency_name)
+                                if existing: st.error(f" '{new_agency_name}' already exists")
+                                else:
+                                    st.session_state['success_msg'] = f"Success! Payor '{new_agency_name}' added successfully!"
+                                    st.session_state['show_agency_form'] = False
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"Error adding Payor: {str(e)}")
                 with col_btn2:
-                    cancel_new_agency = st.form_submit_button(" Cancel", width="stretch")
-                
-                if submit_new_agency and new_agency_name:
-                    try:
-                        existing = crud_agencies.get_agency_by_name(db, new_agency_name)
-                        if existing:
-                            st.error(f" '{new_agency_name}' already exists")
-                        else:
-                            msg = f"Success! Payor '{new_agency_name}' added successfully!"
-                            st.toast(msg, icon="✅")
-                            st.session_state['success_msg'] = msg
-                            st.session_state['show_agency_form'] = False
-                            st.rerun()
-                    except Exception as e:
-                        st.session_state['error_msg'] = f"Error adding Payor: {str(e)}"
+                    if st.button(" Cancel", width="stretch", key="cancel_new_agency_btn"):
+                        st.session_state['show_agency_form'] = False
                         st.rerun()
-                
-                if cancel_new_agency:
-                    st.session_state['show_agency_form'] = False
-                    st.rerun()
-        
-        # Reset agency_id if "Other" is still selected
-        if selected_agency_name == "Other (Add New)":
-            agency_id = None
-        
-        # Payor Suboption Selection (if agency selected and agency_id exists)
+
         if agency_id:
             suboptions = crud_agency_suboptions.get_all_suboptions(db, agency_id=agency_id)
-            
             if suboptions:
                 st.write("**Select Suboption:**")
                 suboption_names = [s.name for s in suboptions]
                 suboption_list = ["None"] + suboption_names
                 selected_suboption_name = st.selectbox("**Select suboption**", suboption_list, key="agency_suboption_select", label_visibility="collapsed")
-                
                 if selected_suboption_name != "None":
                     for suboption in suboptions:
                         if suboption.name == selected_suboption_name:
                             agency_suboption_id = suboption.id
                             break
-        
         st.divider()
-        
-        # CCU Selection ()
         st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Select CCU</h4>", unsafe_allow_html=True)
-        ccu_id = None
-        
-        # Get ALL CCUs (not filtered by agency)
         ccus = crud_ccus.get_all_ccus(db)
         ccu_names = [c.name for c in ccus]
-        
         if not ccu_names:
             st.info(" No CCUs available.")
-            if st.button(" Add CCU", key="add_ccu_btn", type="secondary"):
+            if st.button(" Add CCU", key="add_ccu_btn"):
                 st.session_state['show_ccu_form'] = True
                 st.rerun()
         else:
             ccu_list = ["None", "Other (Add New)"] + ccu_names
             selected_ccu_name = st.selectbox("**Select CCU**", ccu_list, key="ccu_name_select", label_visibility="collapsed")
-            
-            # If "Other" is selected, show add button
             if selected_ccu_name == "Other (Add New)":
-                st.info("Click below to add a new CCU")
-                if st.button(" Add New CCU", key="add_new_ccu_btn", type="secondary"):
+                if st.button(" Add New CCU", key="add_new_ccu_btn_manual"):
                     st.session_state['show_ccu_form'] = True
                     st.rerun()
             elif selected_ccu_name != "None":
-                # Get the CCU ID
                 for ccu in ccus:
                     if ccu.name == selected_ccu_name:
                         ccu_id = ccu.id
                         break
         
-        # Show CCU add form if triggered (ALL USERS CAN ADD)
         if st.session_state.get('show_ccu_form', False):
-            with st.form("add_new_ccu_form"):
+            with st.container(border=True):
                 st.write("**Add New CCU:**")
-                new_ccu_name = st.text_input("**CCU Name** *", placeholder="e.g. CCU North, CCU South...")
-                new_ccu_street = st.text_input("**Street**", placeholder="e.g. 123 Main St")
-                new_ccu_city = st.text_input("**City**", placeholder="e.g. Chicago")
-                new_ccu_state = st.text_input("**State**", value="IL", max_chars=2, help="2-letter state code")
-                new_ccu_zip = st.text_input("**Zip Code**", placeholder="e.g. 60601")
-                new_ccu_phone = st.text_input("**Phone**", placeholder="e.g. (555) 123-4567")
-                new_ccu_fax = st.text_input("**Fax**", placeholder="e.g. (555) 123-4568")
-                new_ccu_email = st.text_input("**Email**", placeholder="e.g. contact@ccu.com")
-                new_ccu_coordinator = st.text_input("**Care Coordinator Name (Optional)**", placeholder="e.g. John Doe")
-                col_btn1, col_btn2 = st.columns([1, 1])
-                with col_btn1:
-                    submit_new_ccu = st.form_submit_button(" Add CCU", width="stretch", type="primary")
-                with col_btn2:
-                    cancel_new_ccu = st.form_submit_button(" Cancel", width="stretch")
-                
-                if submit_new_ccu and new_ccu_name:
-                    try:
-                        # Check if CCU exists
-                        existing = crud_ccus.get_ccu_by_name(db, new_ccu_name)
-                        if existing:
-                            st.error(f" CCU '{new_ccu_name}' already exists")
-                        else:
-                            crud_ccus.create_ccu(
-                                db, new_ccu_name, st.session_state.username, st.session_state.get('db_user_id'),
-                                street=new_ccu_street or None,
-                                city=new_ccu_city or None,
-                                state=new_ccu_state or None,
-                                zip_code=new_ccu_zip or None,
-                                phone=new_ccu_phone or None,
-                                fax=new_ccu_fax or None,
-                                email=new_ccu_email or None,
-                                care_coordinator_name=new_ccu_coordinator or None
-                            )
-                            msg = f"Success! CCU '{new_ccu_name}' added successfully!"
-                            st.toast(msg, icon="✅")
-                            st.session_state['success_msg'] = msg
-                            st.session_state['show_ccu_form'] = False
-                            st.rerun()
-                    except Exception as e:
-                        st.session_state['error_msg'] = f"Error adding CCU: {str(e)}"
+                nc_name = st.text_input("**CCU Name** *", placeholder="e.g. CCU North...", key="nc_name")
+                nc_street = st.text_input("**Street**", key="nc_street")
+                nc_city = st.text_input("**City**", key="nc_city")
+                nc_state = st.text_input("**State**", value="IL", max_chars=2, key="nc_state")
+                nc_zip = st.text_input("**Zip Code**", key="nc_zip")
+                nc_phone = st.text_input("**Phone**", key="nc_phone")
+                nc_fax = st.text_input("**Fax**", key="nc_fax")
+                nc_email = st.text_input("**Email**", key="nc_email")
+                nc_coord = st.text_input("**Care Coordinator Name**", key="nc_coord")
+                cb1, cb2 = st.columns(2)
+                with cb1:
+                    if st.button(" Add CCU", type="primary", key="save_new_ccu"):
+                        if nc_name:
+                            try:
+                                crud_ccus.create_ccu(db, nc_name, st.session_state.username, st.session_state.get('db_user_id'),
+                                    street=nc_street, city=nc_city, state=nc_state, zip_code=nc_zip, phone=nc_phone,
+                                    fax=nc_fax, email=nc_email, care_coordinator_name=nc_coord)
+                                st.session_state['success_msg'] = f"Success! CCU '{nc_name}' added!"
+                                st.session_state['show_ccu_form'] = False
+                                st.rerun()
+                            except Exception as e: st.error(f"Error: {e}")
+                with cb2:
+                    if st.button(" Cancel", key="cancel_ccu"):
+                        st.session_state['show_ccu_form'] = False
                         st.rerun()
-                
-                if cancel_new_ccu:
-                    st.session_state['show_ccu_form'] = False
-                    st.rerun()
-                
+
     elif source == "Word of Mouth":
         st.markdown('**Word of Mouth Type** <span class="required-star">*</span>', unsafe_allow_html=True)
-        word_of_mouth_type = st.selectbox("Word of Mouth Type", [
-            "Caregiver",
-            "Community",
-            "Client"
-        ], key="wom_type_input", label_visibility="collapsed")
+        word_of_mouth_type = st.selectbox("Word of Mouth Type", ["Caregiver", "Community", "Client"], key="wom_type_input", label_visibility="collapsed")
     elif source == "Other":
         st.markdown('**Specify Source Type** <span class="required-star">*</span>', unsafe_allow_html=True)
         other_source_type = st.text_input("Specify Source Type", value="", key="other_type_input", label_visibility="collapsed")
     
     st.divider()
 
-    # Priority Selection (Outside form for dynamic updates)
+    # Priority Selection
     st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Priority</h4>", unsafe_allow_html=True)
     col_p1, col_p2 = st.columns([1, 2])
     with col_p1:
-        st.markdown('**Set Priority** <span class="required-star">*</span>', unsafe_allow_html=True)
-        priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1, label_visibility="collapsed", key="priority_outside_form")
+        priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1, key="priority_select")
     with col_p2:
-        st.markdown('<div style="margin-top: 5px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
         st.markdown(get_priority_tag(priority), unsafe_allow_html=True)
+
+    st.divider()
+
+    # Lead Information Section
+    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Lead Details</h4>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.session_state.user_role == "admin":
+            st.markdown('Staff Name <span class="required-star">*</span>', unsafe_allow_html=True)
+            staff_name = st.text_input("Staff Name", value="", key="staff_name_input", label_visibility="collapsed")
+        else:
+            staff_name = st.session_state.username
+            st.info(f" Lead will be created by : **{staff_name}**")
+        
+        st.markdown('User ID <span class="required-star">*</span>', unsafe_allow_html=True)
+        custom_user_id = st.text_input("User ID", key="user_id_input", label_visibility="collapsed")
+        
+        st.markdown('First Name <span class="required-star">*</span>', unsafe_allow_html=True)
+        first_name = st.text_input("First Name", key="first_name_input", label_visibility="collapsed")
+        
+        st.markdown('Last Name <span class="required-star">*</span>', unsafe_allow_html=True)
+        last_name = st.text_input("Last Name", key="last_name_input", label_visibility="collapsed")
+        
+        dob = st.date_input("**Date of Birth**", value=None, min_value=date(1900, 1, 1), max_value=date.today(), key="dob_input", on_change=on_dob_change, format="MM/DD/YYYY")
+        age = st.number_input("**Age / Year**", min_value=0, max_value=3000, key="age_input")
+        
+        email = st.text_input("**Email**", key="email_input")
+        
+        st.markdown('Phone <span class="required-star">*</span>', unsafe_allow_html=True)
+        phone = st.text_input("Phone", key="phone_input", label_visibility="collapsed")
+        ssn = st.text_input("**SSN**", key="ssn_input")
+        medicaid_no = st.text_input("**Medicaid Number**", key="medicaid_input")
+    
+    with col2:
+        st.markdown('Contact Status <span class="required-star">*</span>', unsafe_allow_html=True)
+        last_contact_status = st.selectbox("Contact Status", ["Intro Call", "Follow Up", "No Response", "Inactive"], key="status_select", label_visibility="collapsed")
+                                            
+        st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+        street = st.text_input("**Street**", key="street_input")
+        city = st.text_input("**City**", key="city_input")
+        state = st.text_input("**State**", value="IL", max_chars=2, key="state_input")
+        zip_code = st.text_input("**Zip Code**", key="zip_input")
+        
+        e_contact_name = st.text_input("**Emergency Contact Name**", key="ec_name_input")
+        e_contact_relation = st.text_input("**Relation**", key="ec_rel_input")
+        e_contact_phone = st.text_input("**Emergency Contact Phone**", key="ec_phone_input")
+        
+        comments = st.text_area("**Comments**", height=150, key="comments_input")
     
     st.divider()
+    st.markdown('<small>Fields marked with <span style="color:var(--required-star-pink)">*</span> are required</small>', unsafe_allow_html=True)
     
-    # Main form with other fields
-    with st.form("add_lead_form"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Staff assignment based on role
-            if st.session_state.user_role == "admin":
-                st.markdown('**Staff Name** <span class="required-star">*</span>', unsafe_allow_html=True)
-                staff_name = st.text_input("Staff Name", value="", label_visibility="collapsed")
-            else:
-                staff_name = st.session_state.username
-                st.info(f" Lead will be created by : **{staff_name}**")
-            
-            # New field: User ID (Compulsory)
-            st.markdown('**User ID** <span class="required-star">*</span> (Unique Identifier)', unsafe_allow_html=True)
-            custom_user_id = st.text_input("User ID", help="Unique ID for this lead (e.g. Patient ID)", label_visibility="collapsed")
-            
-            st.markdown('**First Name** <span class="required-star">*</span>', unsafe_allow_html=True)
-            first_name = st.text_input("First Name", value="", label_visibility="collapsed")
-            
-            st.markdown('**Last Name** <span class="required-star">*</span>', unsafe_allow_html=True)
-            last_name = st.text_input("Last Name", value="", label_visibility="collapsed")
-            
-            dob = st.date_input("**Date of Birth**", value=None, min_value=date(1900, 1, 1), max_value=date.today())
-            age = st.number_input("**Age / Year**", min_value=0, max_value=3000, value=0)
-            
-            email = st.text_input("**Email**")  # New field
-            
-            st.markdown('**Phone** <span class="required-star">*</span>', unsafe_allow_html=True)
-            phone = st.text_input("Phone", value="", label_visibility="collapsed")
-            ssn = st.text_input("**SSN**")  # New field
-            medicaid_no = st.text_input("**Medicaid Number**")
-        
-        with col2:
-            st.markdown('**Contact Status** <span class="required-star">*</span>', unsafe_allow_html=True)
-            last_contact_status = st.selectbox("Contact Status", 
-                                              ["Intro Call", "Follow Up", "No Response", "Inactive"],
-                                              label_visibility="collapsed")
-                                              
-            st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-            street = st.text_input("**Street**")
-            city = st.text_input("**City**")
-            state = st.text_input("**State**", value="IL", max_chars=2, help="2-letter state code (e.g. IL)")
-            zip_code = st.text_input("**Zip Code**")
-            
-            e_contact_name = st.text_input("**Emergency Contact Name**")
-            e_contact_relation = st.text_input("**Relation**")
-            e_contact_phone = st.text_input("**Emergency Contact Phone**")
-            
-            comments = st.text_area("**Comments**", height=150)
-        
-        st.divider()
-        st.markdown('<small>Fields marked with <span style="color:var(--required-star-pink)">*</span> are required</small>', unsafe_allow_html=True)
-       
-        submit = st.form_submit_button("Save Lead", width="stretch", type="primary")
-
-        
-        if submit:
+    save_lead = st.button("Save Lead", width="stretch", type="primary", use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    if save_lead:
             # Validation
             required_fields = [staff_name, first_name, last_name, source, phone, custom_user_id]
             if source == "Event" and not event_name:
