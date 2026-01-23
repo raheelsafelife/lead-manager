@@ -81,8 +81,8 @@ def list_leads(db: Session, skip: int = 0, limit: int = 50, include_deleted: boo
         joinedload(models.Lead.agency_suboption)
     )
     
-    if hasattr(models.Lead, 'lead_comments'):
-        query = query.options(joinedload("lead_comments"))
+    # Safe eager loading
+    query = query.options(joinedload(models.Lead.lead_comments))
     
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
