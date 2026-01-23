@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
 
-from .. import models
-from ..schemas import LeadCreate, LeadUpdate
-# from ..utils.activity_logger import log_activity # Moved to local import
+import app.models as models
+from app.schemas import LeadCreate, LeadUpdate
+# from app.utils.activity_logger import log_activity # Moved to local import
 
 
 # ------- CREATE -------
@@ -25,7 +25,7 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
     db.refresh(lead)
     
     # Log the activity - use the passed in username/user_id or defaults
-    from ..utils.activity_logger import log_activity
+    from app.utils.activity_logger import log_activity
     log_activity(
         db=db,
         user_id=user_id,
@@ -43,14 +43,20 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
 
 
 # ------- READ -------
-def get_lead(db: Session, lead_id: int, include_deleted: bool = False) -> Optional[models.Lead]:
+def get_lead(db: Session, lead_id: int, include_deleted: bool = False):
     """Get a lead by ID, optionally including deleted leads. Eagerly loads relationships."""
+    
     query = db.query(models.Lead).options(
         joinedload(models.Lead.agency),
         joinedload(models.Lead.ccu),
         joinedload(models.Lead.mco),
         joinedload(models.Lead.agency_suboption)
-    ).filter(models.Lead.id == lead_id)
+    )
+    
+    if hasattr(models.Lead, 'lead_comments'):
+        query = query.options(joinedload("lead_comments"))
+    
+    query = query.filter(models.Lead.id == lead_id)
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
     return query.first()
@@ -74,6 +80,10 @@ def list_leads(db: Session, skip: int = 0, limit: int = 50, include_deleted: boo
         joinedload(models.Lead.mco),
         joinedload(models.Lead.agency_suboption)
     )
+    
+    if hasattr(models.Lead, 'lead_comments'):
+        query = query.options(joinedload("lead_comments"))
+    
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
     return (
@@ -236,7 +246,7 @@ def restore_lead(db: Session, lead_id: int, username: str, user_id: Optional[int
 
 def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[models.Lead]:
     """List only deleted leads (recycle bin). Eagerly loads relationships for caching."""
-    return (
+    query = (
         db.query(models.Lead)
         .options(
             joinedload(models.Lead.agency),
@@ -244,6 +254,13 @@ def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[mode
             joinedload(models.Lead.mco),
             joinedload(models.Lead.agency_suboption)
         )
+    )
+    
+    if hasattr(models.Lead, 'lead_comments'):
+        query = query.options(joinedload("lead_comments"))
+    
+    return (
+        query
         .filter(models.Lead.deleted_at != None)
         .order_by(models.Lead.deleted_at.desc())
         .offset(skip)
@@ -267,17 +284,24 @@ def search_leads(
     auth_received_filter: Optional[bool] = None,
     skip: int = 0,
     limit: int = 50
-) -> List[models.Lead]:
+):
     """
     Search leads with comprehensive SQL-level filtering and pagination.
     Super fast performance.
     """
+    import app.models as models
+    # Centralized reloading in streamlit_app.py handles updates
+    
     query = db.query(models.Lead).options(
         joinedload(models.Lead.agency),
         joinedload(models.Lead.ccu),
         joinedload(models.Lead.mco),
         joinedload(models.Lead.agency_suboption)
     )
+    
+    # Safely eager load comments if the relationship exists
+    if hasattr(models.Lead, 'lead_comments'):
+        query = query.options(joinedload(models.Lead.lead_comments))
     
     # 1. Deleted State
     if include_deleted:

@@ -20,12 +20,12 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache
+from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack
 
 
 def display_referral_confirm(lead, db, highlight=False):
     """Helper function to display a single referral in the confirm page"""
-    pass # Removed module reloads
+    
     
     from app.crud.crud_leads import update_lead
 
@@ -146,6 +146,9 @@ def display_referral_confirm(lead, db, highlight=False):
             st.success(f"**Referral Type:** {lead.referral_type or 'Regular'}")
             st.write(f"**City:** {lead.city or 'N/A'}")
             st.write(f"**Medicaid #:** {lead.medicaid_no or 'N/A'}")
+            
+            # Display chronological comment stack
+            render_comment_stack(lead)
 
         st.divider()
 
@@ -159,75 +162,38 @@ def display_referral_confirm(lead, db, highlight=False):
         else:
             st.warning("**Care status not set yet**")
 
-        # Sub-Action Buttons: Edit, History, Undo Auth
+        # Sub-Action Buttons: Edit, History, Comment, Undo Auth
         st.write("**Manage Referral:**")
-        sub_col1, sub_col2, sub_col3 = st.columns(3)
+        sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([0.7, 0.7, 1.3, 1.3])
         
         with sub_col1:
             if st.button("Edit", key=f"edit_btn_confirm_{lead.id}", use_container_width=True):
-                # Prepare lead dictionary for modal
-                lead_dict = {
-                    "id": lead.id,
-                    "first_name": lead.first_name,
-                    "last_name": lead.last_name,
-                    "phone": lead.phone,
-                    "staff_name": lead.staff_name,
-                    "source": lead.source,
-                    "event_name": getattr(lead, 'event_name', None),
-                    "word_of_mouth_type": getattr(lead, 'word_of_mouth_type', None),
-                    "other_source_type": getattr(lead, 'other_source_type', None),
-                    "city": lead.city,
-                    "street": getattr(lead, 'street', ''),
-                    "state": getattr(lead, 'state', ''),
-                    "zip_code": getattr(lead, 'zip_code', ''),
-                    "last_contact_status": lead.last_contact_status,
-                    "priority": lead.priority,
-                    "dob": lead.dob,
-                    "age": getattr(lead, 'age', None),
-                    "medicaid_no": lead.medicaid_no,
-                    "e_contact_name": lead.e_contact_name,
-                    "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
-                    "e_contact_phone": lead.e_contact_phone,
-                    "active_client": lead.active_client,
-                    "agency_id": lead.agency_id,
-                    "ccu_id": lead.ccu_id,
-                    "comments": lead.comments
-                }
-                
-                # Action-scoped state (Stability Refactor)
+                # Prepare lead data for edit modal
+                lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
                 st.session_state.modal_open = True
                 st.session_state.modal_action = 'save_edit_modal'
                 st.session_state.modal_lead_id = lead.id
                 st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
-                st.session_state.modal_data = {
-                    'title': f"{lead.first_name} {lead.last_name}",
-                    'lead_data': lead_dict
-                }
-                
-                # Legacy active_modal mapping
-                st.session_state['active_modal'] = {
-                    'modal_type': 'save_edit_modal',
-                    'target_id': lead.id,
-                    'title': f"{lead.first_name} {lead.last_name}",
-                    'lead_data': lead_dict
-                }
+                st.session_state.modal_data = {'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
+                st.session_state['active_modal'] = {'modal_type': 'save_edit_modal', 'target_id': lead.id, 'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
                 st.rerun()
 
         with sub_col2:
             if st.button("History", key=f"history_btn_confirm_{lead.id}", use_container_width=True):
-                # CRITICAL: Clear modal state
                 st.session_state.modal_open = False
                 st.session_state.modal_action = None
                 st.session_state.pop('active_modal', None)
-                # Toggle history
                 key = f"show_history_conf_{lead.id}"
                 st.session_state[key] = not st.session_state.get(key, False)
                 st.rerun()
-                
+
         with sub_col3:
+            if st.button("💬 Comment", key=f"add_comment_btn_confirm_{lead.id}", use_container_width=True, help="Add a new update/note"):
+                show_add_comment_dialog(db, lead.id, f"{lead.first_name} {lead.last_name}")
+                
+        with sub_col4:
             if st.button("Undo Auth", key=f"undo_auth_btn_confirm_{lead.id}", 
-                         help="Remove authorization and move back to Referrals Sent", use_container_width=True):
-                # CRITICAL: Clear modal state
+                         help="Remove authorization and move back to Referrals Sent", type="primary", use_container_width=True):
                 st.session_state.modal_open = False
                 st.session_state.modal_action = None
                 st.session_state.pop('active_modal', None)
@@ -235,9 +201,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 update_data = LeadUpdate(authorization_received=False)
                 if update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id')):
                     clear_leads_cache()
-                    msg = f"Success! Authorization undone for {lead.first_name} {lead.last_name}. Moved back to Referrals Sent."
-                    st.toast(msg, icon="↩️")
-                    st.session_state['success_msg'] = msg
+                    st.toast(f"Auth undone for {lead.last_name}", icon="↩️")
                     st.rerun()
 
         st.divider()
@@ -312,6 +276,13 @@ def display_referral_confirm(lead, db, highlight=False):
 
 def referral_confirm():
     """Referral Confirm page - Shows all clients with authorization received"""
+    # Force module reload to pick up model changes (AttributeError Fix)
+    import sys
+    modules_to_reload = [k for k in sys.modules.keys() if 'crud_' in k or 'app.models' in k or 'backend.app.models' in k or 'services_stats' in k]
+    for mod in list(modules_to_reload):
+        if mod in sys.modules:
+            del sys.modules[mod]
+            
     from app.crud.crud_leads import search_leads, count_search_leads
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:

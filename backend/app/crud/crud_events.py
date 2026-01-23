@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import Optional
-from .. import models
+import app.models as models
 from ..utils.activity_logger import log_activity
 
 

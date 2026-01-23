@@ -1444,6 +1444,49 @@ def show_edit_modal_dialog(db, m):
             new_ccu_name_sel = st.selectbox("CCU", ccu_list, index=ccu_list.index(curr_ccu_name), key=f"edit_ccu_sel_{m['target_id']}")
             new_ccu_id = ccu_map.get(new_ccu_name_sel)
             
+            # Runtime CCU Creation
+            if st.checkbox("Add New CCU", key=f"add_new_ccu_check_{m['target_id']}"):
+                new_ccu_text = st.text_input("New CCU Name", key=f"new_ccu_input_{m['target_id']}")
+                
+                # Additional Details
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    n_phone = st.text_input("Phone", key=f"new_ccu_phone_{m['target_id']}")
+                    n_fax = st.text_input("Fax", key=f"new_ccu_fax_{m['target_id']}")
+                    n_email = st.text_input("Email", key=f"new_ccu_email_{m['target_id']}")
+                with col_c2:
+                    n_addr = st.text_input("Address", key=f"new_ccu_addr_{m['target_id']}")
+                    n_city = st.text_input("City", key=f"new_ccu_city_{m['target_id']}")
+                    n_state = st.text_input("State", value="IL", max_chars=2, key=f"new_ccu_state_{m['target_id']}")
+                    n_zip = st.text_input("Zip", key=f"new_ccu_zip_{m['target_id']}")
+                
+                n_coord = st.text_input("Care Coordinator Name", key=f"new_ccu_coord_{m['target_id']}")
+
+                if st.button("Save New CCU", key=f"save_new_ccu_btn_{m['target_id']}"):
+                    if new_ccu_text:
+                        # Check exist
+                        if new_ccu_text in ccu_map:
+                            st.error("CCU already exists!")
+                        else:
+                            crud_ccus.create_ccu(
+                                db, 
+                                name=new_ccu_text, 
+                                created_by=st.session_state.username, 
+                                created_by_id=st.session_state.get('db_user_id'),
+                                phone=n_phone,
+                                fax=n_fax,
+                                email=n_email,
+                                address=n_addr,
+                                city=n_city,
+                                state=n_state,
+                                zip_code=n_zip,
+                                care_coordinator_name=n_coord
+                            )
+                            st.success(f"CCU '{new_ccu_text}' created!")
+                            st.rerun()
+                    else:
+                        st.warning("Enter a name.")
+            
             if new_ccu_id:
                 exp_c_key = f"expand_c_edit_{m['target_id']}_{new_ccu_id}"
                 if exp_c_key not in st.session_state:
@@ -1518,6 +1561,65 @@ def show_edit_modal_dialog(db, m):
                 st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
                 clear_leads_cache()
                 close_modal()
+
+@st.dialog("Add Comment", width="small")
+def show_add_comment_dialog(db, lead_id, lead_name):
+    """
+    Native Streamlit dialog for adding a new comment to a lead.
+    """
+    from app.crud import crud_notes
+    
+    st.markdown(f"**Add a new update for {lead_name}**")
+    content = st.text_area("Update Details", placeholder="Enter notes, calls, or other updates here...", height=150)
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("Save Comment", type="primary", use_container_width=True):
+            if content.strip():
+                crud_notes.add_new_comment(db, lead_id, st.session_state.username, content)
+                st.success("Comment added!")
+                st.toast("Comment Added", icon="💬")
+                st.rerun()
+            else:
+                st.warning("Please enter some text.")
+    with col2:
+        if st.button("Cancel", use_container_width=True):
+            st.rerun()
+
+def render_comment_stack(lead_obj):
+    """
+    Shared component to render the chronological stack of comments for a lead.
+    """
+    # Fetch comments - lead_obj is an ORM object from joinedload
+    comments = []
+    if hasattr(lead_obj, 'lead_comments'):
+        comments = lead_obj.lead_comments
+    
+    # Sort by created_at desc (newest first) in case not sorted by query
+    comments = sorted(comments, key=lambda x: x.created_at, reverse=True)
+    
+    if not comments:
+        st.caption("No updates yet for this lead.")
+        return
+
+    st.markdown("---")
+    st.markdown("**Updates / Comments History:**")
+    
+    # Render with custom styling
+    for comment in comments:
+        # Format date MM/DD/YYYY
+        local_time = utc_to_local(comment.created_at, st.session_state.get('user_timezone'))
+        date_str = local_time.strftime('%m/%d/%Y %I:%M %p')
+        
+        st.markdown(f"""
+        <div style="background-color: #f9fafb; border-radius: 0.5rem; padding: 0.75rem; border-left: 4px solid #3b82f6; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                <span style="font-weight: bold; color: #1f2937;">{comment.username}</span>
+                <span style="font-size: 0.75rem; color: #6b7280;">{date_str}</span>
+            </div>
+            <div style="color: #4b5563; font-size: 0.875rem; white-space: pre-wrap;">{comment.content}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 def handle_active_modal(db):
     """

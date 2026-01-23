@@ -4,7 +4,7 @@ CRUD operations for MCO (Managed Care Organization) management
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
-from .. import models
+import app.models as models
 from .crud_activity_logs import create_activity_log
 
 

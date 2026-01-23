@@ -3,7 +3,7 @@ from passlib.context import CryptContext
 from typing import Optional
 import bcrypt
 
-from .. import models
+import app.models as models
 from ..schemas import UserCreate
 from ..utils.activity_logger import log_activity
 

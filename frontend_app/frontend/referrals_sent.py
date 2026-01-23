@@ -20,19 +20,11 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack
 
 
 def view_referrals():
     """View and manage referrals only"""
-    # Force module reload
-    import sys
-    # Essential for development: Force reload of backend modules when they've changed
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_' in k or 'app.models' in k or 'services_stats' in k]
-    for mod in modules_to_reload:
-        if mod in sys.modules:
-            del sys.modules[mod]
-    
     from app.crud.crud_leads import search_leads, count_search_leads, update_lead
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:
@@ -395,6 +387,9 @@ def view_referrals():
                     st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                     if lead.comments:
                         st.write(f"**Comments:** {lead.comments}")
+                    
+                    # Display chronological comment stack
+                    render_comment_stack(lead)
                 
                 # Creator/Updater Info
                 st.divider()
@@ -459,142 +454,59 @@ def view_referrals():
                     continue
 
                 # Action buttons
-                col1, col2, col3, col4 = st.columns([1.0, 1.0, 2.0, 2.0])
+                col1, col2, col3, col4 = st.columns([0.7, 0.7, 1.3, 3.3])
                 with col1:
-                    if can_modify and st.button("Edit", key=f"edit_lead_btn_ref_{lead.id}"):
-                        # Prepare lead data for edit modal (Comprehensive set with safety)
-                        lead_dict = {
-                            "id": lead.id,
-                            "first_name": lead.first_name,
-                            "last_name": lead.last_name,
-                            "phone": lead.phone,
-                            "staff_name": lead.staff_name,
-                            "source": lead.source,
-                            "event_name": getattr(lead, 'event_name', None),
-                            "word_of_mouth_type": getattr(lead, 'word_of_mouth_type', None),
-                            "other_source_type": getattr(lead, 'other_source_type', None),
-                            "city": lead.city,
-                            "street": getattr(lead, 'street', ''),
-                            "state": getattr(lead, 'state', ''),
-                            "zip_code": getattr(lead, 'zip_code', ''),
-                            "last_contact_status": lead.last_contact_status,
-                            "priority": lead.priority,
-                            "dob": lead.dob,
-                            "age": getattr(lead, 'age', None),
-                            "medicaid_no": lead.medicaid_no,
-                            "e_contact_name": lead.e_contact_name,
-                            "e_contact_relation": getattr(lead, 'e_contact_relation', ''),
-                            "e_contact_phone": lead.e_contact_phone,
-                            "active_client": lead.active_client,
-                            "agency_id": lead.agency_id,
-                            "ccu_id": lead.ccu_id,
-                            "comments": lead.comments
-                        }
-                        # Action-scoped state (Stability Refactor)
-                        st.session_state.modal_open = True
-                        st.session_state.modal_action = 'save_edit_modal'
-                        st.session_state.modal_lead_id = lead.id
-                        st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
-                        st.session_state.modal_data = {
-                            'title': f"{lead.first_name} {lead.last_name}",
-                            'lead_data': lead_dict
-                        }
-                        
-                        # Legacy active_modal mapping
-                        st.session_state['active_modal'] = {
-                            'modal_type': 'save_edit_modal',
-                            'target_id': lead.id,
-                            'title': f"{lead.first_name} {lead.last_name}",
-                            'lead_data': lead_dict
-                        }
-                        st.rerun()
+                    if can_modify:
+                        if st.button("Edit", key=f"edit_lead_btn_ref_{lead.id}", use_container_width=True):
+                            # Prepar lead data for edit modal
+                            lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
+                            st.session_state.modal_open = True
+                            st.session_state.modal_action = 'save_edit_modal'
+                            st.session_state.modal_lead_id = lead.id
+                            st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
+                            st.session_state.modal_data = {'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
+                            st.session_state['active_modal'] = {'modal_type': 'save_edit_modal', 'target_id': lead.id, 'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
+                            st.rerun()
                 with col2:
                     if can_modify:
-                        if st.button("Delete", key=f"delete_lead_btn_ref_{lead.id}"):
-                            render_confirmation_modal(
-                                modal_type='soft_delete_ref',
-                                target_id=lead.id,
-                                title='Delete Referral?',
-                                message=f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?",
-                                icon='🗑️',
-                                type='warning',
-                                confirm_label='DELETE',
-                                indicator='This will move it to the Recycle Bin.'
-                            )
-                
-                with col3:
-                    # Show automatic email status
-                    if lead.last_contact_status != "Inactive":
-                        schedule = "6h x 2 days" if lead.referral_type == "Interim" else "24h x 7 days"
-                        st.caption(f"Auto-emails: {schedule}")
-                    else:
-                        st.caption("Inactive - No emails")
-                
-                # Show email history for this referral
-                reminders = crud_email_reminders.get_reminders_by_lead(db, lead.id)
-                if reminders:
-                    st.caption(f" Email History ({len(reminders)} sent):")
-                    for reminder in reminders[:3]:  # Show last 3
-                        status_icon = "📧" if reminder.status == "sent" else "❌"
-                        st.markdown(f"<span style='font-size: 0.85rem; color: #6B7280;'>{status_icon} {render_time(reminder.sent_at)} -> {reminder.recipient_email}</span>", unsafe_allow_html=True)
+                        if st.button("Delete", key=f"delete_lead_btn_ref_{lead.id}", use_container_width=True):
+                            render_confirmation_modal(modal_type='soft_delete_ref', target_id=lead.id, title='Delete Referral?', message=f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?", icon='🗑️', type='warning', confirm_label='DELETE', indicator='This will move it to the Recycle Bin.')
                 
                 with col3:
                     # Unmark Referral button
                     if can_modify:
                         if st.button("Unmark Referral", key=f"unmark_ref_btn_ref_{lead.id}", type="primary", use_container_width=True):
-                            render_confirmation_modal(
-                                modal_type='unmark_ref',
-                                target_id=lead.id,
-                                title='Unmark Referral?',
-                                message=f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?",
-                                indicator='This will hide it from the Referrals list but keep the record in the main Lead List.',
-                                icon='🚫',
-                                type='warning',
-                                confirm_label='UNMARK'
-                            )
+                            render_confirmation_modal(modal_type='unmark_ref', target_id=lead.id, title='Unmark Referral?', message=f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?", indicator='This will hide it from the Referrals list but keep the record in the main Lead List.', icon='🚫', type='warning', confirm_label='UNMARK')
                 
                 with col4:
-                    # History button and Authorization Received button side by side
-                    btn_col1, btn_col2 = st.columns(2)
+                    # History, Add Comment, and Auth buttons in 3 columns
+                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                    
                     with btn_col1:
-                        if st.button("History", key=f"history_btn_ref_{lead.id}"):
-                            # CRITICAL: Clear modal state BEFORE toggling history
+                        if st.button("History", key=f"history_btn_ref_{lead.id}", use_container_width=True):
                             st.session_state.modal_open = False
                             st.session_state.modal_action = None
                             st.session_state.pop('active_modal', None)
-                            
-                            # Toggle history view
                             key = f"show_history_ref_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
                             st.rerun()
                     
                     with btn_col2:
+                         if st.button("💬 Comment", key=f"add_comment_btn_ref_{lead.id}", use_container_width=True, help="Add a new update/note"):
+                            show_add_comment_dialog(db, lead.id, f"{lead.first_name} {lead.last_name}")
+                            
+                    with btn_col3:
                         # Authorization Received button - toggleable
                         if lead.authorization_received:
-                            if st.button("Unmark Auth", key=f"unmark_auth_btn_ref_{lead.id}",
-                                       help="Remove authorization received status", type="primary"):
+                            if st.button("Unmark Auth", key=f"unmark_auth_btn_ref_{lead.id}", help="Remove authorization received status", type="primary", use_container_width=True):
                                 update_data = LeadUpdate(authorization_received=False)
                                 updated_lead = update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
                                 if updated_lead:
-                                    st.session_state.modal_open = False
-                                    st.session_state.modal_action = None
-                                    st.session_state.pop('active_modal', None)
-                                    msg = f"Success! Authorization unmarked for {lead.first_name} {lead.last_name}."
-                                    st.toast(msg, icon="↩️")
-                                    st.session_state['success_msg'] = msg
+                                    st.toast(f"Auth reversed for {lead.last_name}", icon="↩️")
                                     st.rerun()
                         else:
-                            if st.button("Mark Authentication", key=f"mark_auth_btn_ref_{lead.id}", 
-                                       help="Mark as authorized and move to Referral Confirm", type="primary", use_container_width=True):
-                                render_confirmation_modal(
-                                    modal_type='auth_received',
-                                    target_id=lead.id,
-                                    title='Authorization Received?',
-                                    message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?",
-                                    icon='✅',
-                                    type='info',
-                                    confirm_label='MARK RECEIVED'
-                                )
+                            if st.button("Mark Auth", key=f"mark_auth_btn_ref_{lead.id}", help="Mark as authorized and move to Referral Confirm", type="primary", use_container_width=True):
+                                render_confirmation_modal(modal_type='auth_received', target_id=lead.id, title='Authorization Received?', message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?", icon='✅', type='info', confirm_label='MARK RECEIVED')
                 
                 # History View
                 if st.session_state.get(f"show_history_ref_{lead.id}", False):

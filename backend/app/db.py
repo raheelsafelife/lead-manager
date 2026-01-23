@@ -1,6 +1,12 @@
+import logging
+import sys
 import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Configure logging to stderr to avoid stdout issues
+logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Database configuration
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -8,18 +14,18 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Priority 1: Check for Persistent Volume mount (Docker/AWS)
 if os.path.exists("/app/data"):
     DATABASE_URL = "sqlite:////app/data/leads.db"
-    print(f"[DB] Starting in Persistent Mode -> Using: /app/data/leads.db")
+    logger.info(f"[DB] Starting in Persistent Mode -> Using: /app/data/leads.db")
 else:
     # Priority 2: Use DATABASE_URL from environment if provided
     env_db_url = os.getenv("DATABASE_URL")
     if env_db_url:
         DATABASE_URL = env_db_url
-        print(f"[DB] Starting in Custom Mode -> Using Env URL")
+        logger.info(f"[DB] Starting in Custom Mode -> Using Env URL")
     else:
         # Priority 3: Default to local leads.db
         local_db_path = os.path.join(BASE_DIR, "leads.db")
         DATABASE_URL = f"sqlite:///{local_db_path}"
-        print(f"[DB] Starting in Local Mode -> Using: {local_db_path}")
+        logger.info(f"[DB] Starting in Local Mode -> Using: {local_db_path}")
 
 # Adjust URL for SQLAlchemy if it's Postgres (staying compatible)
 if DATABASE_URL.startswith("postgres://"):

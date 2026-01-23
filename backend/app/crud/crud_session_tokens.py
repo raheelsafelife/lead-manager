@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import secrets
 from typing import Optional
 
-from .. import models
+import app.models as models
 
 
 def generate_secure_token() -> str:

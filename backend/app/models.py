@@ -122,9 +122,28 @@ class Lead(Base):
     address = Column(Text, nullable=True)  # Full address from form
     state = Column(String(2), nullable=True)  # 2-letter state code
     
-    # Soft delete / Recycle Bin
+    # Safe delete / Recycle Bin
     deleted_at = Column(DateTime, nullable=True)  # When lead was deleted
     deleted_by = Column(String(100), nullable=True)  # Username who deleted it
+
+    # Relationships
+    lead_comments = relationship("LeadComment", back_populates="lead", cascade="all, delete-orphan")
+
+class LeadComment(Base):
+    """
+    Comments/Notes added to a lead by users.
+    Displayed in a chronological stack.
+    """
+    __tablename__ = "lead_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    username = Column(String(100), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    lead = relationship("Lead", back_populates="lead_comments")
 
 class Event(Base):
     __tablename__ = "events"
