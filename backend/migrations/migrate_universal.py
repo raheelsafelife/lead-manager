@@ -145,6 +145,10 @@ def migrate():
         
         ccu_updates = [
             ('address', 'VARCHAR(255)'),
+            ('street', 'VARCHAR(255)'),
+            ('city', 'VARCHAR(100)'),
+            ('state', 'VARCHAR(2)'),
+            ('zip_code', 'VARCHAR(20)'),
             ('phone', 'VARCHAR(50)'),
             ('fax', 'VARCHAR(50)'),
             ('email', 'VARCHAR(255)'),
