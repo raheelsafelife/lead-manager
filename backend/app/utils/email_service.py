@@ -21,6 +21,30 @@ SMTP_PASSWORD = os.getenv("SENDER_PASSWORD")
 # Admin email for tracking all leads
 ADMIN_EMAIL = "safelifeleadsccp@gmail.com"
 
+def get_template_content(slug: str, default_subject: str, default_body: str, data: dict):
+    """
+    Fetches a template from DB and formats it with data.
+    Falls back to hardcoded defaults if DB template is missing.
+    """
+    from app.db import SessionLocal
+    from app.crud.crud_email_templates import get_template_by_slug
+    
+    db = SessionLocal()
+    try:
+        t = get_template_by_slug(db, slug)
+        if t:
+            # Use DB template
+            subject = t.subject.format(**data)
+            body = t.body.format(**data)
+            return subject, body
+    except Exception as e:
+        logger.error(f"Error fetching template '{slug}': {e}")
+    finally:
+        db.close()
+        
+    # Fallback to hardcoded
+    return default_subject.format(**data), default_body.format(**data)
+
 
 def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
     """
@@ -97,28 +121,25 @@ def send_simple_lead_email(lead_info: dict, recipient_email: str) -> bool:
     status = lead_info.get('status', 'N/A')
     created_date = lead_info.get('created_date', 'N/A')
     
-    subject = f"Lead Reminder: {name}"
-    
-    # Plain text body
-    body = f"""
-Lead Follow-up Reminder
+    subject_default = "Lead Reminder: {name}"
+    body_default = """
+Hello,
+
+This is an automated reminder for the following lead:
 
 Name: {name}
 Phone: {phone}
-Date of Birth: {dob}
-
 Source: {source}
-Created By: {creator}
-Created Date: {created_date}
-Current Status: {status}
+Status: {status}
+Created On: {created_date}
 
-Please follow up with this lead.
+Please follow up with this lead to ensure they are moving through the pipeline.
 
-This is an automatic reminder. You will continue to receive reminders every 48 hours until the lead becomes inactive or is marked as a referral.
-
-Best regards,
-Lead Manager System
+Best Regards,
+SafeLife Lead Management System
     """
+    
+    subject, body = get_template_content("lead_reminder", subject_default, body_default, lead_info)
     
     # HTML Body
     html_body = f"""
@@ -222,42 +243,39 @@ def send_referral_reminder_email(referral_info: dict, recipient_email: str) -> b
     if payor_suboption:
         payor_display += f" - {payor_suboption}"
     
-    subject = f"Referral Reminder [{referral_type}]: {name}"
-    
-    # Plain text body
-    body = f"""
-Referral Follow-up Reminder - {referral_type}
+    subject_default = "Referral Reminder [{referral_type}]: {name}"
+    body_default = """
+Hello,
 
-LEAD INFORMATION:
+This is an automated reminder for the following referral:
+
 Name: {name}
 Phone: {phone}
-Date of Birth: {dob}
-
-REFERRAL DETAILS:
+DOB: {dob}
+Status: {status}
 Referral Type: {referral_type}
-Current Status: {status}
-Created By: {creator}
-Created Date: {created_date}
 
-PAYOR INFORMATION:
-Payor: {payor_display}
+CCU Info:
+Name: {ccu_name}
+Phone: {ccu_phone}
+Fax: {ccu_fax}
+Address: {ccu_address}
 
-CCU INFORMATION:
-CCU Name: {ccu_name}
-CCU Phone: {referral_info.get('ccu_phone', 'N/A')}
-CCU Fax: {referral_info.get('ccu_fax', 'N/A')}
-CCU Email: {ccu_email}
-CCU Address: {referral_info.get('ccu_address', 'N/A')}
-Supervisor/Coordinator: {ccu_coordinator}
+Payor Info:
+Name: {payor_name}
+Suboption: {payor_suboption}
 
-Please follow up with this referral.
+Please follow up with this referral as soon as possible.
 
-Reminder Schedule:
-- All Referrals: Every 6 hours until Care Start
-
-Best regards,
-Lead Manager System
+Best Regards,
+SafeLife Lead Management System
     """
+    
+    # Ensure all required keys exist in info for formatting
+    fmt_info = referral_info.copy()
+    fmt_info['payor_display'] = payor_display
+    
+    subject, body = get_template_content("referral_reminder", subject_default, body_default, fmt_info)
     
     # HTML Body
     html_body = f"""

@@ -90,9 +90,6 @@ def main():
             
             # Add admin panel for admins
             if st.session_state.user_role == "admin":
-                pages.append("Admin Reporting")
-                pages.append("Email Template Editor")
-                pages.append("CCU & Provider Mgmt")
                 pages.append("User Management")
             
             # Ensure main_navigation is initialized
@@ -170,36 +167,6 @@ def main():
             view_activity_logs()
         elif page == "Update Password":
             update_password()
-        elif page == "Admin Reporting":
-            if st.session_state.user_role == "admin":
-                try:
-                    import frontend.reporting as fr
-                    fr.view_reporting()
-                except Exception:
-                    st.error("Admin Reporting module is not yet deployed.")
-                    if st.button("Back to Dashboard"): st.rerun()
-            else:
-                st.error("Access denied.")
-        elif page == "Email Template Editor":
-            if st.session_state.user_role == "admin":
-                try:
-                    import frontend.email_editor as fee
-                    fee.view_email_editor()
-                except Exception:
-                    st.error("Email Editor module is not yet deployed.")
-                    if st.button("Back to Dashboard"): st.rerun()
-            else:
-                st.error("Access denied.")
-        elif page == "CCU & Provider Mgmt":
-            if st.session_state.user_role == "admin":
-                try:
-                    import frontend.ccu_management as fcm
-                    fcm.view_ccu_management()
-                except Exception:
-                    st.error("CCU Management module is not yet deployed.")
-                    if st.button("Back to Dashboard"): st.rerun()
-            else:
-                st.error("Access denied.")
         elif page == "User Management":
             if st.session_state.user_role == "admin":
                 admin_panel()

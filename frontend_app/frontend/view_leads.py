@@ -176,17 +176,17 @@ def view_leads():
     # Search and filter
     col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
     with col1:
-        search_name = st.text_input("Search by name")
+        search_name = st.text_input("Search by name", key="search_name_input")
     with col2:
-        filter_staff = st.text_input("Filter by staff")
+        filter_staff = st.text_input("Filter by staff", key="search_staff_input")
     with col3:
-        filter_source = st.text_input("Filter by source")
+        filter_source = st.text_input("Filter by source", key="search_source_input")
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_leads_btn", use_container_width=True):
             st.session_state.leads_page = 0
             st.rerun()
-    
+
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     
     # Track current page in session state
@@ -230,7 +230,8 @@ def view_leads():
         owner_id=owner_id,
         only_my_leads=only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
-        exclude_clients=not st.session_state.show_deleted_leads
+        exclude_clients=not st.session_state.show_deleted_leads,
+        auth_received_filter=False
     )
     
     # UI Metadata

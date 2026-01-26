@@ -298,3 +298,17 @@ class SessionToken(Base):
     
     # Relationship
     user = relationship("User")
+
+
+class EmailTemplate(Base):
+    """
+    Stores customizable email templates for notifications.
+    Admins can edit these from the UI to change branding or wording.
+    """
+    __tablename__ = "email_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(100), unique=True, nullable=False, index=True) # e.g. 'referral_reminder'
+    subject = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -89,7 +89,7 @@ def admin_panel():
     db = SessionLocal()
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
         " Pending Users", 
         " Password Resets", 
         " Approved Users", 
@@ -97,7 +97,10 @@ def admin_panel():
         " Change My Password",
         " Payor",
         " CCU",
-        " Events"
+        " Events",
+        " Admin Reporting",
+        " Email Editor",
+        " CCU & Provider Mgmt"
     ])
     
     with tab1:
@@ -696,6 +699,27 @@ def admin_panel():
                 st.divider()
         else:
             st.info("**No events found. Add your first event above.**")
+
+    with tab9:
+        try:
+            from frontend.reporting import view_reporting
+            view_reporting()
+        except Exception as e:
+            st.error(f"Error loading Reporting: {e}")
+
+    with tab10:
+        try:
+            from frontend.email_editor import view_email_editor
+            view_email_editor()
+        except Exception as e:
+            st.error(f"Error loading Email Editor: {e}")
+
+    with tab11:
+        try:
+            from frontend.ccu_management import view_ccu_management
+            view_ccu_management()
+        except Exception as e:
+            st.error(f"Error loading CCU Management: {e}")
 
     db.close()
 

@@ -293,7 +293,9 @@ def search_leads(
     only_clients: bool = False,
     auth_received_filter: Optional[bool] = None,
     skip: int = 0,
-    limit: int = 50
+    limit: int = 50,
+    city_filter: Optional[str] = None,
+    zip_filter: Optional[str] = None
 ):
     """
     Search leads with comprehensive SQL-level filtering and pagination.
@@ -368,7 +370,22 @@ def search_leads(
     elif active_inactive_filter == "Inactive":
         query = query.filter(models.Lead.last_contact_status == "Inactive")
         
-    # 10. Order and Pagination
+    # 10. Advanced Filters (City / Zip)
+    if city_filter:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.city.ilike(f"%{city_filter}%"),
+            models.CCU.city.ilike(f"%{city_filter}%")
+        )).join(models.CCU, isouter=True)
+        
+    if zip_filter:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.zip_code.ilike(f"%{zip_filter}%"),
+            models.CCU.zip_code.ilike(f"%{zip_filter}%")
+        )).join(models.CCU, isouter=True)
+        
+    # 11. Order and Pagination
     return (
         query
         .order_by(models.Lead.created_at.desc())
@@ -391,7 +408,9 @@ def count_search_leads(
     include_deleted: bool = False,
     exclude_clients: bool = True,
     only_clients: bool = False,
-    auth_received_filter: Optional[bool] = None
+    auth_received_filter: Optional[bool] = None,
+    city_filter: Optional[str] = None,
+    zip_filter: Optional[str] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -437,5 +456,19 @@ def count_search_leads(
         query = query.filter(models.Lead.last_contact_status != "Inactive")
     elif active_inactive_filter == "Inactive":
         query = query.filter(models.Lead.last_contact_status == "Inactive")
+        
+    if city_filter:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.city.ilike(f"%{city_filter}%"),
+            models.CCU.city.ilike(f"%{city_filter}%")
+        )).join(models.CCU, isouter=True)
+        
+    if zip_filter:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            models.Lead.zip_code.ilike(f"%{zip_filter}%"),
+            models.CCU.zip_code.ilike(f"%{zip_filter}%")
+        )).join(models.CCU, isouter=True)
         
     return query.scalar()
