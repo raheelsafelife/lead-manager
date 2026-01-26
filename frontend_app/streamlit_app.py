@@ -175,7 +175,7 @@ def main():
                 try:
                     from frontend.reporting import view_reporting
                     view_reporting()
-                except ImportError:
+                except (ImportError, Exception):
                     st.error("Admin Reporting module is not yet deployed.")
                     if st.button("Back to Dashboard"): st.rerun()
             else:
@@ -185,7 +185,7 @@ def main():
                 try:
                     from frontend.email_editor import view_email_editor
                     view_email_editor()
-                except ImportError:
+                except (ImportError, Exception):
                     st.error("Email Editor module is not yet deployed.")
                     if st.button("Back to Dashboard"): st.rerun()
             else:
@@ -195,7 +195,7 @@ def main():
                 try:
                     from frontend.ccu_management import view_ccu_management
                     view_ccu_management()
-                except ImportError:
+                except (ImportError, Exception):
                     st.error("CCU Management module is not yet deployed.")
                     if st.button("Back to Dashboard"): st.rerun()
             else:
