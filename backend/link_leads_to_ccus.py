@@ -15,7 +15,11 @@ def normalize_phone(phone):
     return "".join(filter(str.isdigit, str(phone)))
 
 def link_leads_to_ccus():
-    db_path = "backend/leads.db"
+    # Use dynamic path detection (matches app/db.py behavior)
+    if os.path.exists("/app/data"):
+        db_path = "/app/data/leads.db"
+    else:
+        db_path = "backend/leads.db"
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 

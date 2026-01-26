@@ -10,7 +10,11 @@ def normalize_ccu_name(name):
     return name.replace('"', '').strip().upper()
 
 def import_ccus():
-    db_path = "backend/leads.db"
+    # Use dynamic path detection (matches app/db.py behavior)
+    if os.path.exists("/app/data"):
+        db_path = "/app/data/leads.db"
+    else:
+        db_path = "backend/leads.db"
     csv_files = [
         "referal sent - Sheet1.csv",
         "inactive - Sheet1.csv",
