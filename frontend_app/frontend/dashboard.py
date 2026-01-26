@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_leads_cached, get_stats_cached, clear_leads_cache, render_download_csv
+# from frontend.common ... moved inside dashboard() to prevent hot-reload ImportError
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -36,6 +36,7 @@ def show_drill_down(filtered_df, title):
 
 def dashboard():
     """Main dashboard view"""
+    from frontend.common import prepare_lead_data_for_email, get_leads_cached, get_stats_cached, clear_leads_cache, render_download_csv
     db = SessionLocal()
     
     # Load all leads for drill-down mapping
@@ -358,6 +359,7 @@ def dashboard():
 
 def discovery_tool():
     """Discovery tool for custom analysis"""
+    from frontend.common import render_download_csv
     db = SessionLocal()
     all_leads_list = crud_leads.list_leads(db, limit=10000)
     df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads_list])
@@ -423,6 +425,7 @@ def discovery_tool():
 
 def view_all_user_dashboards():
     """Admin view for all staff dashboards"""
+    from frontend.common import render_download_csv
     st.markdown('<div class="main-header">ALL USER DASHBOARDS</div>', unsafe_allow_html=True)
     if st.button("Back"): st.session_state.show_user_dashboards = False; st.rerun()
     db = SessionLocal(); approved = crud_users.get_approved_users(db)

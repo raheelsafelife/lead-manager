@@ -9,6 +9,7 @@ backend_path = Path(__file__).parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
 import streamlit as st
+import pandas as pd
 from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
 from app.crud import crud_session_tokens # crud_leads moved to local import
@@ -786,6 +787,22 @@ def get_leads_cached(include_deleted=False):
             return crud_leads.list_leads(db, limit=1000)
     finally:
         db.close()
+
+def render_download_csv(df: pd.DataFrame, filename="data.csv", label="Download data as CSV"):
+    """
+    Renders a standard Streamlit download button for a DataFrame.
+    """
+    if df is None or df.empty:
+        return
+        
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label=label,
+        data=csv,
+        file_name=filename,
+        mime='text/csv',
+        key=f"dl_btn_{filename}_{hash(str(df.columns))}"
+    )
 
 def clear_leads_cache():
     """Placeholder for cache invalidation (no-op since we removed caching)"""
