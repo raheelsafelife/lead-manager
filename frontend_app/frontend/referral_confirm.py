@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack
+from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -422,12 +422,13 @@ def referral_confirm():
         include_deleted=False,
         exclude_clients=False, # We want active clients
         auth_received_filter=True, # SQL FILTERING
-        skip=skip,
-        limit=page_size
+        only_clients=True,        # NEW: Filter at SQL level
+        skip=st.session_state.get('conf_skip', 0),
+        limit=st.session_state.get('conf_limit', 10)
     )
     
-    # Post-filter (Filtering now handled at SQL level)
-    leads = [l for l in leads if l.active_client == True]
+    # Post-filter (Now handled at SQL level)
+    # leads = [l for l in leads if l.active_client == True]
     
     if st.session_state.confirm_care_filter == "Care Start":
         leads = [l for l in leads if l.care_status == "Care Start"]
@@ -446,6 +447,7 @@ def referral_confirm():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         exclude_clients=False,
+        only_clients=True, # NEW: Filter at SQL level
         auth_received_filter=True
     )
     
@@ -455,7 +457,6 @@ def referral_confirm():
 
     # Show filtered count
     st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
-    st.caption(f"Page {current_page_display} of {num_pages}")
     
     if not leads:
         st.info("**No clients match the selected filter.**")
@@ -471,23 +472,6 @@ def referral_confirm():
         display_referral_confirm(lead, db)
     
     # --- PAGINATION UI CONTROLS ---
-    if total_leads > page_size:
-        st.divider()
-        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
-        
-        with nav_col1:
-            if st.session_state.confirm_page > 0:
-                if st.button("← Previous Page", use_container_width=True, key="prev_conf_pg"):
-                    st.session_state.confirm_page -= 1
-                    st.rerun()
-        
-        with nav_col2:
-            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} clients</p>", unsafe_allow_html=True)
-            
-        with nav_col3:
-            if st.session_state.confirm_page < num_pages - 1:
-                if st.button("Next Page →", use_container_width=True, key="next_conf_pg"):
-                    st.session_state.confirm_page += 1
-                    st.rerun()
+    st.session_state.conf_skip, st.session_state.conf_limit = render_pagination(total_leads, "conf")
     
     db.close()

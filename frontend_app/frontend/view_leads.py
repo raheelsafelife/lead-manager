@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
 
 
 def view_leads():
@@ -214,9 +214,9 @@ def view_leads():
         owner_id=owner_id,
         only_my_leads=only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
-        exclude_clients=not st.session_state.show_deleted_leads,
-        skip=skip,
-        limit=page_size
+        auth_received_filter=False,
+        skip=st.session_state.get('leads_skip', 0),
+        limit=st.session_state.get('leads_limit', 10)
     )
     
     total_leads = count_search_leads(
@@ -243,7 +243,6 @@ def view_leads():
         filter_info += f" | Showing: My Leads Only"
     
     st.write(f"**Showing {len(leads)} leads of {total_leads} total ({filter_info})**")
-    st.caption(f"Page {current_page_display} of {num_pages}")
     
     # Display leads
     if leads:
@@ -458,24 +457,7 @@ def view_leads():
         st.info("No leads found")
     
     # --- PAGINATION UI CONTROLS ---
-    if total_leads > page_size:
-        st.divider()
-        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
-        
-        with nav_col1:
-            if st.session_state.leads_page > 0:
-                if st.button("← Previous Page", use_container_width=True):
-                    st.session_state.leads_page -= 1
-                    st.rerun()
-        
-        with nav_col2:
-            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} leads</p>", unsafe_allow_html=True)
-            
-        with nav_col3:
-            if st.session_state.leads_page < num_pages - 1:
-                if st.button("Next Page →", use_container_width=True):
-                    st.session_state.leads_page += 1
-                    st.rerun()
+    st.session_state.leads_skip, st.session_state.leads_limit = render_pagination(total_leads, "leads")
     
     db.close()
 

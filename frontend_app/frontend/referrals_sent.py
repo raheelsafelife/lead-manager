@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
 
 
 def view_referrals():
@@ -266,15 +266,15 @@ def view_referrals():
         owner_id=owner_id,
         only_my_leads=only_my_referrals,
         include_deleted=st.session_state.show_deleted_referrals,
-        exclude_clients=False, # We want active clients here
+        exclude_clients=False,
+        only_clients=True,
         auth_received_filter=False,
-        skip=skip,
-        limit=page_size
+        skip=st.session_state.get('refs_skip', 0),
+        limit=st.session_state.get('refs_limit', 10)
     )
     
-    # Post-process for referrals sent (Filtering handled at SQL level)
-    # Note: search_leads now supports authorization_received filter
-    leads = [l for l in leads if l.active_client == True]
+    # Post-process for referrals sent (Now handled at SQL level)
+    # leads = [l for l in leads if l.active_client == True]
     
     total_leads = count_search_leads(
         db,
@@ -288,6 +288,7 @@ def view_referrals():
         only_my_leads=only_my_referrals,
         include_deleted=st.session_state.show_deleted_referrals,
         exclude_clients=False,
+        only_clients=True,
         auth_received_filter=False
     )
     
@@ -302,10 +303,7 @@ def view_referrals():
     
     if st.session_state.show_deleted_referrals:
         st.write(f"**Showing {len(leads)} deleted referrals of {total_leads} total**")
-    else:
-        st.write(f"**Showing {len(leads)} referrals of {total_leads} total** ({filter_info})")
-    
-    st.caption(f"Page {current_page_display} of {num_pages}")
+    st.write(f"**Showing {len(leads)} referrals of {total_leads} total** ({filter_info})")
     
     # Display referrals
     if leads:
@@ -531,23 +529,6 @@ def view_referrals():
         st.info("No referrals found")
     
     # --- PAGINATION UI CONTROLS ---
-    if total_leads > page_size:
-        st.divider()
-        nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
-        
-        with nav_col1:
-            if st.session_state.referrals_page > 0:
-                if st.button("← Previous Page", use_container_width=True, key="prev_ref_pg"):
-                    st.session_state.referrals_page -= 1
-                    st.rerun()
-        
-        with nav_col2:
-            st.markdown(f"<p style='text-align: center; color: #64748b;'>Showing {skip+1} to {min(skip+page_size, total_leads)} of {total_leads} referrals</p>", unsafe_allow_html=True)
-            
-        with nav_col3:
-            if st.session_state.referrals_page < num_pages - 1:
-                if st.button("Next Page →", use_container_width=True, key="next_ref_pg"):
-                    st.session_state.referrals_page += 1
-                    st.rerun()
+    st.session_state.refs_skip, st.session_state.refs_limit = render_pagination(total_leads, "refs")
     
     db.close()

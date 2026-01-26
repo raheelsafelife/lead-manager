@@ -290,6 +290,7 @@ def search_leads(
     only_my_leads: bool = False,
     include_deleted: bool = False,
     exclude_clients: bool = True,
+    only_clients: bool = False,
     auth_received_filter: Optional[bool] = None,
     skip: int = 0,
     limit: int = 50
@@ -320,8 +321,10 @@ def search_leads(
     else:
         query = query.filter(models.Lead.deleted_at == None)
         
-    # 2. Exclude active clients (for main leads view)
-    if exclude_clients and not include_deleted:
+    # 2. Client State
+    if only_clients:
+        query = query.filter(models.Lead.active_client == True)
+    elif exclude_clients and not include_deleted:
         query = query.filter(models.Lead.active_client == False)
     
     # 2.5 Authorization Received Filter
@@ -387,6 +390,7 @@ def count_search_leads(
     only_my_leads: bool = False,
     include_deleted: bool = False,
     exclude_clients: bool = True,
+    only_clients: bool = False,
     auth_received_filter: Optional[bool] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
@@ -398,7 +402,9 @@ def count_search_leads(
     else:
         query = query.filter(models.Lead.deleted_at == None)
         
-    if exclude_clients and not include_deleted:
+    if only_clients:
+        query = query.filter(models.Lead.active_client == True)
+    elif exclude_clients and not include_deleted:
         query = query.filter(models.Lead.active_client == False)
         
     if auth_received_filter is not None:

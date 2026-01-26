@@ -1881,6 +1881,73 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
     return None
 
 
+def render_pagination(total_items, key_prefix):
+    """
+    Renders a unified Material-UI style pagination bar.
+    Returns: (skip, limit)
+    """
+    # 1. Initialize State
+    page_key = f"{key_prefix}_page"
+    rows_key = f"{key_prefix}_rows_per_page"
+    
+    if page_key not in st.session_state:
+        st.session_state[page_key] = 0
+    if rows_key not in st.session_state:
+        st.session_state[rows_key] = 10 # Default
+        
+    page_index = st.session_state[page_key]
+    rows_per_page = st.session_state[rows_key]
+    
+    # Calculate metadata
+    num_pages = max(1, (total_items // rows_per_page) + (1 if total_items % rows_per_page > 0 else 0))
+    if page_index >= num_pages:
+        page_index = num_pages - 1
+        st.session_state[page_key] = page_index
+        
+    start_item = (page_index * rows_per_page) + 1 if total_items > 0 else 0
+    end_item = min((page_index + 1) * rows_per_page, total_items)
+    
+    # 2. Render UI
+    st.markdown("---")
+    
+    # Create the MUI-like bar using columns
+    # [Rows per page label] [Selector] [Range Text] [Prev] [Next]
+    p_col1, p_col2, p_col3, p_col4, p_col5 = st.columns([1.5, 1, 2, 0.5, 0.5])
+    
+    with p_col1:
+        st.markdown("<div style='margin-top: 5px; text-align: right; font-weight: 600; color: #6b7280;'>Rows per page:</div>", unsafe_allow_html=True)
+    
+    with p_col2:
+        # Selector for rows per page
+        options = [10, 20, 50, 100]
+        try:
+            cur_idx = options.index(rows_per_page)
+        except ValueError:
+            cur_idx = 0
+            
+        new_rows = st.selectbox("Rows per page", options, index=cur_idx, 
+                               label_visibility="collapsed", key=f"rows_sel_{key_prefix}")
+        if new_rows != rows_per_page:
+            st.session_state[rows_key] = new_rows
+            st.session_state[page_key] = 0 # Reset to first page
+            st.rerun()
+            
+    with p_col3:
+        st.markdown(f"<div style='margin-top: 5px; text-align: center; color: #111827; font-weight: 700;'>{start_item}-{end_item} of {total_items}</div>", unsafe_allow_html=True)
+        
+    with p_col4:
+        if st.button("⟨", key=f"prev_{key_prefix}", use_container_width=True, disabled=(page_index == 0)):
+            st.session_state[page_key] -= 1
+            st.rerun()
+            
+    with p_col5:
+        if st.button("⟩", key=f"next_{key_prefix}", use_container_width=True, disabled=(page_index >= num_pages - 1)):
+            st.session_state[page_key] += 1
+            st.rerun()
+            
+    return page_index * rows_per_page, rows_per_page
+
+
 def render_api_status():
     """Diagnostic tool to check if the FastAPI backend is running."""
     import urllib.request
