@@ -380,7 +380,7 @@ def view_leads():
                         if can_modify:
                             if not lead.active_client:
                                 # Not a referral yet -> Navigate to Mark Referral page
-                                if st.button("Mark Referral", key=f"mark_ref_btn_v3_{lead.id}", type="secondary", use_container_width=True):
+                                if st.button("🚩 Mark Referral", key=f"mark_ref_btn_v4_{lead.id}", type="secondary", use_container_width=True):
                                     render_confirmation_modal(modal_type='mark_ref_confirm', target_id=lead.id, title='Mark as Referral?', message=f"This will move <strong>{lead.first_name} {lead.last_name}</strong> to 'Referrals Sent' and change its status.<br><br>You'll be redirected to complete referral details.", icon='🚩', type='info', confirm_label='YES, MARK REFERRAL')
                             else:
                                 # Already a referral -> Show Unmark button
