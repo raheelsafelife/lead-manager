@@ -172,20 +172,32 @@ def main():
             update_password()
         elif page == "Admin Reporting":
             if st.session_state.user_role == "admin":
-                from frontend.reporting import view_reporting
-                view_reporting()
+                try:
+                    from frontend.reporting import view_reporting
+                    view_reporting()
+                except ImportError:
+                    st.error("Admin Reporting module is not yet deployed.")
+                    if st.button("Back to Dashboard"): st.rerun()
             else:
                 st.error("Access denied.")
         elif page == "Email Template Editor":
             if st.session_state.user_role == "admin":
-                from frontend.email_editor import view_email_editor
-                view_email_editor()
+                try:
+                    from frontend.email_editor import view_email_editor
+                    view_email_editor()
+                except ImportError:
+                    st.error("Email Editor module is not yet deployed.")
+                    if st.button("Back to Dashboard"): st.rerun()
             else:
                 st.error("Access denied.")
         elif page == "CCU & Provider Mgmt":
             if st.session_state.user_role == "admin":
-                from frontend.ccu_management import view_ccu_management
-                view_ccu_management()
+                try:
+                    from frontend.ccu_management import view_ccu_management
+                    view_ccu_management()
+                except ImportError:
+                    st.error("CCU Management module is not yet deployed.")
+                    if st.button("Back to Dashboard"): st.rerun()
             else:
                 st.error("Access denied.")
         elif page == "User Management":
