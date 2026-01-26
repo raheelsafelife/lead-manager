@@ -53,8 +53,11 @@ def get_lead(db: Session, lead_id: int, include_deleted: bool = False):
         joinedload(models.Lead.agency_suboption)
     )
     
-    # Safe eager loading
-    query = query.options(joinedload(models.Lead.lead_comments))
+    # Defensive eager loading
+    try:
+        query = query.options(joinedload(models.Lead.lead_comments))
+    except Exception:
+        pass
     
     query = query.filter(models.Lead.id == lead_id)
     if not include_deleted:
@@ -81,8 +84,11 @@ def list_leads(db: Session, skip: int = 0, limit: int = 50, include_deleted: boo
         joinedload(models.Lead.agency_suboption)
     )
     
-    # Safe eager loading
-    query = query.options(joinedload(models.Lead.lead_comments))
+    # Defensive eager loading - gracefully handle if relationship unavailable
+    try:
+        query = query.options(joinedload(models.Lead.lead_comments))
+    except Exception:
+        pass  # Continue without eager loading if relationship not available
     
     if not include_deleted:
         query = query.filter(models.Lead.deleted_at == None)
@@ -256,8 +262,11 @@ def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[mode
         )
     )
     
-    # Safe eager loading
-    query = query.options(joinedload(models.Lead.lead_comments))
+    # Defensive eager loading
+    try:
+        query = query.options(joinedload(models.Lead.lead_comments))
+    except Exception:
+        pass
     
     return (
         query
@@ -299,9 +308,11 @@ def search_leads(
         joinedload(models.Lead.agency_suboption)
     )
     
-    # Safely eager load comments if the relationship exists
-    if hasattr(models.Lead, 'lead_comments'):
+    # Defensive eager loading
+    try:
         query = query.options(joinedload(models.Lead.lead_comments))
+    except Exception:
+        pass
     
     # 1. Deleted State
     if include_deleted:
