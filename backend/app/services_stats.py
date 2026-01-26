@@ -283,3 +283,99 @@ def referral_status_breakdown(db: Session):
         return []
 
     return [{"status": r[0], "count": r[1]} for r in results]
+
+
+# ------------------------------
+# ADMIN PERFORMANCE METRICS
+# ------------------------------
+
+def get_staff_performance(db: Session) -> List[dict]:
+    """
+    Computes performance metrics for each staff member.
+    Metrics: Total Leads, Total Referrals, Conversion Rate (%)
+    """
+    staff_list = db.query(models.Lead.staff_name).distinct().all()
+    performance = []
+
+    for (name,) in staff_list:
+        if not name: continue
+        
+        total = db.query(models.Lead).filter(models.Lead.staff_name == name).count()
+        referrals = db.query(models.Lead).filter(
+            models.Lead.staff_name == name, 
+            models.Lead.active_client == True
+        ).count()
+        
+        rate = round((referrals / total * 100), 2) if total > 0 else 0
+        
+        performance.append({
+            "staff_name": name,
+            "total_leads": total,
+            "total_referrals": referrals,
+            "conversion_rate": rate
+        })
+        
+    return sorted(performance, key=lambda x: x['total_leads'], reverse=True)
+
+
+def get_system_wide_distribution(db: Session) -> Dict[str, List[dict]]:
+    """
+    Returns distribution data for all leads in the system.
+    Used for global admin pie charts.
+    """
+    status_rows = db.query(models.Lead.last_contact_status, func.count(models.Lead.id)).group_by(models.Lead.last_contact_status).all()
+    source_rows = db.query(models.Lead.source, func.count(models.Lead.id)).group_by(models.Lead.source).all()
+    priority_rows = db.query(models.Lead.priority, func.count(models.Lead.id)).group_by(models.Lead.priority).all()
+    
+    return {
+        "status": [{"label": r[0], "value": r[1]} for r in status_rows],
+        "source": [{"label": r[0], "value": r[1]} for r in source_rows],
+        "priority": [{"label": r[0], "value": r[1]} for r in priority_rows]
+    }
+
+
+def get_referrals_by_ccu(db: Session) -> List[dict]:
+    """
+    Returns count of all referrals (Sent + Confirm) grouped by CCU.
+    """
+    results = (
+        db.query(models.CCU.name, func.count(models.Lead.id))
+        .join(models.Lead, models.Lead.ccu_id == models.CCU.id)
+        .filter(models.Lead.active_client == True)
+        .group_by(models.CCU.name)
+        .all()
+    )
+    
+    return [{"ccu_name": r[0], "count": r[1]} for r in results]
+
+
+def get_referral_segments_by_ccu(db: Session) -> Dict[str, List[dict]]:
+    """
+    Returns separate counts for 'Sent' and 'Confirmed' referrals by CCU.
+    Sent = Active client + 'Referral Sent' status
+    Confirmed = Active client + 'Care Start' care status
+    """
+    # 1. Sent Referrals
+    sent_rows = (
+        db.query(models.CCU.name, func.count(models.Lead.id))
+        .join(models.Lead, models.Lead.ccu_id == models.CCU.id)
+        .filter(models.Lead.active_client == True)
+        .filter(models.Lead.last_contact_status == "Referral Sent")
+        .group_by(models.CCU.name)
+        .all()
+    )
+    
+    # 2. Confirmed Referrals
+    conf_rows = (
+        db.query(models.CCU.name, func.count(models.Lead.id))
+        .join(models.Lead, models.Lead.ccu_id == models.CCU.id)
+        .filter(models.Lead.active_client == True)
+        .filter(models.Lead.care_status == "Care Start")
+        .group_by(models.CCU.name)
+        .all()
+    )
+    
+    return {
+        "sent": [{"ccu_name": r[0], "count": r[1]} for r in sent_rows],
+        "confirmed": [{"ccu_name": r[0], "count": r[1]} for r in conf_rows]
+    }
