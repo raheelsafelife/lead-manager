@@ -1365,7 +1365,10 @@ def show_edit_modal_dialog(db, m):
                 st.session_state[age_key] = age
 
         new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}", on_change=on_edit_dob_change, format="MM/DD/YYYY")
-        new_age = st.number_input("Age / Year", min_value=0, max_value=3000, value=int(lead.get('age') or 0), key=f"edit_age_{m['target_id']}")
+        age_key = f"edit_age_{m['target_id']}"
+        if age_key not in st.session_state:
+            st.session_state[age_key] = int(lead.get('age') or 0)
+        new_age = st.number_input("Age / Year", min_value=0, max_value=3000, key=age_key)
         new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
         
         new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")

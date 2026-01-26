@@ -53,8 +53,8 @@ def get_lead(db: Session, lead_id: int, include_deleted: bool = False):
         joinedload(models.Lead.agency_suboption)
     )
     
-    if hasattr(models.Lead, 'lead_comments'):
-        query = query.options(joinedload("lead_comments"))
+    # Safe eager loading
+    query = query.options(joinedload(models.Lead.lead_comments))
     
     query = query.filter(models.Lead.id == lead_id)
     if not include_deleted:
@@ -256,8 +256,8 @@ def list_deleted_leads(db: Session, skip: int = 0, limit: int = 50) -> List[mode
         )
     )
     
-    if hasattr(models.Lead, 'lead_comments'):
-        query = query.options(joinedload("lead_comments"))
+    # Safe eager loading
+    query = query.options(joinedload(models.Lead.lead_comments))
     
     return (
         query
