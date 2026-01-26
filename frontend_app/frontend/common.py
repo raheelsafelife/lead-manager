@@ -13,7 +13,6 @@ import pandas as pd
 from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
 from app.crud import crud_session_tokens # crud_leads moved to local import
-from app import services_stats
 from streamlit.components.v1 import html
 import os
 
@@ -811,6 +810,7 @@ def clear_leads_cache():
 @st.cache_data(ttl=300) # Stats can live longer
 def get_stats_cached(func_name, *args, **kwargs):
     """Generic cached wrapper for services_stats functions"""
+    from app import services_stats
     db = SessionLocal()
     try:
         func = getattr(services_stats, func_name)
