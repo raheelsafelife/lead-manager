@@ -719,6 +719,11 @@ def mark_referral_page():
                     except Exception as e:
                         st.error(f"**Error:** {e}")
 
+    # Notification Preference
+    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+    send_notif = st.checkbox("Send Auto Email Reminders for this Lead", value=getattr(lead, 'send_reminders', True), 
+                            help="If enabled, you will receive an immediate notification and recurring follow-up emails.")
+
     st.divider()
     
     # Action Buttons
@@ -731,7 +736,8 @@ def mark_referral_page():
                 referral_type=ref_type,
                 agency_id=final_agency_id,
                 # agency_suboption_id=final_agency_suboption_id, # Removed
-                ccu_id=selected_ccu_id
+                ccu_id=selected_ccu_id,
+                send_reminders=send_notif
             )
             update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
             
@@ -739,39 +745,9 @@ def mark_referral_page():
             st.toast(msg, icon="✅")
             st.session_state['success_msg'] = msg
             
-            # Send email reminder
-            try:
-                current_user = crud_users.get_user_by_username(db, st.session_state.username)
-                if current_user and current_user.email:
-                    payor_str = selected_agency_name if selected_agency_name != "None" else None
-                    
-                    ccu_details = {}
-                    if selected_ccu_id:
-                        ccu = crud_ccus.get_ccu_by_id(db, selected_ccu_id)
-                        if ccu:
-                            ccu_details = {
-                                'ccu_name': ccu.name,
-                                'ccu_address': ccu.address,
-                                'ccu_email': ccu.email,
-                                'ccu_fax': ccu.fax,
-                                'ccu_phone': ccu.phone,
-                                'ccu_coordinator': ccu.care_coordinator_name
-                            }
-                    
-                    send_referral_reminder(
-                        current_user.email,
-                        st.session_state.username,
-                        f"{lead.first_name} {lead.last_name}",
-                        lead.id,
-                        payor_name=payor_str,
-                        payor_suboption=None, # Removed
-                        phone=lead.phone,
-                        source=lead.source,
-                        **ccu_details
-                    )
-            except Exception as e:
-                st.error(f"**Failed to send email: {e}**")
-                pass # Still pass to allow status update, but user sees error.
+            # Send email reminder (centralized logic)
+            from frontend.common import send_initial_lead_reminders
+            send_initial_lead_reminders(db, lead.id, st.session_state.username)
             
             st.success(f"**Marked as {ref_type} Referral!**")
             st.session_state['current_page'] = None

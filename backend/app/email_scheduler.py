@@ -18,6 +18,10 @@ import threading
 
 def should_send_reminder(lead, last_reminder_time):
     """Check if a reminder should be sent for this lead based on type"""
+    # Respect user preference
+    if hasattr(lead, 'send_reminders') and not lead.send_reminders:
+        return False
+
     # Don't send if lead is inactive
     if lead.last_contact_status == "Inactive":
         return False
@@ -47,6 +51,10 @@ def should_send_reminder(lead, last_reminder_time):
 
 def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time):
     """Check if a care start reminder should be sent for authorized referrals"""
+    # Respect user preference
+    if hasattr(lead, 'send_reminders') and not lead.send_reminders:
+        return False
+
     # Only send for referrals that have authorization received but haven't started care
     if not lead.active_client or not lead.authorization_received or lead.care_status == "Care Start":
         return False

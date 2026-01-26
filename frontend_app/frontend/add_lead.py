@@ -257,18 +257,47 @@ def add_lead():
 
     st.divider()
 
+    # Fetch approved users for admin selection
+    approved_users = crud_users.get_approved_users(db)
+    user_options = [u.username for u in approved_users]
+    user_map = {u.username: u for u in approved_users}
+
     # Lead Information Section
     st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Lead Details</h4>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
+        current_owner_id = None
+        auto_user_id = ""
+
         if st.session_state.user_role == "admin":
             st.markdown('Staff Name <span class="required-star">*</span>', unsafe_allow_html=True)
-            staff_name = st.text_input("Staff Name", value="", key="staff_name_input", label_visibility="collapsed")
+            # Staff Name Toggle/Dropdown
+            staff_name = st.selectbox("Staff Name", options=["Select User"] + user_options, key="staff_name_select", label_visibility="collapsed")
+            
+            if staff_name != "Select User":
+                sel_user = user_map.get(staff_name)
+                if sel_user:
+                    # REACTIVE: If staff selection changed, update the calculated auto_user_id
+                    auto_user_id = sel_user.user_id or ""
+                    current_owner_id = sel_user.id
+            else:
+                staff_name = ""
         else:
             staff_name = st.session_state.username
+            current_owner_id = st.session_state.get('db_user_id')
+            # For non-admin, try to fetch their own user_id if not in session
+            curr_user_obj = crud_users.get_user_by_username(db, staff_name)
+            if curr_user_obj:
+                auto_user_id = curr_user_obj.user_id or ""
+            
             st.info(f" Lead will be created by : **{staff_name}**")
         
+        # REACTIVE: If selection has changed, force update the User ID widget state
+        if st.session_state.get('last_staff_selection') != staff_name:
+             st.session_state.user_id_input = auto_user_id
+             st.session_state.last_staff_selection = staff_name
+
         st.markdown('User ID <span class="required-star">*</span>', unsafe_allow_html=True)
         custom_user_id = st.text_input("User ID", key="user_id_input", label_visibility="collapsed")
         
@@ -356,153 +385,55 @@ def add_lead():
                     return
                 
                 try:
-                    lead_data = LeadCreate(
-                        staff_name=staff_name,
-                        first_name=first_name,
-                        last_name=last_name,
-                        source=source,
-                        event_name=event_name,
-                        word_of_mouth_type=word_of_mouth_type,
-                        other_source_type=other_source_type,
-                        phone=phone,
-                        email=email or None,
-                        ssn=ssn or None,
-                        age=age if age > 0 else None,
-                        custom_user_id=custom_user_id,
-                        street=street or None,
-                        city=city or None,
-                        state=state or None,
-                        zip_code=zip_code or None,
-                        active_client=True if source == "Transfer" else False,
-                        care_status="Care Start" if source == "Transfer" else None,
-                        authorization_received=True if source == "Transfer" else False,
-                        soc_date=soc_date if source == "Transfer" else None,
-                        priority=priority,
-                        last_contact_status=last_contact_status,
-                        dob=dob if dob else None,
-                        medicaid_no=medicaid_no or None,
-                        e_contact_name=e_contact_name or None,
-                        e_contact_relation=e_contact_relation or None,
-                        e_contact_phone=e_contact_phone or None,
-                        comments=comments or None,
-                        agency_id=agency_id,
-                        agency_suboption_id=agency_suboption_id,
-                        ccu_id=ccu_id,
-                        owner_id=st.session_state.get('db_user_id')  # Save Owner ID for stable linking
+                    # Prepare data into a dictionary for the modal
+                    lead_dict = {
+                        "staff_name": staff_name,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "source": source,
+                        "event_name": event_name,
+                        "word_of_mouth_type": word_of_mouth_type,
+                        "other_source_type": other_source_type,
+                        "phone": phone,
+                        "email": email or None,
+                        "ssn": ssn or None,
+                        "age": age if age > 0 else None,
+                        "custom_user_id": custom_user_id,
+                        "street": street or None,
+                        "city": city or None,
+                        "state": state or None,
+                        "zip_code": zip_code or None,
+                        "active_client": True if source == "Transfer" else False,
+                        "care_status": "Care Start" if source == "Transfer" else None,
+                        "authorization_received": True if source == "Transfer" else False,
+                        "soc_date": soc_date if source == "Transfer" else None,
+                        "priority": priority,
+                        "last_contact_status": last_contact_status,
+                        "dob": dob.strftime('%Y-%m-%d') if dob else None, # JSON serializable
+                        "medicaid_no": medicaid_no or None,
+                        "e_contact_name": e_contact_name or None,
+                        "e_contact_relation": e_contact_relation or None,
+                        "e_contact_phone": e_contact_phone or None,
+                        "comments": comments or None,
+                        "agency_id": agency_id,
+                        "agency_suboption_id": agency_suboption_id,
+                        "ccu_id": ccu_id,
+                        "owner_id": current_owner_id or st.session_state.get('db_user_id'),
+                        "send_reminders": True # Default in modal
+                    }
+                    
+                    # Open confirmation modal
+                    from frontend.common import open_modal
+                    open_modal(
+                        modal_type='create_lead_confirm',
+                        target_id=0, # New lead
+                        title='Create Lead?',
+                        message=f"Are you sure you want to create lead <b>{first_name} {last_name}</b>?",
+                        lead_data=lead_dict,
+                        icon='👤',
+                        type='info',
+                        confirm_label='CREATE LEAD'
                     )
-                    lead = crud_leads.create_lead(db, lead_data, st.session_state.username, st.session_state.get('db_user_id'))
-                    
-                    # PERFORMANCE: Clear cache so the new lead appears in the list
-                    clear_leads_cache()
-                    msg = f"Success! Lead '{first_name} {last_name}' created successfully!"
-                    st.toast(msg, icon="✅")
-                    st.session_state['success_msg'] = msg
-                    
-                    # Auto-send email to lead creator (always for non-inactive leads)
-                    if lead.last_contact_status != "Inactive":
-                        user = crud_users.get_user_by_username(db, st.session_state.username)
-                        if user and user.email:
-                            try:
-                                # Check if this is a referral or regular lead
-                                if lead.active_client:  # Is a referral
-                                    from app.utils.email_service import send_referral_reminder_email
-                                    
-                                    # Get payor (payor) information
-                                    agency_name = "N/A"
-                                    agency_suboption = ""
-                                    if lead.agency_id:
-                                        agency = crud_agencies.get_agency(db, lead.agency_id)
-                                        if agency:
-                                            agency_name = agency.name
-                                    
-                                    if lead.agency_suboption_id:
-                                        suboption = crud_agency_suboptions.get_suboption_by_id(db, lead.agency_suboption_id)
-                                        if suboption:
-                                            agency_suboption = suboption.name
-                                    
-                                    # Get CCU information
-                                    ccu_name = "N/A"
-                                    ccu_phone = "N/A"
-                                    ccu_fax = "N/A"
-                                    ccu_email = "N/A"
-                                    ccu_address = "N/A"
-                                    ccu_coordinator = "N/A"
-                                    if lead.ccu_id:
-                                        ccu = crud_ccus.get_ccu_by_id(db, lead.ccu_id)
-                                        if ccu:
-                                            ccu_name = ccu.name
-                                            ccu_phone = ccu.phone if ccu.phone else "N/A"
-                                            ccu_fax = ccu.fax if ccu.fax else "N/A"
-                                            ccu_email = ccu.email if ccu.email else "N/A"
-                                            ccu_address = ccu.address if ccu.address else "N/A"
-                                            ccu_coordinator = ccu.care_coordinator_name if ccu.care_coordinator_name else "N/A"
-                                    
-                                    # Prepare referral info
-                                    referral_info = {
-                                        'name': f"{lead.first_name} {lead.last_name}",
-                                        'phone': lead.phone,
-                                        'dob': str(lead.dob) if lead.dob else 'N/A',
-                                        'creator': st.session_state.username,
-                                        'created_date': utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y'),
-                                        'status': lead.last_contact_status,
-                                        'referral_type': lead.referral_type if lead.referral_type else 'Regular',
-                                        'payor_name': agency_name,
-                                        'payor_suboption': agency_suboption,
-                                        'ccu_name': ccu_name,
-                                        'ccu_phone': ccu_phone,
-                                        'ccu_fax': ccu_fax,
-                                        'ccu_email': ccu_email,
-                                        'ccu_address': ccu_address,
-                                        'ccu_coordinator': ccu_coordinator
-                                    }
-                                    
-                                    # Send referral email
-                                    auto_email_success = send_referral_reminder_email(referral_info, user.email)
-                                    email_subject = f"New Referral [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
-                                    
-                                else:  # Regular lead
-                                    from app.utils.email_service import send_simple_lead_email
-                                    
-                                    # Prepare simple lead info
-                                    lead_info = {
-                                        'name': f"{lead.first_name} {lead.last_name}",
-                                        'phone': lead.phone,
-                                        'creator': st.session_state.username,
-                                        'dob': str(lead.dob) if lead.dob else 'N/A',
-                                        'source': lead.source,
-                                        'status': lead.last_contact_status,
-                                        'created_date': utc_to_local(lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y')
-                                    }
-                                    
-                                    # Send simple email
-                                    auto_email_success = send_simple_lead_email(lead_info, user.email)
-                                    email_subject = f"New Lead: {lead.first_name} {lead.last_name}"
-                                
-                                if auto_email_success:
-                                    # Record the auto email
-                                    crud_email_reminders.create_reminder(
-                                        db=db,
-                                        lead_id=lead.id,
-                                        recipient_email=user.email,
-                                        subject=email_subject,
-                                        sent_by="system",
-                                        status="sent"
-                                    )
-                                    st.info(f"Auto-reminder email sent to {user.email}")
-                                else:
-                                    # Record failed attempt
-                                    crud_email_reminders.create_reminder(
-                                        db=db,
-                                        lead_id=lead.id,
-                                        recipient_email=user.email,
-                                        subject=email_subject,
-                                        sent_by="system",
-                                        status="failed",
-                                        error_message="Email service error"
-                                    )
-                            except Exception as auto_email_error:
-                                pass  # Don't show error for auto-email, it's background
-                    
                 except Exception as e:
                     st.error(f" Error: {e}")
     

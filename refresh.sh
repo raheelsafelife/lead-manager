@@ -42,7 +42,7 @@ mkdir -p data && chmod -R 777 data
 docker compose build --no-cache
 docker compose up -d
 
-echo "⏳ Waiting for database setup to complete..."
+echo "⏳ Waiting for database setup to complete (Initial Imports, CCU Sync, and Reminders)..."
 docker compose wait setup
 SETUP_EXIT_CODE=$?
 

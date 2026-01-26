@@ -1104,6 +1104,98 @@ def prepare_lead_data_for_email(lead, db):
     return lead_data
 
 
+def send_initial_lead_reminders(db, lead_id, username):
+    """
+    Consolidated logic to send the first notification email for a lead or referral.
+    Respects lead.send_reminders preference.
+    """
+    from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus, crud_agency_suboptions, crud_email_reminders
+    from app.utils.email_service import send_referral_reminder_email, send_simple_lead_email
+    import streamlit as st
+
+    lead = crud_leads.get_lead(db, lead_id)
+    if not lead or not getattr(lead, 'send_reminders', True):
+        return False
+
+    # Target the assigned staff (lead creator), not necessarily the logged-in admin
+    target_username = lead.created_by or username
+    user = crud_users.get_user_by_username(db, target_username)
+    if not user or not user.email:
+        return False
+
+    success = False
+    subject = ""
+
+    try:
+        if lead.active_client:  # Is a referral
+            # Get payor (agency) info
+            agency_name = "N/A"
+            agency_suboption = ""
+            if lead.agency_id:
+                agency = crud_agencies.get_agency(db, lead.agency_id)
+                if agency: agency_name = agency.name
+            if lead.agency_suboption_id:
+                subopt = crud_agency_suboptions.get_suboption_by_id(db, lead.agency_suboption_id)
+                if subopt: agency_suboption = subopt.name
+
+            # CCU info
+            ccu_name, ccu_phone, ccu_fax, ccu_email, ccu_address, ccu_coordinator = ["N/A"] * 6
+            if lead.ccu_id:
+                ccu = crud_ccus.get_ccu_by_id(db, lead.ccu_id)
+                if ccu:
+                    ccu_name = ccu.name
+                    ccu_phone = ccu.phone or "N/A"
+                    ccu_fax = ccu.fax or "N/A"
+                    ccu_email = ccu.email or "N/A"
+                    ccu_address = ccu.address or "N/A"
+                    ccu_coordinator = ccu.care_coordinator_name or "N/A"
+
+            referral_info = {
+                'name': f"{lead.first_name} {lead.last_name}",
+                'phone': lead.phone,
+                'dob': str(lead.dob) if lead.dob else 'N/A',
+                'creator': username,
+                'created_date': datetime.now().strftime('%m/%d/%Y'),
+                'status': lead.last_contact_status,
+                'referral_type': lead.referral_type or 'Regular',
+                'payor_name': agency_name,
+                'payor_suboption': agency_suboption,
+                'ccu_name': ccu_name,
+                'ccu_phone': ccu_phone,
+                'ccu_fax': ccu_fax,
+                'ccu_email': ccu_email,
+                'ccu_address': ccu_address,
+                'ccu_coordinator': ccu_coordinator
+            }
+            success = send_referral_reminder_email(referral_info, user.email)
+            subject = f"New Referral [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
+        
+        else:  # Regular lead
+            lead_info = {
+                'name': f"{lead.first_name} {lead.last_name}",
+                'phone': lead.phone,
+                'creator': username,
+                'dob': str(lead.dob) if lead.dob else 'N/A',
+                'source': lead.source,
+                'status': lead.last_contact_status,
+                'created_date': datetime.now().strftime('%m/%d/%Y')
+            }
+            success = send_simple_lead_email(lead_info, user.email)
+            subject = f"New Lead: {lead.first_name} {lead.last_name}"
+
+        # Record attempt
+        if success:
+            crud_email_reminders.create_reminder(db, lead.id, user.email, subject, "system", "sent")
+            st.info(f"Notification email sent to {user.email}")
+        else:
+            crud_email_reminders.create_reminder(db, lead.id, user.email, subject, "system", "failed", "Email service error")
+            
+        return success
+    except Exception as e:
+        print(f"[ERROR] send_initial_lead_reminders: {e}")
+        return False
+
+
 
 def get_priority_tag(priority):
     """Returns HTML for a color-coded priority tag"""
@@ -1155,6 +1247,19 @@ def confirmation_modal_dialog(db, m):
     </div>
     """, unsafe_allow_html=True)
     
+    # Optional fields for specific modals
+    send_notif_val = True
+    if m['modal_type'] == 'auth_received':
+        from app.crud import crud_leads
+        lead_obj = crud_leads.get_lead(db, m['target_id'])
+        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+        send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=getattr(lead_obj, 'send_reminders', True), key=f"auth_notif_chk_{m['target_id']}")
+        st.divider()
+    elif m['modal_type'] == 'create_lead_confirm':
+        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+        send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=True, key=f"create_notif_chk")
+        st.divider()
+
     c1, c2 = st.columns(2)
     with c1:
         # Action-scoped unique key for CANCEL button
@@ -1195,6 +1300,28 @@ def confirmation_modal_dialog(db, m):
                 st.session_state['current_page'] = 'Mark Referral Page'
                 st.toast("Heading to Mark Referral Page...")
                 success = True # Close modal
+            elif m['modal_type'] == 'create_lead_confirm':
+                from app.schemas import LeadCreate
+                from datetime import datetime
+                ld = m['lead_data']
+                # Convert dob back to date object if it exists
+                dob_val = None
+                if ld.get('dob'):
+                    dob_val = datetime.strptime(ld['dob'], '%Y-%m-%d').date()
+                
+                lead_in = LeadCreate(
+                    **{k: v for k, v in ld.items() if k not in ['dob', 'send_reminders']},
+                    dob=dob_val,
+                    send_reminders=send_notif_val
+                )
+                new_lead = crud_leads.create_lead(db, lead_in, st.session_state.username, st.session_state.get('db_user_id'))
+                if new_lead:
+                    # Send initial notifications (Centralized logic)
+                    send_initial_lead_reminders(db, new_lead.id, st.session_state.username)
+                    msg = f"Success! Lead '{new_lead.first_name} {new_lead.last_name}' created successfully!"
+                    success = True
+                else:
+                    st.error("**Failed to create lead**")
             elif m['modal_type'] == 'approve_user':
                 crud_users.approve_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
                 msg = "Success! User has been approved."
@@ -1217,7 +1344,9 @@ def confirmation_modal_dialog(db, m):
                 success = True
             elif m['modal_type'] == 'auth_received':
                 from app.schemas import LeadUpdate
-                update_data = LeadUpdate(authorization_received=True)
+                # use send_notif_val from local scope if defined, else default True
+                # Actually, in Streamlit dialogs, values are captured live.
+                update_data = LeadUpdate(authorization_received=True, send_reminders=send_notif_val)
                 if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
                     msg = "Success! Authorization marked as received."
                     success = True
@@ -1525,6 +1654,9 @@ def show_edit_modal_dialog(db, m):
         new_agency_id = lead.get('agency_id')
         new_ccu_id = lead.get('ccu_id')
     
+    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+    new_send_reminders = st.checkbox("Send Auto Email Reminders for this Lead", value=lead.get('send_reminders', True), key=f"edit_send_reminders_{m['target_id']}")
+
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
@@ -1558,7 +1690,8 @@ def show_edit_modal_dialog(db, m):
                     "comments": new_comments,
                     "age": new_age if new_age > 0 else None,
                     "agency_id": new_agency_id,
-                    "ccu_id": new_ccu_id
+                    "ccu_id": new_ccu_id,
+                    "send_reminders": new_send_reminders
                 }
                 schema_data = LeadUpdate(**update_dict)
                 crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))

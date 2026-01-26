@@ -126,6 +126,9 @@ class Lead(Base):
     deleted_at = Column(DateTime, nullable=True)  # When lead was deleted
     deleted_by = Column(String(100), nullable=True)  # Username who deleted it
 
+    # Notification Preference
+    send_reminders = Column(Boolean, nullable=False, default=True)
+
     # Relationships
     lead_comments = relationship("LeadComment", back_populates="lead", cascade="all, delete-orphan")
 

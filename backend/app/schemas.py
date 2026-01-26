@@ -112,6 +112,7 @@ class LeadBase(BaseModel):
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
     owner_id: Optional[int] = None
+    send_reminders: bool = True
 
 
 class LeadCreate(LeadBase):
@@ -156,6 +157,7 @@ class LeadUpdate(BaseModel):
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
     owner_id: Optional[int] = None
+    send_reminders: Optional[bool] = None
 
 
 class LeadRead(LeadBase):
