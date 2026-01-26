@@ -1190,6 +1190,7 @@ def confirmation_modal_dialog(db, m):
                     msg = "Success! Referral has been permanently removed."
                     success = True
             elif m['modal_type'] == 'mark_ref_confirm':
+                clear_leads_cache()  # Clear cache so referral status updates properly
                 st.session_state['mark_referral_lead_id'] = m['target_id']
                 st.session_state['current_page'] = 'Mark Referral Page'
                 st.toast("Heading to Mark Referral Page...")
