@@ -74,10 +74,18 @@ def dashboard():
     
     show_cumulative = (st.session_state.user_role == "admin" or (st.session_state.user_role != "admin" and st.session_state.stats_view_mode == "cumulative"))
     
+    # UPDATED: Improved config for maximize/PNG export
     chart_config = {
         'displayModeBar': True,
         'displaylogo': False,
-        'modeBarButtonsToRemove': ['zoom', 'zoom2d', 'pan', 'pan2d', 'select', 'select2d', 'lasso', 'lasso2d', 'zoomIn', 'zoomIn2d', 'zoomOut', 'zoomOut2d', 'autoScale', 'autoScale2d', 'resetScale', 'resetScale2d', 'hoverClosestCartesian', 'hoverCompareCartesian', 'toggleSpikelines']
+        'modeBarButtonsToRemove': ['select2d', 'lasso2d'], # Remove distracting selection tools
+        'toImageButtonOptions': {
+            'format': 'png',
+            'filename': 'safelife_chart',
+            'height': 800,
+            'width': 1200,
+            'scale': 2
+        }
     }
 
     # --- TOP KPIS ---
@@ -107,7 +115,7 @@ def dashboard():
                 fig = px.bar(df, x='staff_name', y='count', color_discrete_sequence=['#00506b'])
                 fig.update_layout(paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', xaxis_title="", yaxis_title="Count", clickmode='event+select')
                 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points", key="staff_cum_chart", config=chart_config)
-                render_download_csv(df_all_leads, "all_leads_data.csv")
+                render_download_csv(df_all_leads, "staff_leads_all.csv")
                 if event.selection and event.selection['points']:
                     sel = event.selection['points'][0]['x']
                     show_drill_down(df_all_leads[df_all_leads['staff_name'] == sel], f"Staff: {sel}")
@@ -119,7 +127,7 @@ def dashboard():
                 fig = px.bar(df, x='source', y='count', color_discrete_sequence=['#00506b'])
                 fig.update_layout(paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', xaxis_title="", yaxis_title="Count", clickmode='event+select')
                 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points", key="source_cum_chart", config=chart_config)
-                render_download_csv(df_all_leads, "all_leads_by_source.csv")
+                render_download_csv(df_all_leads, "source_leads_all.csv")
                 if event.selection and event.selection['points']:
                     sel = event.selection['points'][0]['x']
                     show_drill_down(df_all_leads[df_all_leads['source'] == sel], f"Source: {sel}")
@@ -158,7 +166,7 @@ def dashboard():
         df_raw_conf = df_all_leads[(df_all_leads['care_status'] == "Care Start") & (df_all_leads['active_client'] == True)]
         
         with g_col1:
-            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referrals Sent by CCU</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referrals sent by CCU</h4>", unsafe_allow_html=True)
             df_p = pd.DataFrame(segments['sent']).sort_values(by='count', ascending=False) if segments['sent'] else pd.DataFrame()
             if not df_p.empty:
                 fig = px.bar(df_p, x='ccu_name', y='count', color_discrete_sequence=['#00506b'])
@@ -170,16 +178,16 @@ def dashboard():
                     show_drill_down(df_raw_sent[df_raw_sent['ccu_name'] == sel], f"Referrals Sent: {sel}")
             else: st.info("No data")
         with g_col2:
-            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Referrals Confirmed by CCU</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-weight: bold; color: #111827;'>Authorizations received from CCUs</h4>", unsafe_allow_html=True)
             df_p = pd.DataFrame(segments['confirmed']).sort_values(by='count', ascending=False) if segments['confirmed'] else pd.DataFrame()
             if not df_p.empty:
                 fig = px.bar(df_p, x='ccu_name', y='count', color_discrete_sequence=['#3CA5AA'])
                 fig.update_layout(height=400, xaxis_title="CCU", yaxis_title="Count", paper_bgcolor='#FFFFFF', plot_bgcolor='#FFFFFF', clickmode='event+select')
                 event = st.plotly_chart(fig, use_container_width=True, on_select="rerun", selection_mode="points", key="conf_ccu_chart", config=chart_config)
-                render_download_csv(df_raw_conf, "referrals_confirmed_detailed.csv")
+                render_download_csv(df_raw_conf, "authorizations_received.csv")
                 if event.selection and event.selection['points']:
                     sel = event.selection['points'][0]['x']
-                    show_drill_down(df_raw_conf[df_raw_conf['ccu_name'] == sel], f"Referrals Confirmed: {sel}")
+                    show_drill_down(df_raw_conf[df_raw_conf['ccu_name'] == sel], f"Authorizations: {sel}")
             else: st.info("No data")
 
     # --- 3. STATUS LOGS SECTION ---

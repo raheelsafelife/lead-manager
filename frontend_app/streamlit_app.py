@@ -43,8 +43,12 @@ def main():
     """Main application logic - Router"""
     # Force module reload to pick up changes in backend modules (AttributeError & InvalidRequestError Fix)
     import sys
+    from importlib import reload
+    import app.services_stats as services_stats
+    reload(services_stats) # FORCE RELOAD FOR ADMIN METRICS
+    
     # Include app.db to ensure Base metadata is refreshed, preventing "Table already defined" errors
-    modules_to_reload = [k for k in sys.modules.keys() if 'app.models' in k or 'backend.app.models' in k or 'app.db' in k or 'crud_' in k or 'services_stats' in k]
+    modules_to_reload = [k for k in list(sys.modules.keys()) if 'app.models' in k or 'backend.app.models' in k or 'app.db' in k or 'crud_' in k]
     for mod in list(modules_to_reload):
         if mod in sys.modules:
             del sys.modules[mod]
@@ -86,6 +90,9 @@ def main():
             
             # Add admin panel for admins
             if st.session_state.user_role == "admin":
+                pages.append("Admin Reporting")
+                pages.append("Email Template Editor")
+                pages.append("CCU & Provider Mgmt")
                 pages.append("User Management")
             
             # Ensure main_navigation is initialized
@@ -163,6 +170,24 @@ def main():
             view_activity_logs()
         elif page == "Update Password":
             update_password()
+        elif page == "Admin Reporting":
+            if st.session_state.user_role == "admin":
+                from frontend.reporting import view_reporting
+                view_reporting()
+            else:
+                st.error("Access denied.")
+        elif page == "Email Template Editor":
+            if st.session_state.user_role == "admin":
+                from frontend.email_editor import view_email_editor
+                view_email_editor()
+            else:
+                st.error("Access denied.")
+        elif page == "CCU & Provider Mgmt":
+            if st.session_state.user_role == "admin":
+                from frontend.ccu_management import view_ccu_management
+                view_ccu_management()
+            else:
+                st.error("Access denied.")
         elif page == "User Management":
             if st.session_state.user_role == "admin":
                 admin_panel()
