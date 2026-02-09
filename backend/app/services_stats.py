@@ -10,7 +10,7 @@ from . import models
 # BASIC COUNTS
 # ------------------------------
 def get_basic_counts(db: Session) -> Dict[str, int]:
-    total_leads = db.query(models.Lead).count()
+    total_leads = db.query(models.Lead).filter(models.Lead.deleted_at == None).count()
     total_users = db.query(models.User).count()
 
     return {
@@ -25,6 +25,7 @@ def get_basic_counts(db: Session) -> Dict[str, int]:
 def leads_by_staff(db: Session) -> List[dict]:
     rows = (
         db.query(models.Lead.staff_name, func.count(models.Lead.id))
+        .filter(models.Lead.deleted_at == None)
         .group_by(models.Lead.staff_name)
         .all()
     )
@@ -38,6 +39,7 @@ def leads_by_staff(db: Session) -> List[dict]:
 def leads_by_source(db: Session) -> List[dict]:
     rows = (
         db.query(models.Lead.source, func.count(models.Lead.id))
+        .filter(models.Lead.deleted_at == None)
         .group_by(models.Lead.source)
         .all()
     )
@@ -51,6 +53,7 @@ def leads_by_source(db: Session) -> List[dict]:
 def leads_by_status(db: Session) -> List[dict]:
     rows = (
         db.query(models.Lead.last_contact_status, func.count(models.Lead.id))
+        .filter(models.Lead.deleted_at == None)
         .group_by(models.Lead.last_contact_status)
         .all()
     )
@@ -66,7 +69,7 @@ def monthly_leads(db: Session):
     Return count of leads created per month.
     Simple approach: year-month as string.
     """
-    leads = db.query(models.Lead).all()
+    leads = db.query(models.Lead).filter(models.Lead.deleted_at == None).all()
     if not leads:
         return []
 
@@ -93,6 +96,7 @@ def leads_by_event(db: Session):
 
     results = (
         db.query(models.Lead.event_name, func.count(models.Lead.id).label("count"))
+        .filter(models.Lead.deleted_at == None)
         .filter(models.Lead.source == "Event")
         .filter(models.Lead.event_name.isnot(None))
         .group_by(models.Lead.event_name)
@@ -113,6 +117,7 @@ def word_of_mouth_breakdown(db: Session):
 
     results = (
         db.query(models.Lead.word_of_mouth_type, func.count(models.Lead.id).label("count"))
+        .filter(models.Lead.deleted_at == None)
         .filter(models.Lead.source == "Word of Mouth")
         .filter(models.Lead.word_of_mouth_type.isnot(None))
         .group_by(models.Lead.word_of_mouth_type)
@@ -131,10 +136,12 @@ def word_of_mouth_breakdown(db: Session):
 def get_user_stats(db: Session, username: str):
     """Get stats for a specific user's leads"""
     total_leads = db.query(models.Lead).filter(
+        models.Lead.deleted_at == None,
         models.Lead.staff_name == username
     ).count()
     
     active_clients = db.query(models.Lead).filter(
+        models.Lead.deleted_at == None,
         models.Lead.staff_name == username,
         models.Lead.active_client == True
     ).count()
@@ -148,6 +155,7 @@ def get_user_stats(db: Session, username: str):
 def leads_by_month_for_user(db: Session, username: str):
     """Monthly leads for a specific user"""
     leads = db.query(models.Lead).filter(
+        models.Lead.deleted_at == None,
         models.Lead.staff_name == username
     ).all()
     
@@ -174,6 +182,7 @@ def leads_by_source_for_user(db: Session, username: str):
 
     results = (
         db.query(models.Lead.source, func.count(models.Lead.id).label("count"))
+        .filter(models.Lead.deleted_at == None)
         .filter(models.Lead.staff_name == username)
         .group_by(models.Lead.source)
         .all()
@@ -300,8 +309,12 @@ def get_staff_performance(db: Session) -> List[dict]:
     for (name,) in staff_list:
         if not name: continue
         
-        total = db.query(models.Lead).filter(models.Lead.staff_name == name).count()
+        total = db.query(models.Lead).filter(
+            models.Lead.deleted_at == None,
+            models.Lead.staff_name == name
+        ).count()
         referrals = db.query(models.Lead).filter(
+            models.Lead.deleted_at == None,
             models.Lead.staff_name == name, 
             models.Lead.active_client == True
         ).count()
@@ -323,9 +336,9 @@ def get_system_wide_distribution(db: Session) -> Dict[str, List[dict]]:
     Returns distribution data for all leads in the system.
     Used for global admin pie charts.
     """
-    status_rows = db.query(models.Lead.last_contact_status, func.count(models.Lead.id)).group_by(models.Lead.last_contact_status).all()
-    source_rows = db.query(models.Lead.source, func.count(models.Lead.id)).group_by(models.Lead.source).all()
-    priority_rows = db.query(models.Lead.priority, func.count(models.Lead.id)).group_by(models.Lead.priority).all()
+    status_rows = db.query(models.Lead.last_contact_status, func.count(models.Lead.id)).filter(models.Lead.deleted_at == None).group_by(models.Lead.last_contact_status).all()
+    source_rows = db.query(models.Lead.source, func.count(models.Lead.id)).filter(models.Lead.deleted_at == None).group_by(models.Lead.source).all()
+    priority_rows = db.query(models.Lead.priority, func.count(models.Lead.id)).filter(models.Lead.deleted_at == None).group_by(models.Lead.priority).all()
     
     return {
         "status": [{"label": r[0], "value": r[1]} for r in status_rows],
