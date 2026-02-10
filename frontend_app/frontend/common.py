@@ -1898,28 +1898,55 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
     return None
 
 
-def render_pagination(total_items, key_prefix):
+def get_pagination_params(key_prefix, default_limit=10):
     """
-    Renders a unified Material-UI style pagination bar.
-    Returns: (skip, limit)
+    Initializes and returns common pagination parameters.
+    Should be called at the TOP of a page function.
     """
-    # 1. Initialize State
     page_key = f"{key_prefix}_page"
     rows_key = f"{key_prefix}_rows_per_page"
     
     if page_key not in st.session_state:
         st.session_state[page_key] = 0
     if rows_key not in st.session_state:
-        st.session_state[rows_key] = 10 # Default
+        st.session_state[rows_key] = default_limit
+        
+    page_index = st.session_state[page_key]
+    rows_per_page = st.session_state[rows_key]
+    
+    skip = page_index * rows_per_page
+    limit = rows_per_page
+    
+    return skip, limit, page_index, rows_per_page
+
+
+def render_pagination(total_items, key_prefix):
+    """
+    Renders a unified Material-UI style pagination bar at the bottom of a list.
+    Only renders the UI; state management should be handled by get_pagination_params.
+    """
+    # 1. Access existing state initialized by get_pagination_params
+    page_key = f"{key_prefix}_page"
+    rows_key = f"{key_prefix}_rows_per_page"
+    
+    # Defensive check
+    if page_key not in st.session_state or rows_key not in st.session_state:
+        get_pagination_params(key_prefix)
         
     page_index = st.session_state[page_key]
     rows_per_page = st.session_state[rows_key]
     
     # Calculate metadata
     num_pages = max(1, (total_items // rows_per_page) + (1 if total_items % rows_per_page > 0 else 0))
+    
+    # Adjust page index if it exceeds total pages (e.g. after a filter is applied)
     if page_index >= num_pages:
-        page_index = num_pages - 1
+        page_index = max(0, num_pages - 1)
         st.session_state[page_key] = page_index
+        # If we had to adjust, we should rerun to ensure consistency, 
+        # but usually this is called after the query, so the query might have used the 'too large' index.
+        # However, search_leads/count_search_leads handle this gracefully in the DB layer or return empty lists.
+        # st.rerun() here might cause infinite loops if not careful.
         
     start_item = (page_index * rows_per_page) + 1 if total_items > 0 else 0
     end_item = min((page_index + 1) * rows_per_page, total_items)
@@ -1927,15 +1954,13 @@ def render_pagination(total_items, key_prefix):
     # 2. Render UI
     st.markdown("---")
     
-    # Create the MUI-like bar using columns
-    # [Rows per page label] [Selector] [Range Text] [Prev] [Next]
+    # MUI-like bar
     p_col1, p_col2, p_col3, p_col4, p_col5 = st.columns([1.5, 1, 2, 0.5, 0.5])
     
     with p_col1:
         st.markdown("<div style='margin-top: 5px; text-align: right; font-weight: 600; color: #6b7280;'>Rows per page:</div>", unsafe_allow_html=True)
     
     with p_col2:
-        # Selector for rows per page
         options = [10, 20, 50, 100]
         try:
             cur_idx = options.index(rows_per_page)
@@ -1953,12 +1978,14 @@ def render_pagination(total_items, key_prefix):
         st.markdown(f"<div style='margin-top: 5px; text-align: center; color: #111827; font-weight: 700;'>{start_item}-{end_item} of {total_items}</div>", unsafe_allow_html=True)
         
     with p_col4:
-        if st.button("⟨", key=f"prev_{key_prefix}", use_container_width=True, disabled=(page_index == 0)):
+        btn_prev = st.button("⟨", key=f"prev_{key_prefix}", use_container_width=True, disabled=(page_index == 0))
+        if btn_prev:
             st.session_state[page_key] -= 1
             st.rerun()
             
     with p_col5:
-        if st.button("⟩", key=f"next_{key_prefix}", use_container_width=True, disabled=(page_index >= num_pages - 1)):
+        btn_next = st.button("⟩", key=f"next_{key_prefix}", use_container_width=True, disabled=(page_index >= num_pages - 1))
+        if btn_next:
             st.session_state[page_key] += 1
             st.rerun()
             

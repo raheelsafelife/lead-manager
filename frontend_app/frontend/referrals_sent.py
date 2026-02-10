@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
 
 
 def view_referrals():
@@ -31,6 +31,8 @@ def view_referrals():
         msg = st.session_state.pop('success_msg')
         st.toast(msg, icon="✅")
         st.success(f"**{msg}**")
+    if 'refs_page' not in st.session_state:
+        st.session_state.refs_page = 0
     if 'error_msg' in st.session_state:
         msg = st.session_state.pop('error_msg')
         st.toast(msg, icon="❌")
@@ -91,21 +93,21 @@ def view_referrals():
         if st.button("Active", key="ref_active_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "Active" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Active"
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
     
     with ref_act_col2:
         if st.button("Inactive", key="ref_inactive_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Inactive"
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
     
     with ref_act_col3:
         if st.button("All", key="ref_all_active_filter", width="stretch",
                     type="primary" if st.session_state.referral_active_inactive_filter == "All" else "secondary"):
             st.session_state.referral_active_inactive_filter = "All"
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
     
     st.divider()
@@ -151,7 +153,7 @@ def view_referrals():
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_referrals_btn", use_container_width=True):
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
         
     # Referral Type Filter Buttons
@@ -214,7 +216,7 @@ def view_referrals():
         
         if selected_payor != st.session_state.payor_filter:
             st.session_state.payor_filter = selected_payor
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
     else:
         st.info("No payors available. Add payors in User Management -> Payor.")
@@ -232,7 +234,7 @@ def view_referrals():
         
         if selected_ccu != st.session_state.ccu_filter:
             st.session_state.ccu_filter = selected_ccu
-            st.session_state.referrals_page = 0
+            st.session_state.refs_page = 0
             st.rerun()
     else:
         st.info("No CCUs available. Add CCUs in User Management -> CCU.")
@@ -240,13 +242,7 @@ def view_referrals():
     st.divider()
     
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
-    
-    # Track current page in session state
-    if 'referrals_page' not in st.session_state:
-        st.session_state.referrals_page = 0
-    
-    page_size = 50
-    skip = st.session_state.referrals_page * page_size
+    skip, limit, page_index, rows_per_page = get_pagination_params("refs", default_limit=10)
     
     # Owner filter logic
     owner_id = st.session_state.get('db_user_id')
@@ -269,8 +265,8 @@ def view_referrals():
         exclude_clients=False,
         only_clients=True,
         auth_received_filter=False,
-        skip=st.session_state.get('refs_skip', 0),
-        limit=st.session_state.get('refs_limit', 10)
+        skip=skip,
+        limit=limit
     )
     
     # Post-process for referrals sent (Now handled at SQL level)
@@ -293,8 +289,8 @@ def view_referrals():
     )
     
     # UI Metadata
-    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
-    current_page_display = st.session_state.referrals_page + 1 if total_leads > 0 else 0
+    num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
+    current_page_display = st.session_state.refs_page + 1 if total_leads > 0 else 0
     
     # Show count with filter info
     filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Priority: {st.session_state.referral_priority_filter}"
@@ -529,6 +525,6 @@ def view_referrals():
         st.info("No referrals found")
     
     # --- PAGINATION UI CONTROLS ---
-    st.session_state.refs_skip, st.session_state.refs_limit = render_pagination(total_leads, "refs")
+    render_pagination(total_leads, "refs")
     
     db.close()

@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
 
 
 def view_leads():
@@ -188,13 +188,7 @@ def view_leads():
             st.rerun()
 
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
-    
-    # Track current page in session state
-    if 'leads_page' not in st.session_state:
-        st.session_state.leads_page = 0
-    
-    page_size = 50
-    skip = st.session_state.leads_page * page_size
+    skip, limit, page_index, rows_per_page = get_pagination_params("leads", default_limit=10)
     
     # Owner filter logic
     owner_id = st.session_state.get('db_user_id')
@@ -215,8 +209,8 @@ def view_leads():
         only_my_leads=only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
         auth_received_filter=False,
-        skip=st.session_state.get('leads_skip', 0),
-        limit=st.session_state.get('leads_limit', 10)
+        skip=skip,
+        limit=limit
     )
     
     total_leads = count_search_leads(
@@ -235,8 +229,8 @@ def view_leads():
     )
     
     # UI Metadata
-    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
-    current_page_display = st.session_state.leads_page + 1 if total_leads > 0 else 0
+    num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
+    current_page_display = page_index + 1 if total_leads > 0 else 0
     
     # Show count with filter info
     filter_info = f"Active Status: {st.session_state.active_inactive_filter} | Status: {st.session_state.status_filter} | Priority: {st.session_state.priority_filter}"
@@ -436,6 +430,7 @@ def view_leads():
                     else:
                         st.caption("No history recorded yet.")
 
+
                 # End of expander
 
                 # Handle Mark Referral Modal Action
@@ -458,7 +453,7 @@ def view_leads():
         st.info("No leads found")
     
     # --- PAGINATION UI CONTROLS ---
-    st.session_state.leads_skip, st.session_state.leads_limit = render_pagination(total_leads, "leads")
+    render_pagination(total_leads, "leads")
     
     db.close()
 

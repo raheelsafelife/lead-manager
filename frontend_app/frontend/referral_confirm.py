@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination
+from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -339,7 +339,7 @@ def referral_confirm():
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
-            st.session_state.confirm_page = 0
+            st.session_state.conf_page = 0
             st.rerun()
 
     # Payor Filter
@@ -382,31 +382,25 @@ def referral_confirm():
     with col_all:
         if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "All"
-            st.session_state.confirm_page = 0
+            st.session_state.conf_page = 0
             st.rerun()
     
     with col_start:
         if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Care Start"
-            st.session_state.confirm_page = 0
+            st.session_state.conf_page = 0
             st.rerun()
     
     with col_not_start:
         if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", width="stretch"):
             st.session_state.confirm_care_filter = "Not Start"
-            st.session_state.confirm_page = 0
+            st.session_state.conf_page = 0
             st.rerun()
     
     st.divider()
     
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
-    
-    # Track current page in session state
-    if 'confirm_page' not in st.session_state:
-        st.session_state.confirm_page = 0
-    
-    page_size = 20 # Detail heavy, so smaller page size
-    skip = st.session_state.confirm_page * page_size
+    skip, limit, page_index, rows_per_page = get_pagination_params("conf", default_limit=20)
     
     # SQL-level search and count
     leads = search_leads(
@@ -423,8 +417,8 @@ def referral_confirm():
         exclude_clients=False, # We want active clients
         auth_received_filter=True, # SQL FILTERING
         only_clients=True,        # NEW: Filter at SQL level
-        skip=st.session_state.get('conf_skip', 0),
-        limit=st.session_state.get('conf_limit', 10)
+        skip=skip,
+        limit=limit
     )
     
     # Post-filter (Now handled at SQL level)
@@ -452,8 +446,8 @@ def referral_confirm():
     )
     
     # UI Metadata
-    num_pages = (total_leads // page_size) + (1 if total_leads % page_size > 0 else 0)
-    current_page_display = st.session_state.confirm_page + 1 if total_leads > 0 else 0
+    num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
+    current_page_display = page_index + 1 if total_leads > 0 else 0
 
     # Show filtered count
     st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
@@ -472,6 +466,6 @@ def referral_confirm():
         display_referral_confirm(lead, db)
     
     # --- PAGINATION UI CONTROLS ---
-    st.session_state.conf_skip, st.session_state.conf_limit = render_pagination(total_leads, "conf")
+    render_pagination(total_leads, "conf")
     
     db.close()
