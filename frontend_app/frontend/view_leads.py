@@ -541,9 +541,11 @@ def mark_referral_page():
     # Referral Type Selection
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Select Referral Type and Payor</h4>", unsafe_allow_html=True)
     
-    col_t1, col_t2 = st.columns([1, 2])
+    col_t1, col_t2 = st.columns([1, 1])
     with col_t1:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
+    with col_t2:
+        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"])
     
     st.divider()
     
@@ -715,7 +717,8 @@ def mark_referral_page():
                 agency_id=final_agency_id,
                 # agency_suboption_id=final_agency_suboption_id, # Removed
                 ccu_id=selected_ccu_id,
-                send_reminders=send_notif
+                send_reminders=send_notif,
+                last_contact_status=initial_status
             )
             update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
             

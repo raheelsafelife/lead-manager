@@ -112,32 +112,36 @@ def view_referrals():
     
     st.divider()
     
-    # Contact Status Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
+    # Referral Status Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("Intro Call", width="stretch", 
-                    type="primary" if st.session_state.referral_status_filter == "Intro Call" else "secondary"):
-            st.session_state.referral_status_filter = "Intro Call"
+        if st.button("Initial Referral Sent", width="stretch", 
+                    type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
+            st.session_state.referral_status_filter = "Initial Referral Sent"
+            st.session_state.refs_page = 0
             st.rerun()
     
     with col2:
-        if st.button("Follow Up", width="stretch",
-                    type="primary" if st.session_state.referral_status_filter == "Follow Up" else "secondary"):
-            st.session_state.referral_status_filter = "Follow Up"
+        if st.button("Assessment Scheduled", width="stretch",
+                    type="primary" if st.session_state.referral_status_filter == "Assessment Scheduled" else "secondary"):
+            st.session_state.referral_status_filter = "Assessment Scheduled"
+            st.session_state.refs_page = 0
             st.rerun()
     
     with col3:
-        if st.button("No Response", width="stretch",
-                    type="primary" if st.session_state.referral_status_filter == "No Response" else "secondary"):
-            st.session_state.referral_status_filter = "No Response"
+        if st.button("Not Approved", width="stretch",
+                    type="primary" if st.session_state.referral_status_filter == "Not Approved" else "secondary"):
+            st.session_state.referral_status_filter = "Not Approved"
+            st.session_state.refs_page = 0
             st.rerun()
     
     with col4:
         if st.button("All", width="stretch",
                     type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
             st.session_state.referral_status_filter = "All"
+            st.session_state.refs_page = 0
             st.rerun()
     
     st.divider()
