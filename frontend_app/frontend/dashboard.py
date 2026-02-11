@@ -291,10 +291,10 @@ def dashboard():
     # --- 4. LEAD PIPELINE ANALYTICS ---
     st.divider()
     st.markdown("""
-    <div style="background: linear-gradient(90deg, #00506b 0%, #3CA5AA 100%); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); color: white !important;">
-        <h1 style="text-align: center; margin: 0; letter-spacing:0.08em; text-transform:uppercase; font-weight: 800; color: white !important;">
-            <span style="color: white !important; font-weight: 900 !important; text-shadow: 0px 0px 5px rgba(0,0,0,0.2);">LEAD PIPELINE ANALYTICS</span>
-        </h1>
+    <div style="background: linear-gradient(90deg, #00506b 0%, #3CA5AA 100%); padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); color: #FFFFFF !important;">
+        <h2 style="text-align: center; margin: 0; letter-spacing:0.08em; text-transform:uppercase; font-weight: 800; color: #FFFFFF !important;">
+            <span style="color: #FFFFFF !important; font-weight: 900 !important; text-shadow: 0px 0px 5px rgba(0,0,0,0.2);">LEAD PIPELINE ANALYTICS</span>
+        </h2>
     </div>
     """, unsafe_allow_html=True)
     
