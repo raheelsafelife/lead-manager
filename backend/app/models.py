@@ -303,7 +303,7 @@ class SessionToken(Base):
 class EmailTemplate(Base):
     """
     Stores customizable email templates for notifications.
-    Admins can edit these from the UI to change branding or wording.
+    Admins can edit these from the UI can branding or wording.
     """
     __tablename__ = "email_templates"
 
@@ -312,3 +312,16 @@ class EmailTemplate(Base):
     subject = Column(String(255), nullable=False)
     body = Column(Text, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Attachment(Base):
+    """File attachments for leads"""
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lead_id = Column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    uploaded_by = Column(String(100), nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)

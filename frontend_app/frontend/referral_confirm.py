@@ -248,6 +248,97 @@ def display_referral_confirm(lead, db, highlight=False):
                 st.session_state['success_msg'] = msg
                 st.rerun()
 
+
+        # ATTACHMENTS SECTION
+        st.divider()
+        st.markdown("### 📎 Attachments")
+        
+        try:
+            from app.crud import crud_attachments
+            from pathlib import Path
+            import os
+            
+            # File upload
+            with st.expander("➕ Upload New Attachment", expanded=False):
+                uploaded_file = st.file_uploader(
+                    "Choose a file",
+                    key=f"attachment_upload_conf_{lead.id}",
+                    help="Upload documents, images, or other files related to this referral"
+                )
+                
+                if uploaded_file is not None:
+                    if st.button("Upload", key=f"upload_btn_conf_{lead.id}", type="primary"):
+                        # Save file
+                        upload_dir = Path(__file__).parent.parent.parent / "backend" / "uploads"
+                        upload_dir.mkdir(exist_ok=True)
+                        
+                        file_path = upload_dir / f"{lead.id}_{uploaded_file.name}"
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        
+                        # Save to database
+                        crud_attachments.create_attachment(
+                            db,
+                            lead_id=lead.id,
+                            filename=uploaded_file.name,
+                            file_path=str(file_path),
+                            file_size=uploaded_file.size,
+                            uploaded_by=st.session_state.username
+                        )
+                        
+                        st.success(f"✅ Uploaded: {uploaded_file.name}")
+                        st.rerun()
+            
+            # List existing attachments
+            attachments = crud_attachments.get_attachments_by_lead(db, lead.id)
+            
+            if not attachments:
+                st.info("No attachments yet. Upload files using the section above.")
+            else:
+                st.markdown(f"**{len(attachments)} file(s) attached**")
+                
+                for att in attachments:
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    
+                    with col1:
+                        # File icon based on extension
+                        ext = Path(att.filename).suffix.lower()
+                        icon = "📄"
+                        if ext in ['.jpg', '.jpeg', '.png', '.gif']:
+                            icon = "🖼️"
+                        elif ext in ['.pdf']:
+                            icon = "📕"
+                        elif ext in ['.doc', '.docx']:
+                            icon = "📝"
+                        
+                        st.markdown(f"{icon} **{att.filename}**")
+                        st.caption(f"Uploaded by {att.uploaded_by} • {render_time(att.uploaded_at)}")
+                    
+                    with col2:
+                        # Download button
+                        if os.path.exists(att.file_path):
+                            with open(att.file_path, "rb") as f:
+                                st.download_button(
+                                    "⬇️ Download",
+                                    f,
+                                    file_name=att.filename,
+                                    key=f"download_conf_{att.id}"
+                                )
+                    
+                    with col3:
+                        # Delete button (admin only)
+                        if st.session_state.user_role == "admin":
+                            if st.button("🗑️", key=f"delete_att_conf_{att.id}"):
+                                crud_attachments.delete_attachment(db, att.id)
+                                if os.path.exists(att.file_path):
+                                    os.remove(att.file_path)
+                                st.success("Attachment deleted")
+                                st.rerun()
+                    
+                    st.divider()
+        except Exception as e:
+            st.error(f"Attachment error: {str(e)}")
+
         # History View - Show last 5 updates only
         if st.session_state.get(f"show_history_conf_{lead.id}", False):
             st.divider()
