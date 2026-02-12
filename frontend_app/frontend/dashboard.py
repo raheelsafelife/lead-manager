@@ -442,7 +442,7 @@ def view_all_user_dashboards():
                 if not user_leads.empty:
                     s_data = user_leads['source'].value_counts().reset_index()
                     fig = px.bar(s_data, x='source', y='count', color_discrete_sequence=['#00506b'], title="Source")
-                    fig.update_layout(height=150, margin=dict(t=30, b=0, l=0, r=0), showlegend=False); st.plotly_chart(fig, use_container_width=True)
+                    fig.update_layout(height=150, margin=dict(t=30, b=0, l=0, r=0), showlegend=False); st.plotly_chart(fig, use_container_width=True, key=f"source_chart_{u.id}")
                     render_download_csv(user_leads, f"{u.username}_leads.csv")
             with col2:
                 refs = len(user_leads[user_leads['active_client'] == True])
@@ -450,5 +450,5 @@ def view_all_user_dashboards():
                 if not user_leads.empty:
                     st_data = user_leads['last_contact_status'].value_counts().reset_index()
                     fig = px.bar(st_data, x='last_contact_status', y='count', color_discrete_sequence=['#3CA5AA'], title="Status")
-                    fig.update_layout(height=150, margin=dict(t=30, b=0, l=0, r=0), showlegend=False); st.plotly_chart(fig, use_container_width=True)
+                    fig.update_layout(height=150, margin=dict(t=30, b=0, l=0, r=0), showlegend=False); st.plotly_chart(fig, use_container_width=True, key=f"status_chart_{u.id}")
     db.close()
