@@ -48,9 +48,13 @@ def create_ccu(db: Session, name: str, created_by: str, created_by_id: int,
         created_at=datetime.utcnow(),
         created_by=created_by
     )
-    db.add(ccu)
-    db.commit()
-    db.refresh(ccu)
+    try:
+        db.add(ccu)
+        db.commit()
+        db.refresh(ccu)
+    except Exception as e:
+        db.rollback()
+        raise e
     
     # Log activity
     crud_activity_logs.log_activity(
@@ -72,8 +76,12 @@ def delete_ccu(db: Session, ccu_id: int, deleted_by: str, deleted_by_id: int):
     ccu = get_ccu_by_id(db, ccu_id)
     if ccu:
         ccu_name = ccu.name
-        db.delete(ccu)
-        db.commit()
+        try:
+            db.delete(ccu)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
         
         # Log activity
         crud_activity_logs.log_activity(
@@ -117,8 +125,12 @@ def update_ccu(db: Session, ccu_id: int, name: str, updated_by: str, updated_by_
         ccu.care_coordinator_name = care_coordinator_name
         ccu.updated_at = datetime.utcnow()
         ccu.updated_by = updated_by
-        db.commit()
-        db.refresh(ccu)
+        try:
+            db.commit()
+            db.refresh(ccu)
+        except Exception as e:
+            db.rollback()
+            raise e
         
         # Log activity
         crud_activity_logs.log_activity(

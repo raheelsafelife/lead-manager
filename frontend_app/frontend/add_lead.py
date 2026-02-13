@@ -225,13 +225,20 @@ def add_lead():
                     if st.button(" Add CCU", type="primary", key="save_new_ccu"):
                         if nc_name:
                             try:
-                                crud_ccus.create_ccu(db, nc_name, st.session_state.username, st.session_state.get('db_user_id'),
-                                    street=nc_street, city=nc_city, state=nc_state, zip_code=nc_zip, phone=nc_phone,
-                                    fax=nc_fax, email=nc_email, care_coordinator_name=nc_coord)
-                                st.session_state['success_msg'] = f"Success! CCU '{nc_name}' added!"
-                                st.session_state['show_ccu_form'] = False
-                                st.rerun()
-                            except Exception as e: st.error(f"Error: {e}")
+                                # Pre-emptive check for uniqueness
+                                existing = crud_ccus.get_ccu_by_name(db, nc_name)
+                                if existing:
+                                    st.error(f"**CCU '{nc_name}' already exists**")
+                                else:
+                                    crud_ccus.create_ccu(db, nc_name, st.session_state.username, st.session_state.get('db_user_id'),
+                                        street=nc_street, city=nc_city, state=nc_state, zip_code=nc_zip, phone=nc_phone,
+                                        fax=nc_fax, email=nc_email, care_coordinator_name=nc_coord)
+                                    st.session_state['success_msg'] = f"Success! CCU '{nc_name}' added!"
+                                    st.session_state['show_ccu_form'] = False
+                                    st.rerun()
+                            except Exception as e:
+                                db.rollback() # Reset session to prevent PendingRollbackError
+                                st.error(f"Error: {e}")
                 with cb2:
                     if st.button(" Cancel", key="cancel_ccu"):
                         st.session_state['show_ccu_form'] = False

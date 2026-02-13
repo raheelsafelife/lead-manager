@@ -432,6 +432,7 @@ def admin_panel():
                             st.session_state['success_msg'] = msg
                             st.rerun()
                     except Exception as e:
+                        db.rollback()
                         st.session_state['error_msg'] = f"Error adding Payor: {str(e)}"
                         st.rerun()
         
@@ -504,6 +505,7 @@ def admin_panel():
                                     st.session_state[f"editing_agency_{agency.id}"] = False
                                     st.rerun()
                                 except Exception as e:
+                                    db.rollback()
                                     st.session_state['error_msg'] = f"Error updating Payor: {str(e)}"
                                     st.rerun()
                         with col_y:
@@ -554,6 +556,7 @@ def admin_panel():
                             st.session_state['success_msg'] = msg
                             st.rerun()
                     except Exception as e:
+                        db.rollback()
                         st.session_state['error_msg'] = f"Error adding CCU: {str(e)}"
                         st.rerun()
         
@@ -632,6 +635,7 @@ def admin_panel():
                                     st.session_state[f"editing_ccu_{ccu.id}"] = False
                                     st.rerun()
                                 except Exception as e:
+                                    db.rollback()
                                     st.session_state['error_msg'] = f"Error updating CCU: {str(e)}"
                                     st.rerun()
                         with col_y:
