@@ -208,6 +208,63 @@ async def create_external_lead(
         db.close()
 
 
+@app.get("/api/reports/referrals/export")
+async def export_referrals_report():
+    """
+    Generate and download comprehensive referral report in professional Word (.docx) format.
+    Returns three sections: Sent, Confirmed, and Rejected referrals in Landscape layout.
+    """
+    from fastapi.responses import Response
+    from app.services.referral_report import generate_referral_report_docx
+    
+    db = SessionLocal()
+    
+    try:
+        # Generate Word document bytes
+        docx_bytes = generate_referral_report_docx(db)
+        
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"referral_report_{timestamp}.docx"
+        
+        # Return as downloadable file
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.get("/api/reports/referrals/stats")
+async def get_referral_stats():
+    """
+    Get summary statistics for referral report.
+    Returns counts for sent, confirmed, and rejected referrals.
+    """
+    from app.services.referral_report import get_report_statistics
+    
+    db = SessionLocal()
+    
+    try:
+        stats = get_report_statistics(db)
+        return {
+            "success": True,
+            "statistics": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching statistics: {str(e)}")
+    finally:
+        db.close()
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

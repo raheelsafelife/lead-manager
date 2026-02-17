@@ -26,6 +26,7 @@ from frontend.view_leads import view_leads, mark_referral_page
 from frontend.add_lead import add_lead
 from frontend.referrals_sent import view_referrals
 from frontend.referral_confirm import referral_confirm
+from frontend.referral_reports import referral_reports
 from frontend.activity_logs import view_activity_logs
 from frontend.user_management import admin_panel, update_password, render_historian
 from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
@@ -82,7 +83,7 @@ def main():
             st.title("Navigation")
             
             # Base pages
-            pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Referral Confirm", "Activity Logs"]
+            pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Referral Confirm", "📊 Referral Reports", "Activity Logs"]
             
             # Add Update Password for regular users only (admins have it in User Management)
             if st.session_state.user_role != "admin":
@@ -163,6 +164,8 @@ def main():
             view_referrals()
         elif page == "Referral Confirm":
             referral_confirm()
+        elif page == "📊 Referral Reports":
+            referral_reports()
         elif page == "Activity Logs":
             view_activity_logs()
         elif page == "Update Password":
