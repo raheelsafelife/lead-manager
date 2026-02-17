@@ -32,11 +32,9 @@ def referral_reports():
     st.markdown('<div class="main-header">📊 Referral Reports</div>', unsafe_allow_html=True)
     
     st.markdown("""
-    Generate a comprehensive **Excel report** of all referrals from the AWS database.
+    Generate a comprehensive **Professional Word Report** of all referrals from the AWS database.
     
     ### Report Contents:
-    
-    The report includes **four separate sheets**:
     
     1. **Summary** - Detailed overview with statistics
     2. **Referrals Sent** - Blue themed section
@@ -151,14 +149,14 @@ def referral_reports():
             
             ### Report Structure
             
-            The Excel workbook contains four sheets:
+            The Word document contains:
             
             - **Landscape Layout**: Ensures all columns fit and are readable
             - **Merged Columns**: Logical grouping of First/Last Name, Addresses, and CCU Contacts
             - **Color-Coded Headers**: Blue (Sent), Green (Confirmed), Red (Rejected)
             - **Summary Table**: Statistics included at the end of the document
             
-            Each sheet has:
+            The document has:
             - Color-coded headers (Blue for Sent, Green for Confirmed, Red for Rejected)
             - Optimized column widths for readability
             - Frozen header row for easy scrolling

@@ -10,3 +10,4 @@ python-dotenv
 requests
 plotly
 extra-streamlit-components
+python-docx
