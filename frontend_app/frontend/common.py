@@ -1999,7 +1999,7 @@ def render_api_status():
     import urllib.request
     import os
     
-    backend_url = os.environ.get("BACKEND_API_URL", "http://127.0.0.1:8003")
+    backend_url = os.environ.get("BACKEND_API_URL", "http://127.0.0.1:8000")
     st.sidebar.markdown("---")
     
     try:

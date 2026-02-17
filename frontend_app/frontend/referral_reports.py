@@ -97,7 +97,7 @@ def referral_reports():
                 try:
                     # Call the backend API endpoint
                     # Use localhost for local development, update for production
-                    api_url = "http://localhost:8003/api/reports/referrals/export"
+                    api_url = "http://localhost:8000/api/reports/referrals/export"
                     
                     response = requests.get(api_url, timeout=60)
                     
@@ -130,7 +130,7 @@ def referral_reports():
                         st.error(response.text)
                         
                 except requests.exceptions.ConnectionError:
-                    st.error("❌ Cannot connect to API server. Please ensure the backend server is running on port 8003.")
+                    st.error("❌ Cannot connect to API server. Please ensure the backend server is running on port 8000.")
                     st.info("Run the backend with: `python backend/api_server.py`")
                     
                 except Exception as e:
