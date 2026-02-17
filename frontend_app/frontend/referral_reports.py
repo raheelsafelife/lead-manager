@@ -22,6 +22,7 @@ sys.path.insert(0, str(backend_path))
 
 import streamlit as st
 import requests
+import os
 from datetime import datetime
 from app.db import SessionLocal
 
@@ -97,7 +98,8 @@ def referral_reports():
                 try:
                     # Call the backend API endpoint
                     # Use localhost for local development, update for production
-                    api_url = "http://localhost:8000/api/reports/referrals/export"
+                    backend_api_url = os.environ.get("BACKEND_API_URL", "http://localhost:8000")
+                    api_url = f"{backend_api_url}/api/reports/referrals/export"
                     
                     response = requests.get(api_url, timeout=60)
                     

@@ -8,6 +8,7 @@ services:
       sh -c "python3 backend/create_db.py && python3 backend/migrations/migrate_universal.py && python3 backend/migrate_add_soft_delete.py && python3 backend/migrate_add_owner_id.py && python3 backend/migrate_add_send_reminders.py && python3 backend/import_ccus.py && python3 backend/link_leads_to_ccus.py && python3 backend/import_leads.py"
     environment:
       - ALLOW_ADMIN_RESET=true
+      - BACKEND_API_URL=http://api:8000
 
   # Backend API (FastAPI)
   api:
@@ -30,6 +31,8 @@ services:
       - api
     ports:
       - "8501:8501"
+    environment:
+      - BACKEND_API_URL=http://api:8000
     volumes:
       - ./data:/app/data
       - ./backend:/app/backend
