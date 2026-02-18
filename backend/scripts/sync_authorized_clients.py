@@ -8,6 +8,11 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
+# Ensure we use the correct database path even if run from host
+data_db = backend_path.parent / "data" / "leads.db"
+if data_db.exists():
+    os.environ["DATABASE_URL"] = f"sqlite:///{data_db.absolute()}"
+
 from app.db import SessionLocal
 from app.models import Lead, ActivityLog
 from sqlalchemy import func
