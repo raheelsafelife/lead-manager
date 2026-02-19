@@ -326,7 +326,17 @@ def add_lead():
     
     with col2:
         st.markdown('Contact Status <span class="required-star">*</span>', unsafe_allow_html=True)
-        last_contact_status = st.selectbox("Contact Status", ["Intro Call", "Follow Up", "No Response", "Inactive"], key="status_select", label_visibility="collapsed")
+        # Dynamic Status Options based on Source
+        is_referral_source = source in ["Direct Through CCU", "Transfer"]
+        if is_referral_source:
+             status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"]
+             # For Transfer, default to Care Start. For CCU, default to Initial Referral Sent.
+             default_idx = 3 if source == "Transfer" else 0
+        else:
+             status_options = ["Intro Call", "Follow Up", "No Response", "Inactive"]
+             default_idx = 0
+             
+        last_contact_status = st.selectbox("Contact Status", status_options, index=default_idx, key="status_select", label_visibility="collapsed")
                                             
         st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
         street = st.text_input("**Street**", key="street_input")
@@ -411,11 +421,11 @@ def add_lead():
                         "state": state or None,
                         "zip_code": zip_code or None,
                         "active_client": True if source in ["Transfer", "Direct Through CCU"] else False,
-                        "care_status": "Care Start" if source == "Transfer" else None,
-                        "authorization_received": True if source in ["Transfer", "Direct Through CCU"] else False,
-                        "soc_date": soc_date if source == "Transfer" else None,
+                        "care_status": "Care Start" if last_contact_status == "Care Start" else ("Not Start" if last_contact_status == "Not Start" else None),
+                        "authorization_received": True if last_contact_status in ["Care Start", "Not Start"] or source in ["Transfer", "Direct Through CCU"] else False,
+                        "soc_date": soc_date if (source == "Transfer" or last_contact_status == "Care Start") else None,
                         "priority": priority,
-                        "last_contact_status": "Initial Referral Sent" if source == "Direct Through CCU" else last_contact_status,
+                        "last_contact_status": last_contact_status,
                         "dob": dob.strftime('%Y-%m-%d') if dob else None, # JSON serializable
                         "medicaid_no": medicaid_no or None,
                         "e_contact_name": e_contact_name or None,

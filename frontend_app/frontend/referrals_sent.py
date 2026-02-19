@@ -114,7 +114,7 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         if st.button("Initial Referral Sent", width="stretch", 
@@ -138,6 +138,13 @@ def view_referrals():
             st.rerun()
     
     with col4:
+        if st.button("Inactive", width="stretch",
+                    type="primary" if st.session_state.referral_status_filter == "Inactive" else "secondary"):
+            st.session_state.referral_status_filter = "Inactive"
+            st.session_state.refs_page = 0
+            st.rerun()
+
+    with col5:
         if st.button("All", width="stretch",
                     type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
             st.session_state.referral_status_filter = "All"

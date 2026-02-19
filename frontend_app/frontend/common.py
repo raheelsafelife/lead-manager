@@ -1438,6 +1438,7 @@ def show_edit_modal_dialog(db, m):
             
     # Fetch lead data for form
     lead = m['lead_data']
+    is_referral = lead.get('active_client', False)
     # Remove st.form to allow immediate reactivity for toggle and selectboxes
     # with st.form(f"edit_lead_modal_form_{m['target_id']}"):  <-- Removed
     col1, col2 = st.columns(2)
@@ -1464,7 +1465,7 @@ def show_edit_modal_dialog(db, m):
             curr_event = lead.get('event_name')
             e_idx = event_list.index(curr_event) if curr_event in event_list else 0
             new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
-        elif new_source == "Transfer":
+        elif new_source == "Transfer" or is_referral:
             new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
         elif new_source == "Other":
             new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
@@ -1481,11 +1482,22 @@ def show_edit_modal_dialog(db, m):
         new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
         
     with col2:
-        status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+        # Status Dropdown Logic based on referral status
+        if is_referral:
+            status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"]
+        else:
+            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+            
         current_status = lead.get('last_contact_status', 'Intro Call')
         # Normalize for matching
         if current_status == "Active": current_status = "Intro Call"
-        status_idx = status_options.index(current_status) if current_status in status_options else 0
+        
+        # Ensure current status is in the options or fallback
+        if current_status not in status_options:
+            status_idx = 0
+        else:
+            status_idx = status_options.index(current_status)
+            
         new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
         
         priority_options = ["High", "Medium", "Low"]
@@ -1712,6 +1724,26 @@ def show_edit_modal_dialog(db, m):
                     "ccu_id": new_ccu_id,
                     "send_reminders": new_send_reminders
                 }
+                
+                # Care Status Synchronization for Referrals
+                if is_referral:
+                    if new_status == "Care Start":
+                        update_dict["care_status"] = "Care Start"
+                        update_dict["authorization_received"] = True
+                        if not update_dict.get("soc_date"):
+                            from datetime import date as dt_date
+                            update_dict["soc_date"] = dt_date.today()
+                    elif new_status == "Not Start":
+                        update_dict["care_status"] = "Not Start"
+                        update_dict["authorization_received"] = True
+                    elif new_status == "Not Approved":
+                        update_dict["care_status"] = None
+                        update_dict["authorization_received"] = False
+                    elif new_status in ["Initial Referral Sent", "Assessment Scheduled"]:
+                        # If moving back to these, we might want to keep auth if already received, 
+                        # but usually these imply auth isn't confirmed yet in this specific workflow.
+                        # However, for safety, we don't force auth=False here unless it's "Not Approved".
+                        pass
                 schema_data = LeadUpdate(**update_dict)
                 crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
                 st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"

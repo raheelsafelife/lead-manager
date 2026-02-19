@@ -635,7 +635,7 @@ def mark_referral_page():
     with col_t1:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
     with col_t2:
-        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"])
+        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"])
     
     st.divider()
     
@@ -801,15 +801,28 @@ def mark_referral_page():
     
     with col_confirm:
         if st.button("Confirm", type="primary", width="stretch"):
-            update_data = LeadUpdate(
-                active_client=True,
-                referral_type=ref_type,
-                agency_id=final_agency_id,
-                # agency_suboption_id=final_agency_suboption_id, # Removed
-                ccu_id=selected_ccu_id,
-                send_reminders=send_notif,
-                last_contact_status=initial_status
-            )
+            update_dict = {
+                "active_client": True,
+                "referral_type": ref_type,
+                "agency_id": final_agency_id,
+                "ccu_id": selected_ccu_id,
+                "send_reminders": send_notif,
+                "last_contact_status": initial_status
+            }
+            
+            # Care Status Synchronization
+            if initial_status == "Care Start":
+                update_dict["care_status"] = "Care Start"
+                update_dict["authorization_received"] = True
+                update_dict["soc_date"] = date.today()
+            elif initial_status == "Not Start":
+                update_dict["care_status"] = "Not Start"
+                update_dict["authorization_received"] = True
+            elif initial_status == "Not Approved":
+                update_dict["care_status"] = None
+                update_dict["authorization_received"] = False
+                
+            update_data = LeadUpdate(**update_dict)
             update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('user_id'))
             
             msg = f"Success! {lead.first_name} {lead.last_name} marked as a {ref_type} referral."

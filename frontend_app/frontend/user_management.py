@@ -89,7 +89,7 @@ def admin_panel():
     db = SessionLocal()
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
         " Pending Users", 
         " Password Resets", 
         " Approved Users", 
@@ -100,7 +100,8 @@ def admin_panel():
         " Events",
         " Admin Reporting",
         " Email Editor",
-        " CCU & Provider Mgmt"
+        " CCU & Provider Mgmt",
+        " 📊 Referral Reports"
     ])
     
     with tab1:
@@ -724,6 +725,13 @@ def admin_panel():
             view_ccu_management()
         except Exception as e:
             st.error(f"Error loading CCU Management: {e}")
+
+    with tab12:
+        try:
+            from frontend.referral_reports import referral_reports
+            referral_reports()
+        except Exception as e:
+            st.error(f"Error loading Referral Reports: {e}")
 
     db.close()
 
