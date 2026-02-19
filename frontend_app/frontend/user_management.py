@@ -101,7 +101,7 @@ def admin_panel():
         " Admin Reporting",
         " Email Editor",
         " CCU & Provider Mgmt",
-        " 📊 Referral Reports"
+        " 📊 Referral Status"
     ])
     
     with tab1:

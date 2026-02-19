@@ -1484,7 +1484,7 @@ def show_edit_modal_dialog(db, m):
     with col2:
         # Status Dropdown Logic based on referral status
         if is_referral:
-            status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"]
+            status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"]
         else:
             status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
             
@@ -1727,22 +1727,13 @@ def show_edit_modal_dialog(db, m):
                 
                 # Care Status Synchronization for Referrals
                 if is_referral:
-                    if new_status == "Care Start":
-                        update_dict["care_status"] = "Care Start"
-                        update_dict["authorization_received"] = True
-                        if not update_dict.get("soc_date"):
-                            from datetime import date as dt_date
-                            update_dict["soc_date"] = dt_date.today()
-                    elif new_status == "Not Start":
-                        update_dict["care_status"] = "Not Start"
-                        update_dict["authorization_received"] = True
-                    elif new_status == "Not Approved":
+                    if new_status == "Not Approved":
                         update_dict["care_status"] = None
                         update_dict["authorization_received"] = False
                     elif new_status in ["Initial Referral Sent", "Assessment Scheduled"]:
-                        # If moving back to these, we might want to keep auth if already received, 
-                        # but usually these imply auth isn't confirmed yet in this specific workflow.
-                        # However, for safety, we don't force auth=False here unless it's "Not Approved".
+                        # If moving back to these, we don't automatically clear auth if it was already received
+                        # unless the user explicitly wants to "Unmark" or "Undo Auth" via those specific buttons.
+                        # For the status dropdown, we just update the contact status.
                         pass
                 schema_data = LeadUpdate(**update_dict)
                 crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
