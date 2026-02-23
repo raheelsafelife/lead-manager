@@ -208,7 +208,7 @@ def display_referral_confirm(lead, db, highlight=False):
 
         # Action Buttons: Care Start, Not Start
         st.write("**Select Care Status:**")
-        col_start, col_not_start = st.columns(2)
+        col_start, col_not_start, col_spacer = st.columns([1, 1, 1.5])
 
         with col_start:
             if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
