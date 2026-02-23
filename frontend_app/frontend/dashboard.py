@@ -163,7 +163,7 @@ def dashboard():
         st.markdown("<h3 style='text-align: center; color: #00506b;'>Detailed Referral Distribution</h3>", unsafe_allow_html=True)
         segments = get_stats_cached('get_referral_segments_by_ccu')
         g_col1, g_col2 = st.columns(2)
-        df_raw_sent = df_all_leads[(df_all_leads['last_contact_status'] == "Referral Sent") & (df_all_leads['active_client'] == True)]
+        df_raw_sent = df_all_leads[(df_all_leads['active_client'] == True)]
         df_raw_conf = df_all_leads[(df_all_leads['care_status'] == "Care Start") & (df_all_leads['active_client'] == True)]
         
         with g_col1:

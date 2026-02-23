@@ -32,8 +32,6 @@ def get_referrals_sent(db: Session) -> List[Lead]:
         joinedload(Lead.lead_comments)
     ).filter(
         Lead.active_client == True,
-        Lead.authorization_received == False,
-        Lead.last_contact_status != "Not Approved",
         Lead.deleted_at == None
     ).order_by(Lead.created_at.desc()).all()
 
@@ -258,7 +256,7 @@ def generate_referral_report_docx(db: Session) -> bytes:
 
 
 def get_report_statistics(db: Session) -> Dict[str, int]:
-    sent_count = db.query(Lead).filter(Lead.active_client == True, Lead.authorization_received == False, Lead.last_contact_status != "Not Approved", Lead.deleted_at == None).count()
+    sent_count = db.query(Lead).filter(Lead.active_client == True, Lead.deleted_at == None).count()
     confirmed_count = db.query(Lead).filter(Lead.active_client == True, Lead.authorization_received == True, Lead.deleted_at == None).count()
     rejected_count = db.query(Lead).filter(Lead.active_client == True, Lead.last_contact_status == "Not Approved", Lead.deleted_at == None).count()
-    return {'sent': sent_count, 'confirmed': confirmed_count, 'rejected': rejected_count, 'total': sent_count + confirmed_count + rejected_count}
+    return {'sent': sent_count, 'confirmed': confirmed_count, 'rejected': rejected_count, 'total': sent_count}

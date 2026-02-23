@@ -373,7 +373,7 @@ def get_referral_segments_by_ccu(db: Session) -> Dict[str, List[dict]]:
         db.query(models.CCU.name, func.count(models.Lead.id))
         .join(models.Lead, models.Lead.ccu_id == models.CCU.id)
         .filter(models.Lead.active_client == True)
-        .filter(models.Lead.last_contact_status == "Referral Sent")
+        .filter(models.Lead.deleted_at == None)
         .group_by(models.CCU.name)
         .all()
     )
