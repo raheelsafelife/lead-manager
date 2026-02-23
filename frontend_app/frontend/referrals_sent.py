@@ -87,24 +87,24 @@ def view_referrals():
     
     # Active/Inactive Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Active Status</h4>", unsafe_allow_html=True)
-    ref_act_col1, ref_act_col2, ref_act_col3 = st.columns(3)
+    ref_act_col1, ref_act_col2, ref_act_col3, ref_act_spacer = st.columns([1, 1, 1, 2])
     
     with ref_act_col1:
-        if st.button("Active", key="ref_active_filter", width="stretch",
+        if st.button("Active", key="ref_active_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "Active" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Active"
             st.session_state.refs_page = 0
             st.rerun()
     
     with ref_act_col2:
-        if st.button("Inactive", key="ref_inactive_filter", width="stretch",
+        if st.button("Inactive", key="ref_inactive_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Inactive"
             st.session_state.refs_page = 0
             st.rerun()
     
     with ref_act_col3:
-        if st.button("All", key="ref_all_active_filter", width="stretch",
+        if st.button("All", key="ref_all_active_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "All" else "secondary"):
             st.session_state.referral_active_inactive_filter = "All"
             st.session_state.refs_page = 0
@@ -114,32 +114,32 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    col1, col2, col3, col5 = st.columns(4)
+    f_col1, f_col2, f_col3, f_col4, f_spacer = st.columns([1.5, 1.5, 1.2, 0.8, 1])
     
-    with col1:
-        if st.button("Initial Referral Sent", width="stretch", 
+    with f_col1:
+        if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
                     type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
             st.session_state.referral_status_filter = "Initial Referral Sent"
             st.session_state.refs_page = 0
             st.rerun()
     
-    with col2:
-        if st.button("Assessment Scheduled", width="stretch",
+    with f_col2:
+        if st.button("Assessment Scheduled", key="rs_assess", use_container_width=True,
                     type="primary" if st.session_state.referral_status_filter == "Assessment Scheduled" else "secondary"):
             st.session_state.referral_status_filter = "Assessment Scheduled"
             st.session_state.refs_page = 0
             st.rerun()
     
-    with col3:
-        if st.button("Not Approved", width="stretch",
+    with f_col3:
+        if st.button("Not Approved", key="rs_notapp", use_container_width=True,
                     type="primary" if st.session_state.referral_status_filter == "Not Approved" else "secondary"):
             st.session_state.referral_status_filter = "Not Approved"
             st.session_state.refs_page = 0
             st.rerun()
     
 
-    with col5:
-        if st.button("All", width="stretch",
+    with f_col4:
+        if st.button("All", key="rs_all", use_container_width=True,
                     type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
             st.session_state.referral_status_filter = "All"
             st.session_state.refs_page = 0
@@ -186,27 +186,27 @@ def view_referrals():
     
     # Priority Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
-    p_col1, p_col2, p_col3, p_col4 = st.columns([1, 1, 1, 1])
+    p_col1, p_col2, p_col3, p_col4, p_spacer = st.columns([1, 1, 1, 1.2, 1.3])
     
     # Priority filter is now initialized in init_session_state() in common.py
     
     with p_col1:
-        if st.button("High", key="rp_high", width="stretch",
+        if st.button("High", key="rp_high", use_container_width=True,
                     type="primary" if st.session_state.referral_priority_filter == "High" else "secondary"):
             st.session_state.referral_priority_filter = "High"
             st.rerun()
     with p_col2:
-        if st.button("Medium", key="rp_medium", width="stretch",
+        if st.button("Medium", key="rp_medium", use_container_width=True,
                     type="primary" if st.session_state.referral_priority_filter == "Medium" else "secondary"):
             st.session_state.referral_priority_filter = "Medium"
             st.rerun()
     with p_col3:
-        if st.button("Low", key="rp_low", width="stretch",
+        if st.button("Low", key="rp_low", use_container_width=True,
                     type="primary" if st.session_state.referral_priority_filter == "Low" else "secondary"):
             st.session_state.referral_priority_filter = "Low"
             st.rerun()
     with p_col4:
-        if st.button("All Priorities", key="rp_all", width="stretch",
+        if st.button("All Priorities", key="rp_all", use_container_width=True,
                     type="primary" if st.session_state.referral_priority_filter == "All" else "secondary"):
             st.session_state.referral_priority_filter = "All"
             st.rerun()

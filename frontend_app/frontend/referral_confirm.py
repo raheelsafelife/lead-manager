@@ -164,7 +164,7 @@ def display_referral_confirm(lead, db, highlight=False):
 
         # Sub-Action Buttons: Edit, History, Comment, Undo Auth
         st.write("**Manage Referral:**")
-        sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([0.7, 0.7, 1.3, 1.3])
+        sub_col1, sub_col2, sub_col3, sub_col4 = st.columns([1, 1, 1.6, 1.6])
         
         with sub_col1:
             if st.button("Edit", key=f"edit_btn_confirm_{lead.id}", use_container_width=True):
@@ -231,7 +231,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 st.rerun()
 
         with col_not_start:
-            if st.button("Not Start", key=f"not_start_btn_confirm_{lead.id}", type="secondary", width="stretch", disabled=(lead.care_status == "Not Start")):
+            if st.button("Not Start", key=f"not_start_btn_confirm_{lead.id}", type="secondary", use_container_width=True, disabled=(lead.care_status == "Not Start")):
                 # CRITICAL: Clear modal state
                 st.session_state.modal_open = False
                 st.session_state.modal_action = None
@@ -470,22 +470,22 @@ def referral_confirm():
     
     # Care filter is now initialized in init_session_state() in common.py
     
-    col_all, col_start, col_not_start = st.columns(3)
+    col_all, col_start, col_not_start, col_spacer = st.columns([1, 1.2, 1.2, 3])
     
     with col_all:
-        if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", width="stretch"):
+        if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
             st.session_state.confirm_care_filter = "All"
             st.session_state.conf_page = 0
             st.rerun()
     
     with col_start:
-        if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", width="stretch"):
+        if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
             st.session_state.confirm_care_filter = "Care Start"
             st.session_state.conf_page = 0
             st.rerun()
     
     with col_not_start:
-        if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", width="stretch"):
+        if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
             st.session_state.confirm_care_filter = "Not Start"
             st.session_state.conf_page = 0
             st.rerun()

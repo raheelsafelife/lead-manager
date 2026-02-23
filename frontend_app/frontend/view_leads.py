@@ -85,24 +85,24 @@ def view_leads():
     
     # Active/Inactive Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Active Status</h4>", unsafe_allow_html=True)
-    act_col1, act_col2, act_col3 = st.columns(3)
+    act_col1, act_col2, act_col3, act_spacer = st.columns([1, 1, 1, 2])
     
     with act_col1:
-        if st.button("Active", key="active_filter", width="stretch",
+        if st.button("Active", key="active_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "Active" else "secondary"):
             st.session_state.active_inactive_filter = "Active"
             st.session_state.leads_page = 0
             st.rerun()
     
     with act_col2:
-        if st.button("Inactive", key="inactive_filter", width="stretch",
+        if st.button("Inactive", key="inactive_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.active_inactive_filter = "Inactive"
             st.session_state.leads_page = 0
             st.rerun()
     
     with act_col3:
-        if st.button("All", key="all_active_filter", width="stretch",
+        if st.button("All", key="all_active_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "All" else "secondary"):
             st.session_state.active_inactive_filter = "All"
             st.session_state.leads_page = 0
@@ -112,31 +112,31 @@ def view_leads():
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
+    c_col1, c_col2, c_col3, c_col4, c_spacer = st.columns([1.2, 1.2, 1.4, 1, 1])
     
-    with col1:
-        if st.button("Intro Call", width="stretch", 
+    with c_col1:
+        if st.button("Intro Call", key="filter_intro", use_container_width=True, 
                     type="primary" if st.session_state.status_filter == "Intro Call" else "secondary"):
             st.session_state.status_filter = "Intro Call"
             st.session_state.leads_page = 0
             st.rerun()
     
-    with col2:
-        if st.button("Follow Up", width="stretch",
+    with c_col2:
+        if st.button("Follow Up", key="filter_followup", use_container_width=True,
                     type="primary" if st.session_state.status_filter == "Follow Up" else "secondary"):
             st.session_state.status_filter = "Follow Up"
             st.session_state.leads_page = 0
             st.rerun()
     
-    with col3:
-        if st.button("No Response", width="stretch",
+    with c_col3:
+        if st.button("No Response", key="filter_nores", use_container_width=True,
                     type="primary" if st.session_state.status_filter == "No Response" else "secondary"):
             st.session_state.status_filter = "No Response"
             st.session_state.leads_page = 0
             st.rerun()
     
-    with col4:
-        if st.button("All", width="stretch",
+    with c_col4:
+        if st.button("All Status", key="filter_all_status", use_container_width=True,
                     type="primary" if st.session_state.status_filter == "All" else "secondary"):
             st.session_state.status_filter = "All"
             st.session_state.leads_page = 0
@@ -144,28 +144,28 @@ def view_leads():
     
     # Priority Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
-    p_col1, p_col2, p_col3, p_col4 = st.columns([1, 1, 1, 1])
+    p_col1, p_col2, p_col3, p_col4, p_spacer = st.columns([1, 1, 1, 1.2, 1.3])
     
     with p_col1:
-        if st.button("High", key="p_high", width="stretch",
+        if st.button("High", key="p_high", use_container_width=True,
                     type="primary" if st.session_state.priority_filter == "High" else "secondary"):
             st.session_state.priority_filter = "High"
             st.session_state.leads_page = 0
             st.rerun()
     with p_col2:
-        if st.button("Medium", key="p_medium", width="stretch",
+        if st.button("Medium", key="p_medium", use_container_width=True,
                     type="primary" if st.session_state.priority_filter == "Medium" else "secondary"):
             st.session_state.priority_filter = "Medium"
             st.session_state.leads_page = 0
             st.rerun()
     with p_col3:
-        if st.button("Low", key="p_low", width="stretch",
+        if st.button("Low", key="p_low", use_container_width=True,
                     type="primary" if st.session_state.priority_filter == "Low" else "secondary"):
             st.session_state.priority_filter = "Low"
             st.session_state.leads_page = 0
             st.rerun()
     with p_col4:
-        if st.button("All Priorities", key="p_all", width="stretch",
+        if st.button("All Priorities", key="p_all", use_container_width=True,
                     type="primary" if st.session_state.priority_filter == "All" else "secondary"):
             st.session_state.priority_filter = "All"
             st.session_state.leads_page = 0

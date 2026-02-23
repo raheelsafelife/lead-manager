@@ -158,6 +158,13 @@ GLOBAL_CSS = """
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         color: #FFFFFF !important;
         font-weight: 700 !important;
+        white-space: nowrap !important;
+        width: 100% !important;
+        min-height: 48px !important;
+        padding: 0.5rem 1rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     
     /* Force primary buttons to be Deep Blue (Chicago/SafeLife branding) */
@@ -170,10 +177,12 @@ GLOBAL_CSS = """
     .stButton button p, .stButton button span, .stButton button label {
         color: #FFFFFF !important;
         font-weight: 700 !important;
+        text-overflow: ellipsis;
+        overflow: hidden;
     }
     
     .stButton > button:active {
-        transform: scale(0.96) !important;
+        transform: scale(0.98) !important;
     }
 
     /* --- PROFESSIONAL MODAL SYSTEM (NATIVE ST.DIALOG) --- */
@@ -399,12 +408,13 @@ GLOBAL_CSS = """
         font-weight: 700;
         border-radius: 10px;
         border: none;
-        padding: 0.75rem 2.0rem;
+        padding: 0.5rem 1.0rem !important;
         background: var(--safelife-aqua) !important;
         color: #FFFFFF !important;
         box-shadow: 0 3px 10px rgba(60, 165, 170, 0.35);
-        font-size: 1.05rem;
-        letter-spacing: 0.03em;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.02em;
+        white-space: nowrap !important;
     }
     
     /* Ensure all button text is white */
