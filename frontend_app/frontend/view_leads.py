@@ -174,13 +174,15 @@ def view_leads():
     st.divider()
     
     # Search and filter
-    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+    col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
         search_name = st.text_input("Search by name", key="search_name_input")
     with col2:
         filter_staff = st.text_input("Filter by staff", key="search_staff_input")
     with col3:
         filter_source = st.text_input("Filter by source", key="search_source_input")
+    with col_id:
+        search_id = st.text_input("Search by ID", key="search_id_input")
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_leads_btn", use_container_width=True):
@@ -197,6 +199,10 @@ def view_leads():
         only_my_leads = True
     
     # SQL-level search and count
+    lead_id_filter = None
+    if search_id and search_id.strip().isdigit():
+        lead_id_filter = int(search_id.strip())
+
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -210,7 +216,8 @@ def view_leads():
         include_deleted=st.session_state.show_deleted_leads,
         auth_received_filter=False,
         skip=skip,
-        limit=limit
+        limit=limit,
+        lead_id_filter=lead_id_filter
     )
     
     total_leads = count_search_leads(
@@ -225,7 +232,8 @@ def view_leads():
         only_my_leads=only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
         exclude_clients=not st.session_state.show_deleted_leads,
-        auth_received_filter=False
+        auth_received_filter=False,
+        lead_id_filter=lead_id_filter
     )
     
     # UI Metadata
@@ -243,7 +251,7 @@ def view_leads():
     if leads:
         for lead in leads:
             p_tag = get_priority_tag(lead.priority)
-            with st.expander(f"{lead.first_name} {lead.last_name} - {lead.staff_name}"):
+            with st.expander(f"ID: {lead.id} | {lead.first_name} {lead.last_name} - {lead.staff_name}"):
                 # Add priority tag at the top of expander
                 st.markdown(p_tag, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)

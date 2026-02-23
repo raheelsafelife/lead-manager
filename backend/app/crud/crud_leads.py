@@ -295,7 +295,8 @@ def search_leads(
     skip: int = 0,
     limit: int = 50,
     city_filter: Optional[str] = None,
-    zip_filter: Optional[str] = None
+    zip_filter: Optional[str] = None,
+    lead_id_filter: Optional[int] = None
 ):
     """
     Search leads with comprehensive SQL-level filtering and pagination.
@@ -338,6 +339,10 @@ def search_leads(
         if owner_id:
             query = query.filter(models.Lead.owner_id == owner_id)
         # fallback to staff name if needed is handled via schema usually
+        
+    # 3.5 Lead ID Filter
+    if lead_id_filter:
+        query = query.filter(models.Lead.id == lead_id_filter)
         
     # 4. Search Query (Name)
     if search_query:
@@ -410,7 +415,8 @@ def count_search_leads(
     only_clients: bool = False,
     auth_received_filter: Optional[bool] = None,
     city_filter: Optional[str] = None,
-    zip_filter: Optional[str] = None
+    zip_filter: Optional[str] = None,
+    lead_id_filter: Optional[int] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -431,6 +437,9 @@ def count_search_leads(
         
     if only_my_leads and owner_id:
         query = query.filter(models.Lead.owner_id == owner_id)
+        
+    if lead_id_filter:
+        query = query.filter(models.Lead.id == lead_id_filter)
         
     if search_query:
         search_query = f"%{search_query}%"

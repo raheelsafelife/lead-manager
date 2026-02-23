@@ -39,7 +39,7 @@ def display_referral_confirm(lead, db, highlight=False):
         care_indicator = ""
 
     # Highlight if this is the focused referral
-    expander_title = f"{care_indicator} {lead.first_name} {lead.last_name} - {lead.staff_name}"
+    expander_title = f"ID: {lead.id} | {care_indicator} {lead.first_name} {lead.last_name} - {lead.staff_name}"
     if highlight:
         expander_title = f"{expander_title}"
 
@@ -420,13 +420,15 @@ def referral_confirm():
     st.divider()
 
     # Search and filter
-    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+    col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
         search_name = st.text_input("Search by name")
     with col2:
         filter_staff = st.text_input("Filter by staff")
     with col3:
         filter_source = st.text_input("Filter by source")
+    with col_id:
+        search_id = st.text_input("Search by ID", key="search_id_input_conf")
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
@@ -494,6 +496,10 @@ def referral_confirm():
     skip, limit, page_index, rows_per_page = get_pagination_params("conf", default_limit=20)
     
     # SQL-level search and count
+    lead_id_filter = None
+    if search_id and search_id.strip().isdigit():
+        lead_id_filter = int(search_id.strip())
+
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -509,7 +515,8 @@ def referral_confirm():
         auth_received_filter=True, # SQL FILTERING
         only_clients=True,        # NEW: Filter at SQL level
         skip=skip,
-        limit=limit
+        limit=limit,
+        lead_id_filter=lead_id_filter
     )
     
     # Post-filter (Now handled at SQL level)
@@ -533,7 +540,8 @@ def referral_confirm():
         source_filter=filter_source if filter_source else None,
         exclude_clients=False,
         only_clients=True, # NEW: Filter at SQL level
-        auth_received_filter=True
+        auth_received_filter=True,
+        lead_id_filter=lead_id_filter
     )
     
     # UI Metadata

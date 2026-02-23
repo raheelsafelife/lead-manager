@@ -114,7 +114,7 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col5 = st.columns(4)
     
     with col1:
         if st.button("Initial Referral Sent", width="stretch", 
@@ -137,12 +137,6 @@ def view_referrals():
             st.session_state.refs_page = 0
             st.rerun()
     
-    with col4:
-        if st.button("Inactive", width="stretch",
-                    type="primary" if st.session_state.referral_status_filter == "Inactive" else "secondary"):
-            st.session_state.referral_status_filter = "Inactive"
-            st.session_state.refs_page = 0
-            st.rerun()
 
     with col5:
         if st.button("All", width="stretch",
@@ -154,13 +148,15 @@ def view_referrals():
     st.divider()
     
     # Search and filter
-    col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+    col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
         search_name = st.text_input("Search by name")
     with col2:
         filter_staff = st.text_input("Filter by staff")
     with col3:
         filter_source = st.text_input("Filter by source")
+    with col_id:
+        search_id = st.text_input("Search by ID", key="search_id_input_ref")
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_referrals_btn", use_container_width=True):
@@ -262,6 +258,10 @@ def view_referrals():
         only_my_referrals = True
     
     # SQL-level search and count
+    lead_id_filter = None
+    if search_id and search_id.strip().isdigit():
+        lead_id_filter = int(search_id.strip())
+
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -277,7 +277,8 @@ def view_referrals():
         only_clients=True,
         auth_received_filter=False,
         skip=skip,
-        limit=limit
+        limit=limit,
+        lead_id_filter=lead_id_filter
     )
     
     # Post-process for referrals sent (Now handled at SQL level)
@@ -296,7 +297,8 @@ def view_referrals():
         include_deleted=st.session_state.show_deleted_referrals,
         exclude_clients=False,
         only_clients=True,
-        auth_received_filter=False
+        auth_received_filter=False,
+        lead_id_filter=lead_id_filter
     )
     
     # UI Metadata
@@ -316,7 +318,7 @@ def view_referrals():
     if leads:
         for lead in leads:
             p_tag = get_priority_tag(lead.priority)
-            with st.expander(f"{lead.first_name} {lead.last_name} - {lead.staff_name}"):
+            with st.expander(f"ID: {lead.id} | {lead.first_name} {lead.last_name} - {lead.staff_name}"):
                 # Add priority tag at the top of expander
                 st.markdown(p_tag, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)
