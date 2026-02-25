@@ -304,7 +304,6 @@ def display_referral_confirm(lead, db, highlight=False):
                             icon = "📝"
                         
                         st.markdown(f"{icon} **{att.filename}**")
-                        st.caption(f"Uploaded by {att.uploaded_by} • {render_time(att.uploaded_at)}")
                     
                     with col2:
                         # Download button
