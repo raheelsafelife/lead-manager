@@ -593,7 +593,7 @@ def view_referrals():
                                 elif ext in ['.doc', '.docx']:
                                     icon = "📝"
                                 
-                                st.markdown(f"{icon} **{att.filename}**")
+                                st.markdown(f"{icon} **{att.filename}** <span style='color: gray; font-size: 0.8rem; margin-left: 10px;'>by {att.uploaded_by} • {render_time(att.uploaded_at)}</span>", unsafe_allow_html=True)
                             
                             with col2:
                                 # Download button
