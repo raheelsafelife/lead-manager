@@ -128,7 +128,7 @@ class Lead(Base):
 
     # Notification Preference
     send_reminders = Column(Boolean, nullable=False, default=True)
-
+    
     # Relationships
     lead_comments = relationship("LeadComment", back_populates="lead", cascade="all, delete-orphan")
 

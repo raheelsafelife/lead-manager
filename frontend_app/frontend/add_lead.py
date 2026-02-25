@@ -261,6 +261,8 @@ def add_lead():
     with col_p2:
         st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
         st.markdown(get_priority_tag(priority), unsafe_allow_html=True)
+    
+    st.divider()
 
     st.divider()
 
@@ -436,7 +438,7 @@ def add_lead():
                         "agency_suboption_id": agency_suboption_id,
                         "ccu_id": ccu_id,
                         "owner_id": current_owner_id or st.session_state.get('db_user_id'),
-                        "send_reminders": True # Default in modal
+                        "send_reminders": True
                     }
                     
                     # Open confirmation modal

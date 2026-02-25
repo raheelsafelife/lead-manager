@@ -107,7 +107,7 @@ def login():
         </style>
     """, unsafe_allow_html=True)
 
-    st.image(get_logo_path(), width=400)
+    st.image(get_logo_path("sidebar_logo.png"), width=400)
     
     st.markdown(
         """

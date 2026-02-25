@@ -16,19 +16,20 @@ from app.crud import crud_session_tokens # crud_leads moved to local import
 from streamlit.components.v1 import html
 import os
 
-def get_logo_path():
-    """Find the logo file in multiple possible locations"""
+def get_logo_path(filename="icon1.png"):
+    """Find the specified logo file in multiple possible locations"""
+    # Base path is the project root (lead-manager/)
     base_path = Path(__file__).parent.parent.parent
     possible_paths = [
-        os.path.join(base_path, "icon1.png"),
-        "icon1.png",
-        "frontend_app/icon1.png",
-        "/app/icon1.png"
+        str(base_path / filename),       # Project Root (Absolute)
+        filename,                         # Relative to CWD
+        f"frontend_app/{filename}",       # Railway/Docker relative
+        f"/app/{filename}"                # Docker Absolute
     ]
     for path in possible_paths:
         if os.path.exists(path):
             return path
-    return "icon1.png" # Fallback
+    return filename # Fallback
 
 
 # Token-based session management (secure, database-backed)
@@ -708,6 +709,23 @@ GLOBAL_CSS = """
     .priority-medium { background-color: #FFD700 !important; color: #000000 !important; }
     .priority-low { background-color: #28A745 !important; }
 
+    /* Referral Tag Styles */
+    .referral-tag {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 4px;
+        color: white !important;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin-right: 5px;
+    }
+    .referral-sent { background-color: #0066CC !important; }
+    .referral-confirmed { background-color: #009933 !important; }
+    .referral-rejected { background-color: #CC0000 !important; }
+    .referral-assessment { background-color: #f59e0b !important; color: white !important; }
+
+
     /* Plotly Modebar Styling - Pill/Capsule shape for icons (RHS look) */
     .modebar-btn {
         border-radius: 20px !important;
@@ -775,7 +793,7 @@ def close_modal():
     
     # STEP 2: Clear any edit state that might persist
     for key in list(st.session_state.keys()):
-        if key.startswith('editing_'):
+        if key.startswith('edit_'):
             del st.session_state[key]
     
     # STEP 3: Force a rerun ONLY after all state is cleared
@@ -877,6 +895,8 @@ def init_session_state():
         st.session_state.active_inactive_filter = "Active"
     if 'show_deleted_leads' not in st.session_state:
         st.session_state.show_deleted_leads = False
+    if 'lead_type_filter' not in st.session_state:
+        st.session_state.lead_type_filter = "All"
     
     # Referrals Filters
     if 'referral_status_filter' not in st.session_state:
@@ -895,6 +915,10 @@ def init_session_state():
         st.session_state.payor_filter = "All"
     if 'ccu_filter' not in st.session_state:
         st.session_state.ccu_filter = "All"
+    if 'referral_auth_filter' not in st.session_state:
+        st.session_state.referral_auth_filter = "All"
+    if 'referral_lead_type_filter' not in st.session_state:
+        st.session_state.referral_lead_type_filter = "All"
 
     # Confirmations Filters
     if 'confirm_payor_filter' not in st.session_state:
@@ -903,6 +927,8 @@ def init_session_state():
         st.session_state.confirm_ccu_filter = "All"
     if 'confirm_care_filter' not in st.session_state:
         st.session_state.confirm_care_filter = "All"
+    if 'confirm_lead_type_filter' not in st.session_state:
+        st.session_state.confirm_lead_type_filter = "All"
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
@@ -1227,14 +1253,67 @@ def send_initial_lead_reminders(db, lead_id, username):
 
 
 def get_priority_tag(priority):
-    """Returns HTML for a color-coded priority tag"""
-    p_class = "priority-medium"
-    if priority == "High":
-        p_class = "priority-high"
-    elif priority == "Low":
-        p_class = "priority-low"
+    # Returns HTML for a color-coded priority tag
+    colors = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#10b981"}
+    color = colors.get(priority, "#6b7280")
+    return f'<span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">{priority}</span>'
+
+
+
+
+def get_referral_status_tag(lead):
+    """Returns HTML for color-coded referral status tags (multiple possible)"""
+    if not lead.active_client:
+        return ""
     
-    return f'<span class="priority-tag {p_class}">{priority}</span>'
+    tags = []
+    
+    # Base tag for any referral
+    tags.append('<span class="referral-tag referral-sent">Referral Sent</span>')
+    
+    # Specific stage tags
+    if lead.last_contact_status == "Assessment Scheduled":
+        tags.append('<span class="referral-tag referral-assessment">Assessment Scheduled</span>')
+    
+    if lead.authorization_received:
+        tags.append('<span class="referral-tag referral-confirmed">Referral Confirmed</span>')
+    
+    if lead.last_contact_status == "Not Approved":
+        tags.append('<span class="referral-tag referral-rejected">Referral Rejected</span>')
+    
+    return " ".join(tags)
+
+
+def get_status_emoji(status):
+    """Maps status strings to simple emojis for headers"""
+    status_map = {
+        "Initial Call": "📞", "Intro Call": "🤝", "Follow Up": "📨",
+        "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤",
+        "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️",
+        "Initial Referral Sent": "✉️", "Not Approved": "🚫"
+    }
+    return status_map.get(status, "📄")
+
+def get_referral_status_emoji(lead):
+    """Returns emoji/text-based status tags for expander titles (no HTML)"""
+    if not lead.active_client:
+        return ""
+    
+    tags = []
+    tags.append("🔵 Sent")
+    
+    if lead.last_contact_status == "Assessment Scheduled":
+        tags.append("🟠 Assessment")
+    
+    if lead.authorization_received:
+        tags.append("🟢 Confirmed")
+    
+    if lead.last_contact_status == "Not Approved":
+        tags.append("🔴 Rejected")
+    
+    return " | ".join(tags)
+
+
 
 
 def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
@@ -1252,528 +1331,421 @@ def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
 
 
 @st.dialog("Action Required")
-def confirmation_modal_dialog(db, m):
+def confirmation_modal_dialog(m):
     """
     Native Streamlit dialog for general confirmation actions.
     """
-    title = m.get('title', 'Confirm Action')
-    message = m.get('message', 'Are you sure?')
-    icon = m.get('icon', '🗑️')
-    confirm_label = m.get('confirm_label', 'CONFIRM')
-    indicator = m.get('indicator')
-    
-    indicator_html = f'<div style="margin-top:15px; font-size:0.9rem; color:#6b7280; font-weight:700;">💡 {indicator}</div>' if indicator else ""
-    
-    # Custom Header
-    st.markdown(f"""
-    <div class="modal-dialog-header">
-      <div class="modal-icon">{icon}</div>
-      {title}
-    </div>
-    <div class="modal-body-content">
-      {message}
-      {indicator_html}
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Optional fields for specific modals
-    send_notif_val = True
-    if m['modal_type'] == 'auth_received':
-        from app.crud import crud_leads
-        lead_obj = crud_leads.get_lead(db, m['target_id'])
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
-        send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=getattr(lead_obj, 'send_reminders', True), key=f"auth_notif_chk_{m['target_id']}")
-        st.divider()
-    elif m['modal_type'] == 'create_lead_confirm':
-        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
-        send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=True, key=f"create_notif_chk")
-        st.divider()
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        title = m.get('title', 'Confirm Action')
+        message = m.get('message', 'Are you sure?')
+        icon = m.get('icon', '🗑️')
+        confirm_label = m.get('confirm_label', 'CONFIRM')
+        indicator = m.get('indicator')
+        
+        indicator_html = f'<div style="margin-top:15px; font-size:0.9rem; color:#6b7280; font-weight:700;">💡 {indicator}</div>' if indicator else ""
+        
+        # Custom Header
+        st.markdown(f"""
+        <div class="modal-dialog-header">
+          <div class="modal-icon">{icon}</div>
+          {title}
+        </div>
+        <div class="modal-body-content">
+          {message}
+          {indicator_html}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Optional fields for specific modals
+        send_notif_val = True
+        if m['modal_type'] == 'auth_received':
+            from app.crud import crud_leads
+            lead_obj = crud_leads.get_lead(db, m['target_id'])
+            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+            send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=getattr(lead_obj, 'send_reminders', True), key=f"auth_notif_chk_{m['target_id']}")
+            st.divider()
+        elif m['modal_type'] == 'create_lead_confirm':
+            st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+            send_notif_val = st.checkbox("Send Auto Email Reminders for this Lead", value=True, key=f"create_notif_chk")
+            st.divider()
 
-    c1, c2 = st.columns(2)
-    with c1:
-        # Action-scoped unique key for CANCEL button
-        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['modal_type']}_{m['target_id']}"):
-            close_modal()
-    with c2:
-        # Action-scoped unique key for CONFIRM button
-        if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['modal_type']}_{m['target_id']}"):
-            # Execute backend action directly here
-            from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus, crud_events
-            
-            success = False
-            msg = ""
-            
-            if m['modal_type'] == 'perm_delete':
-                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
-                    msg = "Success! Lead has been permanently removed."
-                    success = True
-            elif m['modal_type'] == 'soft_delete':
-                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
-                    msg = "Success! Lead moved to Recycle Bin."
-                    success = True
-            elif m['modal_type'] == 'soft_delete_ref':
-                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
-                    msg = "Success! Referral moved to Recycle Bin."
-                    success = True
-            elif m['modal_type'] == 'restore_ref':
-                if crud_leads.restore_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id')):
-                    msg = "Success! Referral has been restored."
-                    success = True
-            elif m['modal_type'] == 'perm_delete_ref':
-                if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
-                    msg = "Success! Referral has been permanently removed."
-                    success = True
-            elif m['modal_type'] == 'mark_ref_confirm':
-                clear_leads_cache()  # Clear cache so referral status updates properly
-                st.session_state['mark_referral_lead_id'] = m['target_id']
-                st.session_state['current_page'] = 'Mark Referral Page'
-                st.toast("Heading to Mark Referral Page...")
-                success = True # Close modal
-            elif m['modal_type'] == 'create_lead_confirm':
-                from app.schemas import LeadCreate
-                from datetime import datetime
-                ld = m['lead_data']
-                # Convert dob back to date object if it exists
-                dob_val = None
-                if ld.get('dob'):
-                    dob_val = datetime.strptime(ld['dob'], '%Y-%m-%d').date()
-                
-                lead_in = LeadCreate(
-                    **{k: v for k, v in ld.items() if k not in ['dob', 'send_reminders']},
-                    dob=dob_val,
-                    send_reminders=send_notif_val
-                )
-                new_lead = crud_leads.create_lead(db, lead_in, st.session_state.username, st.session_state.get('db_user_id'))
-                if new_lead:
-                    # Send initial notifications (Centralized logic)
-                    send_initial_lead_reminders(db, new_lead.id, st.session_state.username)
-                    msg = f"Success! Lead '{new_lead.first_name} {new_lead.last_name}' created successfully!"
-                    success = True
-                else:
-                    st.error("**Failed to create lead**")
-            elif m['modal_type'] == 'approve_user':
-                crud_users.approve_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "Success! User has been approved."
-                success = True
-            elif m['modal_type'] == 'reject_user':
-                crud_users.reject_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "Success! User request has been rejected."
-                success = True
-            elif m['modal_type'] == 'delete_agency':
-                crud_agencies.delete_agency(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "Success! Payor has been deleted."
-                success = True
-            elif m['modal_type'] == 'delete_ccu':
-                crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "Success! CCU has been deleted."
-                success = True
-            elif m['modal_type'] == 'delete_event':
-                crud_events.delete_event(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
-                msg = "Success! Event has been deleted."
-                success = True
-            elif m['modal_type'] == 'auth_received':
-                from app.schemas import LeadUpdate
-                # use send_notif_val from local scope if defined, else default True
-                # Actually, in Streamlit dialogs, values are captured live.
-                update_data = LeadUpdate(authorization_received=True, send_reminders=send_notif_val)
-                if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
-                    msg = "Success! Authorization marked as received."
-                    success = True
-            elif m['modal_type'] == 'unmark_ref':
-                from app.schemas import LeadUpdate
-                update_data = LeadUpdate(active_client=False, referral_type=None)
-                if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
-                    msg = "Success! Client has been unmarked as a referral."
-                    success = True
-            elif m['modal_type'] == 'update_password':
-                new_pwd = st.session_state.get('pending_password_update', {}).get('new_password')
-                if new_pwd:
-                    if crud_users.update_user_credentials(db, m['target_id'], new_pwd, st.session_state.username, st.session_state.db_user_id):
-                        msg = "Success! Your password has been updated."
-                        success = True
-                        st.session_state.pop('pending_password_update', None)
-                    else:
-                        st.error("**Failed to update password**")
-            
-            if success:
-                if msg: st.session_state['success_msg'] = msg
-                clear_leads_cache()
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_{m['modal_type']}_{m['target_id']}"):
                 close_modal()
+        with c2:
+            if st.button(confirm_label, type="primary", use_container_width=True, key=f"dialog_confirm_{m['modal_type']}_{m['target_id']}"):
+                from app.crud import crud_leads, crud_users, crud_agencies, crud_ccus, crud_events
+                
+                success = False
+                msg = ""
+                
+                if m['modal_type'] == 'perm_delete':
+                    if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
+                        msg = "Success! Lead has been permanently removed."
+                        success = True
+                elif m['modal_type'] == 'soft_delete':
+                    if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                        msg = "Success! Lead moved to Recycle Bin."
+                        success = True
+                elif m['modal_type'] == 'soft_delete_ref':
+                    if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                        msg = "Success! Referral moved to Recycle Bin."
+                        success = True
+                elif m['modal_type'] == 'restore_ref':
+                    if crud_leads.restore_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id')):
+                        msg = "Success! Referral has been restored."
+                        success = True
+                elif m['modal_type'] == 'perm_delete_ref':
+                    if crud_leads.delete_lead(db, m['target_id'], st.session_state.username, st.session_state.get('db_user_id'), permanent=True):
+                        msg = "Success! Referral has been permanently removed."
+                        success = True
+                elif m['modal_type'] == 'mark_ref_confirm':
+                    clear_leads_cache()
+                    st.session_state['mark_referral_lead_id'] = m['target_id']
+                    st.session_state['current_page'] = 'Mark Referral Page'
+                    st.toast("Heading to Mark Referral Page...")
+                    success = True
+                elif m['modal_type'] == 'create_lead_confirm':
+                    from app.schemas import LeadCreate
+                    from datetime import datetime
+                    ld = m['lead_data']
+                    dob_val = None
+                    if ld.get('dob'):
+                        dob_val = datetime.strptime(ld['dob'], '%Y-%m-%d').date()
+                    
+                    lead_in = LeadCreate(
+                        **{k: v for k, v in ld.items() if k not in ['dob', 'send_reminders']},
+                        dob=dob_val,
+                        send_reminders=ld.get('send_reminders', True)
+                    )
+                    new_lead = crud_leads.create_lead(db, lead_in, st.session_state.username, st.session_state.get('db_user_id'))
+                    if new_lead:
+                        msg = f"Success! Lead '{new_lead.first_name} {new_lead.last_name}' created successfully!"
+                        success = True
+                elif m['modal_type'] == 'approve_user':
+                    crud_users.approve_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                    msg = "Success! User has been approved."
+                    success = True
+                elif m['modal_type'] == 'reject_user':
+                    crud_users.reject_user(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                    msg = "Success! User request has been rejected."
+                    success = True
+                elif m['modal_type'] == 'delete_agency':
+                    crud_agencies.delete_agency(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                    msg = "Success! Payor has been deleted."
+                    success = True
+                elif m['modal_type'] == 'delete_ccu':
+                    crud_ccus.delete_ccu(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                    msg = "Success! CCU has been deleted."
+                    success = True
+                elif m['modal_type'] == 'delete_event':
+                    crud_events.delete_event(db, m['target_id'], st.session_state.username, st.session_state.db_user_id)
+                    msg = "Success! Event has been deleted."
+                    success = True
+                elif m['modal_type'] == 'auth_received':
+                    from app.schemas import LeadUpdate
+                    update_data = LeadUpdate(authorization_received=True, last_contact_status="Confirmed", send_reminders=send_notif_val)
+                    if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                        msg = "Success! Authorization marked as received."
+                        success = True
+                elif m['modal_type'] == 'unmark_ref':
+                    from app.schemas import LeadUpdate
+                    update_data = LeadUpdate(active_client=False, referral_type=None)
+                    if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                        msg = "Success! Client has been unmarked as a referral."
+                        success = True
+                elif m['modal_type'] == 'update_password':
+                    new_pwd = st.session_state.get('pending_password_update', {}).get('new_password')
+                    if new_pwd:
+                        if crud_users.update_user_credentials(db, m['target_id'], new_pwd, st.session_state.username, st.session_state.db_user_id):
+                            msg = "Success! Your password has been updated."
+                            success = True
+                            st.session_state.pop('pending_password_update', None)
+                        else:
+                            st.error("**Failed to update password**")
+
+                if success:
+                    if msg: st.session_state['success_msg'] = msg
+                    clear_leads_cache()
+                    close_modal()
+                else:
+                    st.error("Operation failed. Please try again.")
+    finally:
+        db.close()
 
 @st.dialog("Delete Lead")
-def show_delete_modal_dialog(db, lead_id, name):
+def show_delete_modal_dialog(lead_id, name):
     """
     Native Streamlit dialog for the special delete lead action from view_leads.
     """
-    st.markdown(f"""
-    <div class="modal-dialog-header">
-      <div class="modal-icon">🗑️</div>
-      DELETE LEAD?
-    </div>
-    <div class="modal-body-content">
-      Are you sure you want to delete <b>{name}</b>?<br><br>
-      💡 It will be moved to the Recycle Bin.
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_delete_lead_{lead_id}"):
-            st.session_state.show_delete_modal = False
-            st.rerun()
-    with col2:
-        if st.button("DELETE", type="primary", use_container_width=True, key=f"dialog_confirm_delete_lead_{lead_id}"):
-            from app.crud import crud_leads
-            if crud_leads.delete_lead(db, lead_id, st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
-                st.session_state['success_msg'] = f"Success! Lead '{name}' moved to Recycle Bin."
-                clear_leads_cache()
-            st.session_state.show_delete_modal = False
-            st.rerun()
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        st.markdown(f"""
+        <div class="modal-dialog-header">
+          <div class="modal-icon">🗑️</div>
+          DELETE LEAD?
+        </div>
+        <div class="modal-body-content">
+          Are you sure you want to delete <b>{name}</b>?<br><br>
+          💡 It will be moved to the Recycle Bin.
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("CANCEL", use_container_width=True, key=f"dialog_cancel_delete_lead_{lead_id}"):
+                st.session_state.show_delete_modal = False
+                st.rerun()
+        with col2:
+            if st.button("DELETE", type="primary", use_container_width=True, key=f"dialog_confirm_delete_lead_{lead_id}"):
+                from app.crud import crud_leads
+                if crud_leads.delete_lead(db, lead_id, st.session_state.username, st.session_state.get('db_user_id'), permanent=False):
+                    st.session_state['success_msg'] = f"Success! Lead '{name}' moved to Recycle Bin."
+                    clear_leads_cache()
+                st.session_state.show_delete_modal = False
+                st.rerun()
+    finally:
+        db.close()
 
 @st.dialog("Edit Lead", width="large")
-def show_edit_modal_dialog(db, m):
+def show_edit_modal_dialog(m):
     """
     Native Streamlit dialog for editing a lead.
     """
-    from app.crud import crud_leads, crud_agencies, crud_ccus, crud_events
-    from app.schemas import LeadUpdate
-    from datetime import datetime
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        from app.crud import crud_leads, crud_agencies, crud_ccus, crud_events
+        from app.schemas import LeadUpdate
+        from datetime import datetime
+        
+        lead = m.get('lead_data', {})
 
-    st.markdown(f"""
-    <div class="modal-dialog-header">
-      <div class="modal-icon">📝</div>
-      Edit Lead: {m["title"]}
-    </div>
-    """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="modal-dialog-header">
+          <div class="modal-icon">📝</div>
+          Edit Lead: {m["title"]}
+        </div>
+        """, unsafe_allow_html=True)
+                
+        lead = m['lead_data']
+        is_referral = lead.get('active_client', False)
+        col1, col2 = st.columns(2)
+        with col1:
+            new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""), key=f"edit_first_{m['target_id']}")
+            new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""), key=f"edit_last_{m['target_id']}")
+            new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""), key=f"edit_phone_{m['target_id']}")
+            new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""), key=f"edit_staff_{m['target_id']}")
             
-    # Fetch lead data for form
-    lead = m['lead_data']
-    is_referral = lead.get('active_client', False)
-    # Remove st.form to allow immediate reactivity for toggle and selectboxes
-    # with st.form(f"edit_lead_modal_form_{m['target_id']}"):  <-- Removed
-    col1, col2 = st.columns(2)
-    with col1:
-        new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""), key=f"edit_first_{m['target_id']}")
-        new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""), key=f"edit_last_{m['target_id']}")
-        new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""), key=f"edit_phone_{m['target_id']}")
-        new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""), key=f"edit_staff_{m['target_id']}")
-        # Source Dropdown
-        source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
-        current_src = lead.get('source', 'Other')
-        src_idx = source_options.index(current_src) if current_src in source_options else source_options.index("Other")
-        new_source = st.selectbox("Source", source_options, index=src_idx, key=f"edit_source_{m['target_id']}")
-        
-        # Conditional Source Fields
-        new_event_name = lead.get('event_name')
-        new_soc_date = lead.get('soc_date')
-        new_other_source = lead.get('other_source_type')
-        new_word_of_mouth = lead.get('word_of_mouth_type')
-        
-        if new_source == "Event":
-            events = crud_events.get_all_events(db)
-            event_list = [e.event_name for e in events]
-            curr_event = lead.get('event_name')
-            e_idx = event_list.index(curr_event) if curr_event in event_list else 0
-            new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
-        elif new_source == "Transfer" or is_referral:
-            new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
-        elif new_source == "Other":
-            new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
-        elif new_source == "Word of Mouth":
-            wom_options = ["Caregiver", "Community", "Client", "Staff"]
-            curr_wom = lead.get('word_of_mouth_type')
-            w_idx = wom_options.index(curr_wom) if curr_wom in wom_options else 0
-            new_word_of_mouth = st.selectbox("Type", wom_options, index=w_idx, key=f"edit_wom_{m['target_id']}")
+            source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
+            current_src = lead.get('source', 'Other')
+            src_idx = source_options.index(current_src) if current_src in source_options else source_options.index("Other")
+            new_source = st.selectbox("Source", source_options, index=src_idx, key=f"edit_source_{m['target_id']}")
+            
+            new_event_name = lead.get('event_name')
+            new_soc_date = lead.get('soc_date')
+            new_other_source = lead.get('other_source_type')
+            new_word_of_mouth = lead.get('word_of_mouth_type')
+            
+            if new_source == "Event":
+                events = crud_events.get_all_events(db)
+                event_list = [e.event_name for e in events]
+                curr_event = lead.get('event_name')
+                e_idx = event_list.index(curr_event) if curr_event in event_list else 0
+                new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
+            elif new_source == "Transfer" or is_referral:
+                new_soc_date = st.date_input("SOC Date", value=lead.get('soc_date') or datetime.now().date(), key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
+            elif new_source == "Other":
+                new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
+            elif new_source == "Word of Mouth":
+                wom_options = ["Caregiver", "Community", "Client", "Staff"]
+                curr_wom = lead.get('word_of_mouth_type')
+                w_idx = wom_options.index(curr_wom) if curr_wom in wom_options else 0
+                new_word_of_mouth = st.selectbox("Type", wom_options, index=w_idx, key=f"edit_wom_{m['target_id']}")
 
-        st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-        new_street = st.text_input("Street", value=str(lead.get('street') or ""), key=f"edit_street_{m['target_id']}")
-        new_city = st.text_input("City", value=str(lead.get('city') or ""), key=f"edit_city_{m['target_id']}")
-        new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2, key=f"edit_state_{m['target_id']}")
-        new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
-        
-    with col2:
-        # Status Dropdown Logic based on referral status
-        if is_referral:
-            status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"]
-        else:
-            status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+            st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+            new_street = st.text_input("Street", value=str(lead.get('street') or ""), key=f"edit_street_{m['target_id']}")
+            new_city = st.text_input("City", value=str(lead.get('city') or ""), key=f"edit_city_{m['target_id']}")
+            new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2, key=f"edit_state_{m['target_id']}")
+            new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
             
-        current_status = lead.get('last_contact_status', 'Intro Call')
-        # Normalize for matching
-        if current_status == "Active": current_status = "Intro Call"
-        
-        # Ensure current status is in the options or fallback
-        if current_status not in status_options:
-            status_idx = 0
-        else:
-            status_idx = status_options.index(current_status)
+        with col2:
+            if is_referral:
+                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"]
+            else:
+                status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+                
+            current_status = lead.get('last_contact_status', 'Intro Call')
+            if current_status == "Active": current_status = "Intro Call"
+            status_idx = status_options.index(current_status) if current_status in status_options else 0
+            new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
             
-        new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
-        
-        priority_options = ["High", "Medium", "Low"]
-        current_priority = lead.get('priority', 'Medium')
-        priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
-        new_priority = st.selectbox("Priority", priority_options, index=priority_index, key=f"edit_priority_{m['target_id']}")
-        
-        dob_value = lead.get('dob')
-        if isinstance(dob_value, str) and dob_value:
-            try:
-                from datetime import date as dt_date
-                dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
-            except:
-                dob_value = None
-        
-        from datetime import date
-        
-        # Callback for age calculation in edit modal
-        def on_edit_dob_change():
-            dob_key = f"edit_dob_{m['target_id']}"
+            priority_options = ["High", "Medium", "Low"]
+            current_priority = lead.get('priority', 'Medium')
+            priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
+            new_priority = st.selectbox("Priority", priority_options, index=priority_index, key=f"edit_priority_{m['target_id']}")
+            
+            dob_value = lead.get('dob')
+            if isinstance(dob_value, str) and dob_value:
+                try:
+                    dob_value = datetime.strptime(dob_value, '%Y-%m-%d').date()
+                except:
+                    dob_value = None
+            
+            from datetime import date
+            def on_edit_dob_change():
+                dob_key = f"edit_dob_{m['target_id']}"
+                age_key = f"edit_age_{m['target_id']}"
+                if st.session_state.get(dob_key):
+                    today = date.today()
+                    dob = st.session_state[dob_key]
+                    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                    st.session_state[age_key] = age
+
+            new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}", on_change=on_edit_dob_change, format="MM/DD/YYYY")
             age_key = f"edit_age_{m['target_id']}"
-            if st.session_state.get(dob_key):
-                today = date.today()
-                dob = st.session_state[dob_key]
-                age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-                st.session_state[age_key] = age
-
-        new_dob = st.date_input("Date of Birth", value=dob_value if dob_value else None, min_value=date(1900, 1, 1), max_value=date.today(), key=f"edit_dob_{m['target_id']}", on_change=on_edit_dob_change, format="MM/DD/YYYY")
-        age_key = f"edit_age_{m['target_id']}"
-        if age_key not in st.session_state:
-            st.session_state[age_key] = int(lead.get('age') or 0)
-        new_age = st.number_input("Age / Year", min_value=0, max_value=3000, key=age_key)
-        new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
+            if age_key not in st.session_state:
+                st.session_state[age_key] = int(lead.get('age') or 0)
+            new_age = st.number_input("Age / Year", min_value=0, max_value=3000, key=age_key)
+            new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
+            new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")
+            new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""), key=f"edit_erelation_{m['target_id']}")
+            new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""), key=f"edit_ephone_{m['target_id']}")
+            
         
-        new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")
-        new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""), key=f"edit_erelation_{m['target_id']}")
-        new_e_phone = st.text_input("Emergency Phone", value=str(lead.get('e_contact_phone') or ""), key=f"edit_ephone_{m['target_id']}")
-    
-    new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""), height=100, key=f"edit_comments_{m['target_id']}")
-    
-    # --- GLOBAL ENTITY UPDATES (CCU / PAYOR) ---
-    enable_global = st.checkbox("Edit CCU/Payor", value=False, key=f"enable_entity_mgmt_{m['target_id']}")
-    
-    if enable_global:
+        new_comments = st.text_area("Comments", value=str(lead.get('comments') or ""), height=100, key=f"edit_comments_{m['target_id']}")
+        
+        enable_global = st.checkbox("Edit CCU/Payor", value=False, key=f"enable_entity_mgmt_{m['target_id']}")
+        
+        if enable_global:
+            st.divider()
+            ent_col1, ent_col2 = st.columns(2)
+            with ent_col1:
+                agencies = crud_agencies.get_all_agencies(db)
+                agency_map = {a.name: a.id for a in agencies}
+                agency_list = ["None"] + list(agency_map.keys())
+                curr_agency_id = lead.get('agency_id')
+                curr_agency_name = "None"
+                if curr_agency_id:
+                    for name, aid in agency_map.items():
+                        if aid == curr_agency_id:
+                            curr_agency_name = name
+                            break
+                new_agency_name_sel = st.selectbox("Payor", agency_list, index=agency_list.index(curr_agency_name), key=f"edit_agency_sel_{m['target_id']}")
+                new_agency_id = agency_map.get(new_agency_name_sel)
+                if new_agency_id:
+                    exp_a_key = f"expand_a_edit_{m['target_id']}_{new_agency_id}"
+                    if exp_a_key not in st.session_state: st.session_state[exp_a_key] = False
+                    with st.expander(f"Edit {new_agency_name_sel} (Globally)", expanded=st.session_state[exp_a_key]):
+                        agency_obj = crud_agencies.get_agency(db, new_agency_id)
+                        if agency_obj:
+                            a_addr, a_phone, a_fax, a_email = getattr(agency_obj, 'address', '') or "", getattr(agency_obj, 'phone', '') or "", getattr(agency_obj, 'fax', '') or "", getattr(agency_obj, 'email', '') or ""
+                            u_a_addr = st.text_input("Payor Address", value=a_addr, key=f"global_a_addr_{new_agency_id}")
+                            u_a_phone = st.text_input("Payor Phone", value=a_phone, key=f"global_a_phone_{new_agency_id}")
+                            u_a_fax = st.text_input("Payor Fax", value=a_fax, key=f"global_a_fax_{new_agency_id}")
+                            u_a_email = st.text_input("Payor Email", value=a_email, key=f"global_a_email_{new_agency_id}")
+                            if st.button("Update Payor Details", key=f"global_a_save_{new_agency_id}"):
+                                crud_agencies.update_agency(db, new_agency_id, new_agency_name_sel, st.session_state.username, st.session_state.get('db_user_id'), address=u_a_addr, phone=u_a_phone, fax=u_a_fax, email=u_a_email)
+                                st.session_state[exp_a_key] = False
+                                st.success(f"**Global Update Successful!**")
+                                st.toast(f"Payor Updated Globally!", icon="✅")
+            with ent_col2:
+                ccus = crud_ccus.get_all_ccus(db)
+                ccu_map = {c.name: c.id for c in ccus}
+                ccu_list = ["None"] + list(ccu_map.keys())
+                curr_ccu_id = lead.get('ccu_id')
+                curr_ccu_name = "None"
+                if curr_ccu_id:
+                    for name, cid in ccu_map.items():
+                        if cid == curr_ccu_id:
+                            curr_ccu_name = name
+                            break
+                new_ccu_name_sel = st.selectbox("CCU", ccu_list, index=ccu_list.index(curr_ccu_name), key=f"edit_ccu_sel_{m['target_id']}")
+                new_ccu_id = ccu_map.get(new_ccu_name_sel)
+                if new_ccu_id:
+                    exp_c_key = f"expand_c_edit_{m['target_id']}_{new_ccu_id}"
+                    if exp_c_key not in st.session_state: st.session_state[exp_c_key] = False
+                    with st.expander(f"Edit {new_ccu_name_sel} (Globally)", expanded=st.session_state[exp_c_key]):
+                        ccu_obj = crud_ccus.get_ccu_by_id(db, new_ccu_id)
+                        if ccu_obj:
+                            c_addr, c_phone, c_fax, c_email, c_coord = getattr(ccu_obj, 'address', '') or "", getattr(ccu_obj, 'phone', '') or "", getattr(ccu_obj, 'fax', '') or "", getattr(ccu_obj, 'email', '') or "", getattr(ccu_obj, 'care_coordinator_name', '') or ""
+                            u_c_addr = st.text_input("CCU Address", value=c_addr, key=f"global_c_addr_{new_ccu_id}")
+                            u_c_phone = st.text_input("CCU Phone", value=c_phone, key=f"global_c_phone_{new_ccu_id}")
+                            u_c_fax = st.text_input("CCU Fax", value=c_fax, key=f"global_c_fax_{new_ccu_id}")
+                            u_c_email = st.text_input("CCU Email", value=c_email, key=f"global_c_email_{new_ccu_id}")
+                            u_c_coord = st.text_input("Coordinator", value=c_coord, key=f"global_c_coord_{new_ccu_id}")
+                            if st.button("Update CCU Details", key=f"global_c_save_{new_ccu_id}"):
+                                crud_ccus.update_ccu(db, new_ccu_id, new_ccu_name_sel, st.session_state.username, st.session_state.get('db_user_id'), address=u_c_addr, phone=u_c_phone, fax=u_c_fax, email=u_c_email, care_coordinator_name=u_c_coord)
+                                st.session_state[exp_c_key] = False
+                                st.success(f"**Global Update Successful!**")
+                                st.toast(f"CCU Updated Globally!", icon="✅")
+        else:
+            new_agency_id, new_ccu_id = lead.get('agency_id'), lead.get('ccu_id')
+        
+        st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
+        new_send_reminders = st.checkbox("Send Auto Email Reminders for this Lead", value=lead.get('send_reminders', True), key=f"edit_send_reminders_{m['target_id']}")
+
         st.divider()
-        ent_col1, ent_col2 = st.columns(2)
-        
-        # PAYOR (AGENCY)
-        with ent_col1:
-            agencies = crud_agencies.get_all_agencies(db)
-            agency_map = {a.name: a.id for a in agencies}
-            agency_list = ["None"] + list(agency_map.keys())
-            
-            curr_agency_id = lead.get('agency_id')
-            curr_agency_name = "None"
-            if curr_agency_id:
-                for name, aid in agency_map.items():
-                    if aid == curr_agency_id:
-                        curr_agency_name = name
-                        break
-            
-            new_agency_name_sel = st.selectbox("Payor", agency_list, index=agency_list.index(curr_agency_name), key=f"edit_agency_sel_{m['target_id']}")
-            new_agency_id = agency_map.get(new_agency_name_sel)
-            
-            if new_agency_id:
-                exp_a_key = f"expand_a_edit_{m['target_id']}_{new_agency_id}"
-                if exp_a_key not in st.session_state:
-                    st.session_state[exp_a_key] = False
-                    
-                with st.expander(f"Edit {new_agency_name_sel} (Globally)", expanded=st.session_state[exp_a_key]):
-                    agency_obj = crud_agencies.get_agency(db, new_agency_id)
-                    if agency_obj:
-                        # Hyper-defensive attribute access
-                        a_addr = getattr(agency_obj, 'address', '') or ""
-                        a_phone = getattr(agency_obj, 'phone', '') or ""
-                        a_fax = getattr(agency_obj, 'fax', '') or ""
-                        a_email = getattr(agency_obj, 'email', '') or ""
-                        
-                        u_a_addr = st.text_input("Payor Address", value=a_addr, key=f"global_a_addr_{new_agency_id}")
-                        u_a_phone = st.text_input("Payor Phone", value=a_phone, key=f"global_a_phone_{new_agency_id}")
-                        u_a_fax = st.text_input("Payor Fax", value=a_fax, key=f"global_a_fax_{new_agency_id}")
-                        u_a_email = st.text_input("Payor Email", value=a_email, key=f"global_a_email_{new_agency_id}")
-                        
-                        if st.button("Update Payor Details", key=f"global_a_save_{new_agency_id}"):
-                            crud_agencies.update_agency(db, new_agency_id, new_agency_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
-                                                       address=u_a_addr, phone=u_a_phone, fax=u_a_fax, email=u_a_email)
-                            st.session_state[exp_a_key] = False
-                            st.success(f"**Global Update Successful!** Payor '{new_agency_name_sel}' has been updated locally and across all leads.")
-                            st.toast(f"Payor Updated Globally!", icon="✅")
-                    else:
-                        st.error("Payor details not found.")
-                        # st.rerun() removed to keep popup open
-
-        # CCU
-        with ent_col2:
-            ccus = crud_ccus.get_all_ccus(db)
-            ccu_map = {c.name: c.id for c in ccus}
-            ccu_list = ["None"] + list(ccu_map.keys())
-            
-            curr_ccu_id = lead.get('ccu_id')
-            curr_ccu_name = "None"
-            if curr_ccu_id:
-                for name, cid in ccu_map.items():
-                    if cid == curr_ccu_id:
-                        curr_ccu_name = name
-                        break
-                        
-            new_ccu_name_sel = st.selectbox("CCU", ccu_list, index=ccu_list.index(curr_ccu_name), key=f"edit_ccu_sel_{m['target_id']}")
-            new_ccu_id = ccu_map.get(new_ccu_name_sel)
-            
-            # Runtime CCU Creation
-            if st.checkbox("Add New CCU", key=f"add_new_ccu_check_{m['target_id']}"):
-                new_ccu_text = st.text_input("New CCU Name", key=f"new_ccu_input_{m['target_id']}")
-                
-                # Additional Details
-                col_c1, col_c2 = st.columns(2)
-                with col_c1:
-                    n_phone = st.text_input("Phone", key=f"new_ccu_phone_{m['target_id']}")
-                    n_fax = st.text_input("Fax", key=f"new_ccu_fax_{m['target_id']}")
-                    n_email = st.text_input("Email", key=f"new_ccu_email_{m['target_id']}")
-                with col_c2:
-                    n_addr = st.text_input("Address", key=f"new_ccu_addr_{m['target_id']}")
-                    n_city = st.text_input("City", key=f"new_ccu_city_{m['target_id']}")
-                    n_state = st.text_input("State", value="IL", max_chars=2, key=f"new_ccu_state_{m['target_id']}")
-                    n_zip = st.text_input("Zip", key=f"new_ccu_zip_{m['target_id']}")
-                
-                n_coord = st.text_input("Care Coordinator Name", key=f"new_ccu_coord_{m['target_id']}")
-
-                if st.button("Save New CCU", key=f"save_new_ccu_btn_{m['target_id']}"):
-                    if new_ccu_text:
-                        # Check exist
-                        if new_ccu_text in ccu_map:
-                            st.error("CCU already exists!")
-                        else:
-                            crud_ccus.create_ccu(
-                                db, 
-                                name=new_ccu_text, 
-                                created_by=st.session_state.username, 
-                                created_by_id=st.session_state.get('db_user_id'),
-                                phone=n_phone,
-                                fax=n_fax,
-                                email=n_email,
-                                address=n_addr,
-                                city=n_city,
-                                state=n_state,
-                                zip_code=n_zip,
-                                care_coordinator_name=n_coord
-                            )
-                            st.success(f"CCU '{new_ccu_text}' created!")
-                            st.rerun()
-                    else:
-                        st.warning("Enter a name.")
-            
-            if new_ccu_id:
-                exp_c_key = f"expand_c_edit_{m['target_id']}_{new_ccu_id}"
-                if exp_c_key not in st.session_state:
-                    st.session_state[exp_c_key] = False
-                    
-                with st.expander(f"Edit {new_ccu_name_sel} (Globally)", expanded=st.session_state[exp_c_key]):
-                    ccu_obj = crud_ccus.get_ccu_by_id(db, new_ccu_id)
-                    if ccu_obj:
-                        # Hyper-defensive attribute access
-                        c_addr = getattr(ccu_obj, 'address', '') or ""
-                        c_phone = getattr(ccu_obj, 'phone', '') or ""
-                        c_fax = getattr(ccu_obj, 'fax', '') or ""
-                        c_email = getattr(ccu_obj, 'email', '') or ""
-                        c_coord = getattr(ccu_obj, 'care_coordinator_name', '') or ""
-                        
-                        u_c_addr = st.text_input("CCU Address", value=c_addr, key=f"global_c_addr_{new_ccu_id}")
-                        u_c_phone = st.text_input("CCU Phone", value=c_phone, key=f"global_c_phone_{new_ccu_id}")
-                        u_c_fax = st.text_input("CCU Fax", value=c_fax, key=f"global_c_fax_{new_ccu_id}")
-                        u_c_email = st.text_input("CCU Email", value=c_email, key=f"global_c_email_{new_ccu_id}")
-                        u_c_coord = st.text_input("Coordinator", value=c_coord, key=f"global_c_coord_{new_ccu_id}")
-                        
-                        if st.button("Update CCU Details", key=f"global_c_save_{new_ccu_id}"):
-                            crud_ccus.update_ccu(db, new_ccu_id, new_ccu_name_sel, st.session_state.username, st.session_state.get('db_user_id'), 
-                                                address=u_c_addr, phone=u_c_phone, fax=u_c_fax, email=u_c_email, care_coordinator_name=u_c_coord)
-                            st.session_state[exp_c_key] = False
-                            st.success(f"**Global Update Successful!** CCU '{new_ccu_name_sel}' has been updated locally and across all leads.")
-                            st.toast(f"CCU Updated Globally!", icon="✅")
-                    else:
-                        st.error("CCU details not found.")
-                        # st.rerun() removed to keep popup open
-    else:
-        new_agency_id = lead.get('agency_id')
-        new_ccu_id = lead.get('ccu_id')
-    
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
-    new_send_reminders = st.checkbox("Send Auto Email Reminders for this Lead", value=lead.get('send_reminders', True), key=f"edit_send_reminders_{m['target_id']}")
-
-    st.divider()
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("CANCEL", use_container_width=True, key=f"edit_cancel_{m['target_id']}"):
-            close_modal() # Custom helper from common.py
-    with c2:
-        if st.button("SAVE CHANGES", type="primary", use_container_width=True, key=f"edit_save_{m['target_id']}"):
-                # Update dictionary
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("CANCEL", use_container_width=True, key=f"edit_cancel_{m['target_id']}"):
+                close_modal()
+        with c2:
+            if st.button("SAVE CHANGES", type="primary", use_container_width=True, key=f"edit_save_{m['target_id']}"):
                 update_dict = {
-                    "first_name": new_first,
-                    "last_name": new_last,
-                    "phone": new_phone,
-                    "staff_name": new_staff,
-                    "source": new_source,
-                    "event_name": new_event_name,
-                    "soc_date": new_soc_date,
-                    "other_source_type": new_other_source,
-                    "word_of_mouth_type": new_word_of_mouth,
-                    "city": new_city,
-                    "street": new_street,
-                    "state": new_state,
-                    "zip_code": new_zip,
-                    "last_contact_status": new_status,
-                    "priority": new_priority,
-                    "dob": new_dob,
-                    "medicaid_no": new_medicaid,
-                    "e_contact_name": new_e_name,
-                    "e_contact_relation": new_e_relation,
-                    "e_contact_phone": new_e_phone,
-                    "active_client": lead.get('active_client'),
-                    "comments": new_comments,
-                    "age": new_age if new_age > 0 else None,
-                    "agency_id": new_agency_id,
-                    "ccu_id": new_ccu_id,
-                    "send_reminders": new_send_reminders
+                    "first_name": new_first, "last_name": new_last, "phone": new_phone, "staff_name": new_staff, "source": new_source,
+                    "event_name": new_event_name, "soc_date": new_soc_date, "other_source_type": new_other_source, "word_of_mouth_type": new_word_of_mouth,
+                    "city": new_city, "street": new_street, "state": new_state, "zip_code": new_zip, "last_contact_status": new_status,
+                    "priority": new_priority, "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
+                    "e_contact_phone": new_e_phone, "active_client": lead.get('active_client'), "comments": new_comments, "age": new_age if new_age > 0 else None,
+                    "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders
                 }
                 
-                # Care Status Synchronization for Referrals
-                if is_referral:
-                    if new_status == "Not Approved":
-                        update_dict["care_status"] = None
-                        update_dict["authorization_received"] = False
-                    elif new_status in ["Initial Referral Sent", "Assessment Scheduled"]:
-                        # If moving back to these, we don't automatically clear auth if it was already received
-                        # unless the user explicitly wants to "Unmark" or "Undo Auth" via those specific buttons.
-                        # For the status dropdown, we just update the contact status.
-                        pass
+                if is_referral and new_status == "Not Approved":
+                    update_dict["care_status"], update_dict["authorization_received"] = None, False
+                
                 schema_data = LeadUpdate(**update_dict)
-                crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
-                st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
-                clear_leads_cache()
-                close_modal()
+                if crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id')):
+                    st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
+                    clear_leads_cache()
+                    close_modal()
+                else:
+                    st.error("Save failed.")
+    finally:
+        db.close()
 
 @st.dialog("Add Comment", width="small")
-def show_add_comment_dialog(db, lead_id, lead_name):
+def show_add_comment_dialog(lead_id, lead_name):
     """
     Native Streamlit dialog for adding a new comment to a lead.
     """
-    from app.crud import crud_notes
-    
-    st.markdown(f"**Add a new update for {lead_name}**")
-    content = st.text_area("Update Details", placeholder="Enter notes, calls, or other updates here...", height=150)
-    
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("Save Comment", type="primary", use_container_width=True):
-            if content.strip():
-                crud_notes.add_new_comment(db, lead_id, st.session_state.username, content)
-                st.success("Comment added!")
-                st.toast("Comment Added", icon="💬")
-                st.rerun()
-            else:
-                st.warning("Please enter some text.")
-    with col2:
-        if st.button("Cancel", use_container_width=True):
-            st.rerun()
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        from app.crud import crud_notes
+        
+        st.markdown(f"**Add a new update for {lead_name}**")
+        content = st.text_area("Update Details", placeholder="Enter notes, calls, or other updates here...", height=150)
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("Save Comment", type="primary", use_container_width=True):
+                if content.strip():
+                    crud_notes.add_new_comment(db, lead_id, st.session_state.username, content)
+                    st.session_state['success_msg'] = "Comment added!"
+                    st.toast("Comment Added", icon="💬")
+                    close_modal() # Use centralized close helper
+                else:
+                    st.warning("Please enter some text.")
+        with col2:
+            if st.button("Cancel", use_container_width=True):
+                close_modal()
+    finally:
+        db.close()
 
 def render_comment_stack(lead_obj):
     """
@@ -1810,7 +1782,7 @@ def render_comment_stack(lead_obj):
         </div>
         """, unsafe_allow_html=True)
 
-def handle_active_modal(db):
+def handle_active_modal():
     """
     Centralized handler for all active modals in the application.
     (Updated with Stability Refactor logic + Ghost Popup Prevention)
@@ -1844,16 +1816,18 @@ def handle_active_modal(db):
         lead_id = st.session_state.get('delete_lead_id')
         name = st.session_state.get('delete_lead_name', 'Unknown')
         _wipe_all_modal_state() # Wipe all triggers before showing dialog
-        show_delete_modal_dialog(db, lead_id, name)
+        show_delete_modal_dialog(lead_id, name)
         return
 
     # 2. HANDLE GENERIC ACTIVE_MODAL (Action-Scoped Priority)
     m = None
     
-    # CRITICAL: Only process modal if modal_open is True AND modal_action is set
-    # This prevents ghost popups from stale state
+    # CRITICAL: We NO LONGER wipe state immediately. 
+    # We keep the trigger active so that interactions within the dialog 
+    # (like changing a selectbox) correctly re-render the dialog on rerun.
+    # The state is wiped ONLY when close_modal() is called.
+    
     if st.session_state.get('modal_open', False) and st.session_state.get('modal_action'):
-         # Priority: Map action-scoped state to 'm' for compatibility
          m = {
              'modal_type': st.session_state.modal_action,
              'target_id': st.session_state.modal_lead_id,
@@ -1866,17 +1840,12 @@ def handle_active_modal(db):
              'indicator': st.session_state.modal_data.get('indicator'),
              'message': st.session_state.modal_data.get('message')
          }
-         # CRITICAL: Wipe ALL triggers now that we've captured the data
-         _wipe_all_modal_state()
          
     elif 'active_modal' in st.session_state:
-         # Fallback: Legacy dictionary (consume it immediately)
-         m = st.session_state.pop('active_modal')
-         # Ensure we also clear the other keys just in case
-         _wipe_all_modal_state()
+         # Legacy dictionary - keep it until close
+         m = st.session_state['active_modal']
     else:
-         # No modal to show - ensure all modal state is cleared
-         _wipe_all_modal_state()
+         # No modal to show
          return
     
     if not m:
@@ -1887,9 +1856,9 @@ def handle_active_modal(db):
     
     # Dispatch to specific dialog functions
     if m['modal_type'] == 'save_edit_modal':
-        show_edit_modal_dialog(db, m)
+        show_edit_modal_dialog(m)
     else:
-        confirmation_modal_dialog(db, m)
+        confirmation_modal_dialog(m)
 
 
 def render_confirmation_modal(title, message, icon="🗑️", type="info", confirm_label="DELETE", cancel_label="CANCEL", target_id="modal", indicator=None, modal_type='soft_delete'):

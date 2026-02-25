@@ -136,7 +136,7 @@ def update_lead(
         action_type = "LEAD_UPDATED"
         keywords = ["lead", "update"]
         
-        # Special handling for referral changes
+        # Independent check for referral changes
         if "active_client" in new_values:
             if new_values["active_client"]:
                 action_type = "REFERRAL_MARKED"
@@ -145,13 +145,15 @@ def update_lead(
                 action_type = "REFERRAL_UNMARKED"
                 keywords.append("referral")
         
-        # Special handling for status changes
-        elif "last_contact_status" in new_values:
+        # Independent check for status changes
+        if "last_contact_status" in new_values:
             action_type = "STATUS_CHANGED"
             keywords.append("status")
             
-        # Special handling for agency changes
-        elif "agency_id" in new_values:
+            
+            
+        # Independent check for agency changes
+        if "agency_id" in new_values:
             action_type = "AGENCY_ASSIGNED"
             keywords.append("agency")
         
@@ -296,7 +298,8 @@ def search_leads(
     limit: int = 50,
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
-    lead_id_filter: Optional[int] = None
+    lead_id_filter: Optional[int] = None,
+    lead_type_filter: Optional[str] = None # "Lead", "Referral Sent", "Referral Confirmed"
 ):
     """
     Search leads with comprehensive SQL-level filtering and pagination.
@@ -390,6 +393,21 @@ def search_leads(
             models.CCU.zip_code.ilike(f"%{zip_filter}%")
         )).join(models.CCU, isouter=True)
         
+    if lead_id_filter:
+        query = query.filter(models.Lead.id == lead_id_filter)
+        
+            
+            
+    # 10.6 Lead Type Filter
+    if lead_type_filter and lead_type_filter != "All":
+        if lead_type_filter == "Lead":
+            query = query.filter(models.Lead.active_client == False)
+        elif lead_type_filter == "Referral Sent":
+            query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
+        elif lead_type_filter == "Referral Confirmed":
+            query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
+        
+        
     # 11. Order and Pagination
     return (
         query
@@ -416,7 +434,8 @@ def count_search_leads(
     auth_received_filter: Optional[bool] = None,
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
-    lead_id_filter: Optional[int] = None
+    lead_id_filter: Optional[int] = None,
+    lead_type_filter: Optional[str] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -440,6 +459,7 @@ def count_search_leads(
         
     if lead_id_filter:
         query = query.filter(models.Lead.id == lead_id_filter)
+        
         
     if search_query:
         search_query = f"%{search_query}%"
@@ -479,5 +499,15 @@ def count_search_leads(
             models.Lead.zip_code.ilike(f"%{zip_filter}%"),
             models.CCU.zip_code.ilike(f"%{zip_filter}%")
         )).join(models.CCU, isouter=True)
+        
+            
+            
+    if lead_type_filter and lead_type_filter != "All":
+        if lead_type_filter == "Lead":
+            query = query.filter(models.Lead.active_client == False)
+        elif lead_type_filter == "Referral Sent":
+            query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
+        elif lead_type_filter == "Referral Confirmed":
+            query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
         
     return query.scalar()

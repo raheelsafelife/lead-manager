@@ -115,6 +115,7 @@ class LeadBase(BaseModel):
     send_reminders: bool = True
 
 
+
 class LeadCreate(LeadBase):
     """Fields required when creating a lead."""
     pass
@@ -158,6 +159,7 @@ class LeadUpdate(BaseModel):
     custom_user_id: Optional[str] = None
     owner_id: Optional[int] = None
     send_reminders: Optional[bool] = None
+
 
 
 class LeadRead(LeadBase):

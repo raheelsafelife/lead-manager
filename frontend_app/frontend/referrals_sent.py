@@ -147,6 +147,31 @@ def view_referrals():
     
     st.divider()
     
+    # Authorization Received Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Authorization Status</h4>", unsafe_allow_html=True)
+    auth_f_col1, auth_f_col2, auth_f_col3, auth_f_spacer = st.columns([1, 1, 1, 2])
+    
+    with auth_f_col1:
+        if st.button("Pending", key="ref_auth_pending", use_container_width=True,
+                    type="primary" if st.session_state.referral_auth_filter == "Pending" else "secondary"):
+            st.session_state.referral_auth_filter = "Pending"
+            st.session_state.refs_page = 0
+            st.rerun()
+    
+    with auth_f_col2:
+        if st.button("Received", key="ref_auth_received", use_container_width=True,
+                    type="primary" if st.session_state.referral_auth_filter == "Received" else "secondary"):
+            st.session_state.referral_auth_filter = "Received"
+            st.session_state.refs_page = 0
+            st.rerun()
+            
+    with auth_f_col3:
+        if st.button("All", key="ref_auth_all", use_container_width=True,
+                    type="primary" if st.session_state.referral_auth_filter == "All" else "secondary"):
+            st.session_state.referral_auth_filter = "All"
+            st.session_state.refs_page = 0
+            st.rerun()
+    
     # Search and filter
     col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
@@ -225,26 +250,6 @@ def view_referrals():
             st.session_state.payor_filter = selected_payor
             st.session_state.refs_page = 0
             st.rerun()
-    else:
-        st.info("No payors available. Add payors in User Management -> Payor.")
-    
-    # CCU Filter
-    st.write("**Filter by CCU:**")
-    
-    ccus = crud_ccus.get_all_ccus(db)
-    
-    # CCU filter is now initialized in init_session_state() in common.py
-    
-    if ccus:
-        ccu_names = ["All"] + [c.name for c in ccus]
-        selected_ccu = st.selectbox("Select CCU", ccu_names, index=ccu_names.index(st.session_state.ccu_filter) if st.session_state.ccu_filter in ccu_names else 0, key="ccu_filter_select")
-        
-        if selected_ccu != st.session_state.ccu_filter:
-            st.session_state.ccu_filter = selected_ccu
-            st.session_state.refs_page = 0
-            st.rerun()
-    else:
-        st.info("No CCUs available. Add CCUs in User Management -> CCU.")
     
     st.divider()
     
@@ -262,6 +267,13 @@ def view_referrals():
     if search_id and search_id.strip().isdigit():
         lead_id_filter = int(search_id.strip())
 
+    # Map auth filter to boolean
+    auth_val = None
+    if st.session_state.referral_auth_filter == "Pending":
+        auth_val = False
+    elif st.session_state.referral_auth_filter == "Received":
+        auth_val = True
+
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -275,7 +287,7 @@ def view_referrals():
         include_deleted=st.session_state.show_deleted_referrals,
         exclude_clients=False,
         only_clients=True,
-        auth_received_filter=False,
+        auth_received_filter=auth_val,
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter
@@ -297,7 +309,7 @@ def view_referrals():
         include_deleted=st.session_state.show_deleted_referrals,
         exclude_clients=False,
         only_clients=True,
-        auth_received_filter=False,
+        auth_received_filter=auth_val,
         lead_id_filter=lead_id_filter
     )
     
@@ -314,11 +326,14 @@ def view_referrals():
         st.write(f"**Showing {len(leads)} deleted referrals of {total_leads} total**")
     st.write(f"**Showing {len(leads)} referrals of {total_leads} total** ({filter_info})")
     
-    # Display referrals
     if leads:
         for lead in leads:
             p_tag = get_priority_tag(lead.priority)
-            with st.expander(f"ID: {lead.id} | {lead.first_name} {lead.last_name} - {lead.staff_name}"):
+            header_text = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+            if lead.staff_name:
+                header_text += f" - {lead.staff_name}"
+                
+            with st.expander(header_text):
                 # Add priority tag at the top of expander
                 st.markdown(p_tag, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)

@@ -189,6 +189,7 @@ def view_leads():
             st.session_state.leads_page = 0
             st.rerun()
 
+
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     skip, limit, page_index, rows_per_page = get_pagination_params("leads", default_limit=10)
     
@@ -251,7 +252,11 @@ def view_leads():
     if leads:
         for lead in leads:
             p_tag = get_priority_tag(lead.priority)
-            with st.expander(f"ID: {lead.id} | {lead.first_name} {lead.last_name} - {lead.staff_name}"):
+            header_label = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+            if lead.staff_name:
+                header_label += f" - {lead.staff_name}"
+            
+            with st.expander(header_label):
                 # Add priority tag at the top of expander
                 st.markdown(p_tag, unsafe_allow_html=True)
                 col1, col2 = st.columns(2)

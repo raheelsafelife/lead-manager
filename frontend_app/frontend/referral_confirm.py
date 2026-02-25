@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, render_time, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
+from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, show_add_comment_dialog, render_comment_stack, clear_leads_cache, get_pagination_params, render_pagination
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -31,20 +31,12 @@ def display_referral_confirm(lead, db, highlight=False):
 
     # Show care status indicator in the expander title
     care_indicator = ""
-    if lead.care_status == "Care Start":
-        care_indicator = ""
-    elif lead.care_status == "Not Start":
-        care_indicator = ""
-    else:
-        care_indicator = ""
-
     # Highlight if this is the focused referral
     expander_title = f"ID: {lead.id} | {care_indicator} {lead.first_name} {lead.last_name} - {lead.staff_name}"
     if highlight:
         expander_title = f"{expander_title}"
 
     with st.expander(expander_title, expanded=highlight):
-
         # Show authorization received info if applicable
         if lead.authorization_received:
             # Find when authorization was received from activity logs
@@ -462,7 +454,7 @@ def referral_confirm():
         if selected_ccu != st.session_state.confirm_ccu_filter:
             st.session_state.confirm_ccu_filter = selected_ccu
             st.rerun()
-    
+
     st.divider()
     
     # Filter buttons for Care Status
@@ -500,6 +492,10 @@ def referral_confirm():
     if search_id and search_id.strip().isdigit():
         lead_id_filter = int(search_id.strip())
 
+    auth_val = True # All leads on this page should have authorization received
+    owner_id = None # Not filtering by owner on this page
+    only_my_referrals = False # Not filtering by owner on this page
+
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -512,11 +508,12 @@ def referral_confirm():
         only_my_leads=False,
         include_deleted=False,
         exclude_clients=False, # We want active clients
-        auth_received_filter=True, # SQL FILTERING
+        auth_received_filter=auth_val, # SQL FILTERING
         only_clients=True,        # NEW: Filter at SQL level
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=lead_id_filter,
+        lead_type_filter=st.session_state.confirm_lead_type_filter
     )
     
     # Post-filter (Now handled at SQL level)
@@ -541,7 +538,8 @@ def referral_confirm():
         exclude_clients=False,
         only_clients=True, # NEW: Filter at SQL level
         auth_received_filter=True,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=lead_id_filter,
+        lead_type_filter=st.session_state.confirm_lead_type_filter
     )
     
     # UI Metadata

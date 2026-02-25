@@ -3,6 +3,7 @@ Lead Manager - Main Application Entry Point (Brain)
 This file serves as the router and imports page modules from frontend folder.
 """
 import sys
+import os
 from pathlib import Path
 
 # Add backend to Python path for importing backend modules
@@ -11,15 +12,20 @@ sys.path.insert(0, str(backend_path))
 
 import streamlit as st
 
+# Import early for page configuration
+from frontend.common import get_logo_path
+
 # Page configuration - must be first Streamlit command
 st.set_page_config(
     page_title="Lead Manager",
+    page_icon=get_logo_path("2.png.jpeg"),
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Import page modules from frontend folder
-from frontend.common import init_session_state, inject_custom_css, get_logo_path, handle_active_modal
+# Import other page modules from frontend folder
+from frontend.common import init_session_state, inject_custom_css, handle_active_modal
+# (Note: get_logo_path already imported above)
 from frontend.auth import login, signup, forgot_password
 from frontend.dashboard import dashboard, view_all_user_dashboards, discovery_tool
 from frontend.view_leads import view_leads, mark_referral_page
@@ -71,14 +77,12 @@ def main():
     else:
         # --- CENTRALIZED MODAL RENDERING ---
         # Render modals at the absolute top of the DOM before page layout
-        db = SessionLocal()
-        handle_active_modal(db)
-        db.close()
+        handle_active_modal()
         
         # Sidebar navigation
         with st.sidebar:
             # Company logo above the Navigation title
-            st.image(get_logo_path(), width=250)
+            st.image(get_logo_path("sidebar_logo.png"), width=250)
             st.markdown("")  # small spacer
             st.title("Navigation")
             
