@@ -562,19 +562,6 @@ def view_leads():
 
 def mark_referral_page():
     """Hidden page for marking a lead as referral with Payor and CCU selection"""
-    import sys
-    # Robustly clear CRUD modules from memory to pick up new signatures
-    # We must clear the full package path names that Streamlit uses
-    for mod_name in list(sys.modules.keys()):
-        if 'app.crud.crud_ccus' in mod_name or 'app.crud.crud_leads' in mod_name:
-            del sys.modules[mod_name]
-    
-    # Import fresh and update GLOBAL references so the rest of the function uses them
-    global crud_ccus, crud_leads
-    from app.crud import crud_ccus as fresh_ccus, crud_leads as fresh_leads
-    crud_ccus = fresh_ccus
-    crud_leads = fresh_leads
-    
     from app.crud.crud_leads import get_lead, update_lead
     st.markdown('<div class="main-header">Mark Referral</div>', unsafe_allow_html=True)
     

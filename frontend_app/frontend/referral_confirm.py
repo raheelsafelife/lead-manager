@@ -358,13 +358,6 @@ def display_referral_confirm(lead, db, highlight=False):
 
 def referral_confirm():
     """Referral Confirm page - Shows all clients with authorization received"""
-    # Force module reload to pick up model changes (AttributeError Fix)
-    import sys
-    modules_to_reload = [k for k in sys.modules.keys() if 'crud_' in k or 'app.models' in k or 'backend.app.models' in k or 'services_stats' in k]
-    for mod in list(modules_to_reload):
-        if mod in sys.modules:
-            del sys.modules[mod]
-            
     from app.crud.crud_leads import search_leads, count_search_leads
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:

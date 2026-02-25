@@ -48,18 +48,6 @@ def init_scheduler():
 
 def main():
     """Main application logic - Router"""
-    # Force module reload to pick up changes in backend modules (AttributeError & InvalidRequestError Fix)
-    import sys
-    from importlib import reload
-    import app.services_stats as services_stats
-    reload(services_stats) # FORCE RELOAD FOR ADMIN METRICS
-    
-    # Include app.db to ensure Base metadata is refreshed, preventing "Table already defined" errors
-    modules_to_reload = [k for k in list(sys.modules.keys()) if 'app.models' in k or 'backend.app.models' in k or 'app.db' in k or 'crud_' in k]
-    for mod in list(modules_to_reload):
-        if mod in sys.modules:
-            del sys.modules[mod]
-            
     # Inject custom CSS/JS immediately
     inject_custom_css()
     
