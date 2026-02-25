@@ -916,7 +916,7 @@ def init_session_state():
     if 'ccu_filter' not in st.session_state:
         st.session_state.ccu_filter = "All"
     if 'referral_auth_filter' not in st.session_state:
-        st.session_state.referral_auth_filter = "All"
+        st.session_state.referral_auth_filter = "Pending"
     if 'referral_lead_type_filter' not in st.session_state:
         st.session_state.referral_lead_type_filter = "All"
 
