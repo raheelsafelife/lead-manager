@@ -1841,7 +1841,7 @@ def handle_active_modal():
              'message': st.session_state.modal_data.get('message')
          }
          
-    elif 'active_modal' in st.session_state:
+    elif st.session_state.get('modal_open', False) and 'active_modal' in st.session_state:
          # Legacy dictionary - keep it until close
          m = st.session_state['active_modal']
     else:

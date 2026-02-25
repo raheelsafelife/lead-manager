@@ -76,8 +76,8 @@ def main():
             login()
     else:
         # --- CENTRALIZED MODAL RENDERING ---
-        # Render modals at the absolute top of the DOM before page layout
-        handle_active_modal()
+        # Render modals at the end of the script to ensure page-level button logic
+        # has a chance to clear triggers (Ghost Popup Prevention)
         
         # Sidebar navigation
         with st.sidebar:
@@ -177,6 +177,11 @@ def main():
                 admin_panel()
             else:
                 st.error("Access denied. Admin only.")
+
+        # --- MODAL RENDERING (POST-ROUTING) ---
+        # Calling this at the absolute end ensures that if a button was clicked 
+        # (like "Care Start") and cleared the modal triggers, we DON'T show the modal.
+        handle_active_modal()
 
 
 
