@@ -1318,6 +1318,8 @@ def get_referral_status_emoji(lead):
 
 def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
     """Set the active modal in session state and rerun"""
+    # CRITICAL: Must set modal_open=True for handle_active_modal to process it
+    st.session_state.modal_open = True
     st.session_state['active_modal'] = {
         'modal_type': modal_type,
         'target_id': target_id,
