@@ -415,7 +415,7 @@ def view_leads():
                         
                         with btn_col2:
                             if st.button("💬 Comment", key=f"add_comment_btn_{lead.id}", use_container_width=True, help="Add a new update/note"):
-                                show_add_comment_dialog(db, lead.id, f"{lead.first_name} {lead.last_name}")
+                                show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
                 
                 # History View
                 if st.session_state.get(f"show_history_{lead.id}", False):

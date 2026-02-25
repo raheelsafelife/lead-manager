@@ -515,7 +515,7 @@ def view_referrals():
                     
                     with btn_col2:
                          if st.button("💬 Comment", key=f"add_comment_btn_ref_{lead.id}", use_container_width=True, help="Add a new update/note"):
-                            show_add_comment_dialog(db, lead.id, f"{lead.first_name} {lead.last_name}")
+                            show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
                             
                     with btn_col3:
                         # Authorization Received button - toggleable
