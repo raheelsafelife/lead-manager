@@ -308,7 +308,15 @@ def add_lead():
              st.session_state.last_staff_selection = staff_name
 
         st.markdown('User ID <span class="required-star">*</span>', unsafe_allow_html=True)
-        custom_user_id = st.text_input("User ID", key="user_id_input", label_visibility="collapsed")
+        # Disable User ID if auto-populated (when staff is selected or for regular users)
+        id_disabled = False
+        if st.session_state.user_role == "admin":
+            if staff_name and staff_name != "Select User":
+                id_disabled = True
+        else:
+            id_disabled = True # Regular users have their ID fixed
+            
+        custom_user_id = st.text_input("User ID", key="user_id_input", label_visibility="collapsed", disabled=id_disabled)
         
         st.markdown('First Name <span class="required-star">*</span>', unsafe_allow_html=True)
         first_name = st.text_input("First Name", key="first_name_input", label_visibility="collapsed")
@@ -317,7 +325,8 @@ def add_lead():
         last_name = st.text_input("Last Name", key="last_name_input", label_visibility="collapsed")
         
         dob = st.date_input("**Date of Birth**", value=None, min_value=date(1900, 1, 1), max_value=date.today(), key="dob_input", on_change=on_dob_change, format="MM/DD/YYYY")
-        age = st.number_input("**Age / Year**", min_value=0, max_value=3000, key="age_input")
+        # Disable Age if DOB is selected (auto-populated)
+        age = st.number_input("**Age / Year**", min_value=0, max_value=3000, key="age_input", disabled=(dob is not None))
         
         email = st.text_input("**Email**", key="email_input")
         
