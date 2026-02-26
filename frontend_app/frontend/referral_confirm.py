@@ -419,6 +419,20 @@ def referral_confirm():
             st.session_state.conf_page = 0
             st.rerun()
 
+    # Sorting
+    sort_col1, sort_col2 = st.columns([1.4, 4])
+    with sort_col1:
+        sort_options = ["Newest Added", "Recently Updated"]
+        selected_sort = st.selectbox(
+            "Sort By", 
+            sort_options, 
+            index=sort_options.index(st.session_state.confirmations_sort_by) if st.session_state.confirmations_sort_by in sort_options else 0,
+            key="confirmations_sort_by_select"
+        )
+        if selected_sort != st.session_state.confirmations_sort_by:
+            st.session_state.confirmations_sort_by = selected_sort
+            st.rerun()
+
     # Payor Filter
     st.write("**Filter by Payor:**")
     agencies = crud_agencies.get_all_agencies(db)
@@ -505,7 +519,8 @@ def referral_confirm():
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
-        lead_type_filter=st.session_state.confirm_lead_type_filter
+        lead_type_filter=st.session_state.confirm_lead_type_filter,
+        sort_by=st.session_state.confirmations_sort_by
     )
     
     # Post-filter (Now handled at SQL level)

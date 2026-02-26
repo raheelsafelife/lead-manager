@@ -54,6 +54,12 @@ def main():
     # Initialize session state (includes token validation)
     init_session_state()
     
+    # 0. TARGETED RELOADING (SAFELY)
+    # This ensures backend changes are picked up locally WITHOUT the AWS crash bug
+    import importlib
+    import app.crud.crud_leads as crud_leads
+    importlib.reload(crud_leads)
+    
     # Check authentication
     if not st.session_state.authenticated:
         if st.session_state.show_signup:
