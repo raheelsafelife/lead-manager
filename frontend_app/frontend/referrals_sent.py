@@ -162,6 +162,20 @@ def view_referrals():
         if st.button("Search", key="search_referrals_btn", use_container_width=True):
             st.session_state.refs_page = 0
             st.rerun()
+
+    # Sorting
+    sort_col1, sort_col2 = st.columns([1, 4])
+    with sort_col1:
+        sort_options = ["Newest Added", "Recently Updated"]
+        selected_sort = st.selectbox(
+            "Sort By", 
+            sort_options, 
+            index=sort_options.index(st.session_state.referrals_sort_by) if st.session_state.referrals_sort_by in sort_options else 0,
+            key="referrals_sort_by_select"
+        )
+        if selected_sort != st.session_state.referrals_sort_by:
+            st.session_state.referrals_sort_by = selected_sort
+            st.rerun()
         
     # Referral Type Filter Buttons
     st.write("**Filter by Referral Type:**")
@@ -261,7 +275,8 @@ def view_referrals():
         auth_received_filter=auth_val,
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=lead_id_filter,
+        sort_by=st.session_state.referrals_sort_by
     )
     
     # Post-process for referrals sent (Now handled at SQL level)

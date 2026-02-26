@@ -897,6 +897,8 @@ def init_session_state():
         st.session_state.show_deleted_leads = False
     if 'lead_type_filter' not in st.session_state:
         st.session_state.lead_type_filter = "All"
+    if 'leads_sort_by' not in st.session_state:
+        st.session_state.leads_sort_by = "Newest Added"
     
     # Referrals Filters
     if 'referral_status_filter' not in st.session_state:
@@ -919,6 +921,8 @@ def init_session_state():
         st.session_state.referral_auth_filter = "Pending"
     if 'referral_lead_type_filter' not in st.session_state:
         st.session_state.referral_lead_type_filter = "All"
+    if 'referrals_sort_by' not in st.session_state:
+        st.session_state.referrals_sort_by = "Newest Added"
 
     # Confirmations Filters
     if 'confirm_payor_filter' not in st.session_state:
@@ -929,6 +933,8 @@ def init_session_state():
         st.session_state.confirm_care_filter = "All"
     if 'confirm_lead_type_filter' not in st.session_state:
         st.session_state.confirm_lead_type_filter = "All"
+    if 'confirmations_sort_by' not in st.session_state:
+        st.session_state.confirmations_sort_by = "Newest Added"
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"

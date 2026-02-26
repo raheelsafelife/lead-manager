@@ -299,7 +299,8 @@ def search_leads(
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
-    lead_type_filter: Optional[str] = None # "Lead", "Referral Sent", "Referral Confirmed"
+    lead_type_filter: Optional[str] = None, # "Lead", "Referral Sent", "Referral Confirmed"
+    sort_by: str = "Newest Added"
 ):
     """
     Search leads with comprehensive SQL-level filtering and pagination.
@@ -409,9 +410,14 @@ def search_leads(
         
         
     # 11. Order and Pagination
+    if sort_by == "Recently Updated":
+        query = query.order_by(models.Lead.updated_at.desc())
+    else:
+        # Default: Newest Added
+        query = query.order_by(models.Lead.created_at.desc())
+        
     return (
         query
-        .order_by(models.Lead.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()

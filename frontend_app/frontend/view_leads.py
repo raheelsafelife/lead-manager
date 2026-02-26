@@ -189,6 +189,20 @@ def view_leads():
             st.session_state.leads_page = 0
             st.rerun()
 
+    # Sorting
+    sort_col1, sort_col2 = st.columns([1, 4])
+    with sort_col1:
+        sort_options = ["Newest Added", "Recently Updated"]
+        selected_sort = st.selectbox(
+            "Sort By", 
+            sort_options, 
+            index=sort_options.index(st.session_state.leads_sort_by) if st.session_state.leads_sort_by in sort_options else 0,
+            key="leads_sort_by_select"
+        )
+        if selected_sort != st.session_state.leads_sort_by:
+            st.session_state.leads_sort_by = selected_sort
+            st.rerun()
+
 
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     skip, limit, page_index, rows_per_page = get_pagination_params("leads", default_limit=10)
@@ -218,7 +232,8 @@ def view_leads():
         auth_received_filter=False,
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=lead_id_filter,
+        sort_by=st.session_state.leads_sort_by
     )
     
     total_leads = count_search_leads(
