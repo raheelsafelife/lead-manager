@@ -252,7 +252,7 @@ def display_referral_confirm(lead, db, highlight=False):
             col_start, col_not_start, col_spacer = st.columns([1, 1, 1])
             
             with col_start:
-                if st.button("(Care Start)", key=f"care_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
+                if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
                     # Clear any ghost modal state
                     st.session_state.modal_open = False
                     st.session_state.modal_action = None
@@ -265,7 +265,7 @@ def display_referral_confirm(lead, db, highlight=False):
                     st.rerun()
 
             with col_not_start:
-                if st.button("(Care Not Start)", key=f"not_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
+                if st.button("Care Not Start", key=f"not_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
                     # Clear any ghost modal state
                     st.session_state.modal_open = False
                     st.session_state.modal_action = None

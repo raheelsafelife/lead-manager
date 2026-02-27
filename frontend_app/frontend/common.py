@@ -1589,7 +1589,7 @@ def show_edit_modal_dialog(m):
             new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
             
         with col2:
-            is_auth_received_page = (st.session_state.get('main_navigation') == "Authorizations Received")
+            is_auth_received_page = (st.session_state.get('main_navigation') == "Authorizations")
             
             if is_auth_received_page:
                 # Special Status Logic for Authorizations Received
@@ -1611,17 +1611,17 @@ def show_edit_modal_dialog(m):
                 
                 if status_group == "Active":
                     # Show sub-options
-                    sub_options = ["(None)", "(Care Start)", "(Care Not Start)"]
-                    initial_sub = "(None)"
-                    if current_care_status == "Care Start": initial_sub = "(Care Start)"
-                    elif current_care_status == "Not Start": initial_sub = "(Care Not Start)"
+                    sub_options = ["None", "Care Start", "Care Not Start"]
+                    initial_sub = "None"
+                    if current_care_status == "Care Start": initial_sub = "Care Start"
+                    elif current_care_status == "Not Start": initial_sub = "Care Not Start"
                     
                     selected_sub = st.selectbox("Care Sub-Status", sub_options, 
                                                 index=sub_options.index(initial_sub),
                                                 key=f"edit_care_sub_{m['target_id']}")
                     
-                    if selected_sub == "(Care Start)": new_care_status = "Care Start"
-                    elif selected_sub == "(Care Not Start)": new_care_status = "Not Start"
+                    if selected_sub == "Care Start": new_care_status = "Care Start"
+                    elif selected_sub == "Care Not Start": new_care_status = "Not Start"
                     else: new_care_status = None
                 else:
                     new_care_status = status_group # Hold or Terminated

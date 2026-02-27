@@ -81,7 +81,7 @@ def main():
             st.title("Navigation")
             
             # Base pages
-            pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Referral Confirm", "Activity Logs"]
+            pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Authorizations", "Activity Logs"]
             
             # Add Update Password for regular users only (admins have it in User Management)
             if st.session_state.user_role != "admin":
@@ -160,7 +160,7 @@ def main():
             discovery_tool()
         elif page == "Referrals Sent":
             view_referrals()
-        elif page == "Referral Confirm":
+        elif page == "Authorizations":
             referral_confirm()
         elif page == "Activity Logs":
             view_activity_logs()
