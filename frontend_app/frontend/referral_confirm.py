@@ -211,6 +211,11 @@ def display_referral_confirm(lead, db, highlight=False):
         with group_col1:
             is_active = (current_group == "Active")
             if st.button("Active", key=f"btn_group_active_{lead.id}", type="primary" if is_active else "secondary", use_container_width=True):
+                # Clear any ghost modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 # If switching to active, we don't set care_status yet, let sub-options handle it or leave as NULL
                 if current_group != "Active":
                     update_lead(db, lead.id, LeadUpdate(care_status=None), st.session_state.username, st.session_state.get('db_user_id'))
@@ -219,6 +224,11 @@ def display_referral_confirm(lead, db, highlight=False):
                     
         with group_col2:
             if st.button("Hold", key=f"btn_group_hold_{lead.id}", type="primary" if current_group == "Hold" else "secondary", use_container_width=True):
+                # Clear any ghost modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 update_lead(db, lead.id, LeadUpdate(care_status="Hold", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
                 st.toast(f"{lead.last_name} put on Hold", icon="⏸️")
@@ -226,6 +236,11 @@ def display_referral_confirm(lead, db, highlight=False):
                 
         with group_col3:
             if st.button("Terminated", key=f"btn_group_term_{lead.id}", type="primary" if current_group == "Terminated" else "secondary", use_container_width=True):
+                # Clear any ghost modal state
+                st.session_state.modal_open = False
+                st.session_state.modal_action = None
+                st.session_state.pop('active_modal', None)
+                
                 update_lead(db, lead.id, LeadUpdate(care_status="Terminated", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
                 st.toast(f"{lead.last_name} Terminated", icon="🚫")
@@ -238,6 +253,11 @@ def display_referral_confirm(lead, db, highlight=False):
             
             with col_start:
                 if st.button("(Care Start)", key=f"care_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
+                    # Clear any ghost modal state
+                    st.session_state.modal_open = False
+                    st.session_state.modal_action = None
+                    st.session_state.pop('active_modal', None)
+                    
                     today = date.today()
                     update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=today), st.session_state.username, st.session_state.get('db_user_id'))
                     clear_leads_cache()
@@ -246,9 +266,14 @@ def display_referral_confirm(lead, db, highlight=False):
 
             with col_not_start:
                 if st.button("(Care Not Start)", key=f"not_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
+                    # Clear any ghost modal state
+                    st.session_state.modal_open = False
+                    st.session_state.modal_action = None
+                    st.session_state.pop('active_modal', None)
+                    
                     update_lead(db, lead.id, LeadUpdate(care_status="Not Start", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                     clear_leads_cache()
-                    st.toast(f"Care marked as Not Start for {lead.last_name}", icon="⏳")
+                    st.toast(f"Care Not Started for {lead.last_name}", icon="❌")
                     st.rerun()
 
 
