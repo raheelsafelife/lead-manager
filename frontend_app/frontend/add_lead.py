@@ -340,7 +340,7 @@ def add_lead():
         # Dynamic Status Options based on Source
         is_referral_source = source in ["Direct Through CCU", "Transfer"]
         if is_referral_source:
-             status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"]
+             status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused", "Care Start", "Not Start", "Inactive"]
              # For Transfer, default to Care Start. For CCU, default to Initial Referral Sent.
              default_idx = 3 if source == "Transfer" else 0
         else:

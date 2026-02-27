@@ -724,6 +724,7 @@ GLOBAL_CSS = """
     .referral-confirmed { background-color: #009933 !important; }
     .referral-rejected { background-color: #CC0000 !important; }
     .referral-assessment { background-color: #f59e0b !important; color: white !important; }
+    .referral-refused { background-color: #6366f1 !important; }
 
 
     /* Plotly Modebar Styling - Pill/Capsule shape for icons (RHS look) */
@@ -935,6 +936,8 @@ def init_session_state():
         st.session_state.confirm_lead_type_filter = "All"
     if 'confirmations_sort_by' not in st.session_state:
         st.session_state.confirmations_sort_by = "Newest Added"
+    if 'confirm_status_filter' not in st.session_state:
+        st.session_state.confirm_status_filter = "Active" # Default requested
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
@@ -1282,10 +1285,13 @@ def get_referral_status_tag(lead):
         tags.append('<span class="referral-tag referral-assessment">Assessment Scheduled</span>')
     
     if lead.authorization_received:
-        tags.append('<span class="referral-tag referral-confirmed">Referral Confirmed</span>')
+        tags.append('<span class="referral-tag referral-confirmed">Authorized</span>')
     
     if lead.last_contact_status == "Not Approved":
         tags.append('<span class="referral-tag referral-rejected">Referral Rejected</span>')
+    
+    if lead.last_contact_status == "Services Refused":
+        tags.append('<span class="referral-tag referral-refused">Services Refused</span>')
     
     return " ".join(tags)
 
@@ -1296,7 +1302,8 @@ def get_status_emoji(status):
         "Initial Call": "📞", "Intro Call": "🤝", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤",
         "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️",
-        "Initial Referral Sent": "✉️", "Not Approved": "🚫"
+        "Initial Referral Sent": "📤", "Referral Sent": "📤", "Not Approved": "🚫",
+        "Services Refused": "🙅"
     }
     return status_map.get(status, "📄")
 
@@ -1582,15 +1589,56 @@ def show_edit_modal_dialog(m):
             new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
             
         with col2:
-            if is_referral:
-                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved"]
+            is_auth_received_page = (st.session_state.get('main_navigation') == "Authorizations Received")
+            
+            if is_auth_received_page:
+                # Special Status Logic for Authorizations Received
+                st.write("**Referral Status:**")
+                
+                # Determine current group
+                current_care_status = lead.get('care_status')
+                initial_group = "Active"
+                if current_care_status in ["Hold", "Terminated"]:
+                    initial_group = current_care_status
+                
+                # Main Group selection
+                status_group = st.radio("Main Status", ["Active", "Hold", "Terminated"], 
+                                         index=["Active", "Hold", "Terminated"].index(initial_group),
+                                         horizontal=True, key=f"edit_status_group_{m['target_id']}")
+                
+                new_care_status = status_group
+                new_status = lead.get('last_contact_status') # Keep existing contact status
+                
+                if status_group == "Active":
+                    # Show sub-options
+                    sub_options = ["(None)", "(Care Start)", "(Care Not Start)"]
+                    initial_sub = "(None)"
+                    if current_care_status == "Care Start": initial_sub = "(Care Start)"
+                    elif current_care_status == "Not Start": initial_sub = "(Care Not Start)"
+                    
+                    selected_sub = st.selectbox("Care Sub-Status", sub_options, 
+                                                index=sub_options.index(initial_sub),
+                                                key=f"edit_care_sub_{m['target_id']}")
+                    
+                    if selected_sub == "(Care Start)": new_care_status = "Care Start"
+                    elif selected_sub == "(Care Not Start)": new_care_status = "Not Start"
+                    else: new_care_status = None
+                else:
+                    new_care_status = status_group # Hold or Terminated
+            
+            elif is_referral:
+                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
+                current_status = lead.get('last_contact_status', 'Initial Referral Sent')
+                status_idx = status_options.index(current_status) if current_status in status_options else 0
+                new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
+                new_care_status = lead.get('care_status')
             else:
                 status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
-                
-            current_status = lead.get('last_contact_status', 'Intro Call')
-            if current_status == "Active": current_status = "Intro Call"
-            status_idx = status_options.index(current_status) if current_status in status_options else 0
-            new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
+                current_status = lead.get('last_contact_status', 'Intro Call')
+                if current_status == "Active": current_status = "Intro Call"
+                status_idx = status_options.index(current_status) if current_status in status_options else 0
+                new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
+                new_care_status = lead.get('care_status')
             
             priority_options = ["High", "Medium", "Low"]
             current_priority = lead.get('priority', 'Medium')
@@ -1710,7 +1758,8 @@ def show_edit_modal_dialog(m):
                     "city": new_city, "street": new_street, "state": new_state, "zip_code": new_zip, "last_contact_status": new_status,
                     "priority": new_priority, "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
                     "e_contact_phone": new_e_phone, "active_client": lead.get('active_client'), "comments": new_comments, "age": new_age if new_age > 0 else None,
-                    "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders
+                    "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders,
+                    "care_status": new_care_status
                 }
                 
                 if is_referral and new_status == "Not Approved":

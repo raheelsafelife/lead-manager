@@ -114,7 +114,7 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    f_col1, f_col2, f_col3, f_col4, f_spacer = st.columns([1.5, 1.5, 1.2, 0.8, 1])
+    f_col1, f_col2, f_col3, f_col4, f_col5, f_spacer = st.columns([1.5, 1.5, 1.2, 1.3, 0.8, 0.7])
     
     with f_col1:
         if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
@@ -136,9 +136,15 @@ def view_referrals():
             st.session_state.referral_status_filter = "Not Approved"
             st.session_state.refs_page = 0
             st.rerun()
-    
-
+            
     with f_col4:
+        if st.button("Services Refused", key="rs_refused", use_container_width=True,
+                    type="primary" if st.session_state.referral_status_filter == "Services Refused" else "secondary"):
+            st.session_state.referral_status_filter = "Services Refused"
+            st.session_state.refs_page = 0
+            st.rerun()
+
+    with f_col5:
         if st.button("All", key="rs_all", use_container_width=True,
                     type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
             st.session_state.referral_status_filter = "All"
@@ -513,7 +519,7 @@ def view_referrals():
                                     st.toast(f"Auth reversed for {lead.last_name}", icon="↩️")
                                     st.rerun()
                         else:
-                            if st.button("Mark Auth", key=f"mark_auth_btn_ref_{lead.id}", help="Mark as authorized and move to Referral Confirm", type="primary", use_container_width=True):
+                            if st.button("Mark Auth", key=f"mark_auth_btn_ref_{lead.id}", help="Mark as authorized and move to Authorizations Received", type="primary", use_container_width=True):
                                 render_confirmation_modal(modal_type='auth_received', target_id=lead.id, title='Authorization Received?', message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?", icon='✅', type='info', confirm_label='MARK RECEIVED')
                 
 

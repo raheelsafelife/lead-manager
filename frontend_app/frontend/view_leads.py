@@ -649,7 +649,7 @@ def mark_referral_page():
     with col_t1:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
     with col_t2:
-        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Care Start", "Not Start", "Inactive"])
+        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused",  "Inactive"])
     
     st.divider()
     
