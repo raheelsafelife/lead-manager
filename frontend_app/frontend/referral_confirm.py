@@ -1,5 +1,5 @@
 """
-Referral Confirm page: Handle authorized referrals
+# Authorizations Received page: Handle authorized referrals and care status
 """
 import sys
 from pathlib import Path
@@ -198,47 +198,58 @@ def display_referral_confirm(lead, db, highlight=False):
 
         st.divider()
 
-        # Action Buttons: Care Start, Not Start
-        st.write("**Select Care Status:**")
-        col_start, col_not_start, col_spacer = st.columns([1, 1, 1.5])
-
-        with col_start:
-            if st.button("Care Start", key=f"care_start_btn_confirm_{lead.id}", type="primary", width="stretch", disabled=(lead.care_status == "Care Start")):
-                # CRITICAL: Clear modal state
-                st.session_state.modal_open = False
-                st.session_state.modal_action = None
-                st.session_state.pop('active_modal', None)
-                
-                # Auto-fetch today's date as SOC
-                today = date.today()
-                update_data = LeadUpdate(
-                    care_status="Care Start",
-                    soc_date=today
-                )
-                update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
+        # Action Buttons: Active (Care Start, Not Start), Hold, Terminated
+        st.write("**Manage Status:**")
+        
+        # Determine current state Group
+        current_group = "Active"
+        if lead.care_status in ["Hold", "Terminated"]:
+            current_group = lead.care_status
+            
+        group_col1, group_col2, group_col3 = st.columns([1, 1, 1])
+        
+        with group_col1:
+            is_active = (current_group == "Active")
+            if st.button("Active", key=f"btn_group_active_{lead.id}", type="primary" if is_active else "secondary", use_container_width=True):
+                # If switching to active, we don't set care_status yet, let sub-options handle it or leave as NULL
+                if current_group != "Active":
+                    update_lead(db, lead.id, LeadUpdate(care_status=None), st.session_state.username, st.session_state.get('db_user_id'))
+                    clear_leads_cache()
+                    st.rerun()
+                    
+        with group_col2:
+            if st.button("Hold", key=f"btn_group_hold_{lead.id}", type="primary" if current_group == "Hold" else "secondary", use_container_width=True):
+                update_lead(db, lead.id, LeadUpdate(care_status="Hold", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
-                msg = f"Success! Care Started for {lead.first_name} {lead.last_name}. SOC: {today.strftime('%m/%d/%Y')}"
-                st.toast(msg, icon="✅")
-                st.session_state['success_msg'] = msg
+                st.toast(f"{lead.last_name} put on Hold", icon="⏸️")
                 st.rerun()
-
-        with col_not_start:
-            if st.button("Not Start", key=f"not_start_btn_confirm_{lead.id}", type="secondary", use_container_width=True, disabled=(lead.care_status == "Not Start")):
-                # CRITICAL: Clear modal state
-                st.session_state.modal_open = False
-                st.session_state.modal_action = None
-                st.session_state.pop('active_modal', None)
                 
-                update_data = LeadUpdate(
-                    care_status="Not Start",
-                    soc_date=None
-                )
-                update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
+        with group_col3:
+            if st.button("Terminated", key=f"btn_group_term_{lead.id}", type="primary" if current_group == "Terminated" else "secondary", use_container_width=True):
+                update_lead(db, lead.id, LeadUpdate(care_status="Terminated", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 clear_leads_cache()
-                msg = f"Success! Care marked as 'Not Start' for {lead.first_name} {lead.last_name}."
-                st.toast(msg, icon="⏳")
-                st.session_state['success_msg'] = msg
+                st.toast(f"{lead.last_name} Terminated", icon="🚫")
                 st.rerun()
+        
+        # If Active is selected, show sub-options
+        if current_group == "Active":
+            st.write("**Care Sub-Status:**")
+            col_start, col_not_start, col_spacer = st.columns([1, 1, 1])
+            
+            with col_start:
+                if st.button("(Care Start)", key=f"care_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
+                    today = date.today()
+                    update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=today), st.session_state.username, st.session_state.get('db_user_id'))
+                    clear_leads_cache()
+                    st.toast(f"Care Started for {lead.last_name}", icon="✅")
+                    st.rerun()
+
+            with col_not_start:
+                if st.button("(Care Not Start)", key=f"not_start_btn_confirm_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status="Not Start", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                    clear_leads_cache()
+                    st.toast(f"Care marked as Not Start for {lead.last_name}", icon="⏳")
+                    st.rerun()
 
 
         # ATTACHMENTS SECTION
@@ -357,7 +368,7 @@ def display_referral_confirm(lead, db, highlight=False):
 
 
 def referral_confirm():
-    """Referral Confirm page - Shows all clients with authorization received"""
+    """Authorizations Received page - Shows all clients with authorization received"""
     from app.crud.crud_leads import search_leads, count_search_leads
     # Display persistent status messages if they exist
     if 'success_msg' in st.session_state:
@@ -369,7 +380,7 @@ def referral_confirm():
         st.toast(msg, icon="❌")
         st.error(f"**{msg}**")
 
-    st.markdown('<div class="main-header">Referral Confirm</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">Authorizations Received</div>', unsafe_allow_html=True)
 
     db = SessionLocal()
     
@@ -397,9 +408,12 @@ def referral_confirm():
     total_authorized = count_search_leads(
         db,
         exclude_clients=False,
-        auth_received_filter=True
+        auth_received_filter=True,
+        only_clients=True,
+        care_status_filter=st.session_state.confirm_status_filter,
+        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All"
     )
-    st.write(f"**Total Clients with Authorization: {total_authorized}**")
+    st.write(f"**Total Authorized ({st.session_state.confirm_status_filter}): {total_authorized}**")
     
     st.divider()
 
@@ -463,30 +477,51 @@ def referral_confirm():
 
     st.divider()
     
-    # Filter buttons for Care Status
-    st.write("**Filter by Care Status:**")
+    # Filter buttons for Status
+    st.write("**Filter by Status:**")
     
-    # Care filter is now initialized in init_session_state() in common.py
+    col_active, col_hold, col_term, col_spacer = st.columns([1, 1, 1, 3])
     
-    col_all, col_start, col_not_start, col_spacer = st.columns([1, 1.2, 1.2, 3])
-    
-    with col_all:
-        if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
-            st.session_state.confirm_care_filter = "All"
+    with col_active:
+        if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
+            st.session_state.confirm_status_filter = "Active"
             st.session_state.conf_page = 0
             st.rerun()
     
-    with col_start:
-        if st.button("Care Start", key="filter_care_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
-            st.session_state.confirm_care_filter = "Care Start"
+    with col_hold:
+        if st.button("Hold", key="filter_hold_confirm", type="primary" if st.session_state.confirm_status_filter == "Hold" else "secondary", use_container_width=True):
+            st.session_state.confirm_status_filter = "Hold"
             st.session_state.conf_page = 0
             st.rerun()
     
-    with col_not_start:
-        if st.button("Not Start", key="filter_not_start_confirm", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
-            st.session_state.confirm_care_filter = "Not Start"
+    with col_term:
+        if st.button("Terminated", key="filter_terminated_confirm", type="primary" if st.session_state.confirm_status_filter == "Terminated" else "secondary", use_container_width=True):
+            st.session_state.confirm_status_filter = "Terminated"
             st.session_state.conf_page = 0
             st.rerun()
+            
+    # Sub-filter for Active
+    if st.session_state.confirm_status_filter == "Active":
+        st.write("Filter by Care Status:")
+        col_all, col_start, col_not_start, col_spacer_sub = st.columns([1, 1, 1, 3])
+        
+        with col_all:
+            if st.button("All", key="filter_active_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
+                st.session_state.confirm_care_filter = "All"
+                st.session_state.conf_page = 0
+                st.rerun()
+                
+        with col_start:
+            if st.button("Care Start", key="filter_active_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
+                st.session_state.confirm_care_filter = "Care Start"
+                st.session_state.conf_page = 0
+                st.rerun()
+                
+        with col_not_start:
+            if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
+                st.session_state.confirm_care_filter = "Not Start"
+                st.session_state.conf_page = 0
+                st.rerun()
     
     st.divider()
     
@@ -520,16 +555,13 @@ def referral_confirm():
         limit=limit,
         lead_id_filter=lead_id_filter,
         lead_type_filter=st.session_state.confirm_lead_type_filter,
+        care_status_filter=st.session_state.confirm_status_filter,
+        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         sort_by=st.session_state.confirmations_sort_by
     )
     
-    # Post-filter (Now handled at SQL level)
-    # leads = [l for l in leads if l.active_client == True]
-    
-    if st.session_state.confirm_care_filter == "Care Start":
-        leads = [l for l in leads if l.care_status == "Care Start"]
-    elif st.session_state.confirm_care_filter == "Not Start":
-        leads = [l for l in leads if l.care_status == "Not Start"]
+    # Post-filter (Now handled at SQL level via search_leads)
+    pass
         
     if st.session_state.confirm_payor_filter != "All":
         leads = [l for l in leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
@@ -545,6 +577,8 @@ def referral_confirm():
         exclude_clients=False,
         only_clients=True, # NEW: Filter at SQL level
         auth_received_filter=True,
+        care_status_filter=st.session_state.confirm_status_filter,
+        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         lead_id_filter=lead_id_filter,
         lead_type_filter=st.session_state.confirm_lead_type_filter
     )

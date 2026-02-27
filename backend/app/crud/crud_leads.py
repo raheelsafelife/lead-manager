@@ -300,6 +300,8 @@ def search_leads(
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
     lead_type_filter: Optional[str] = None, # "Lead", "Referral Sent", "Referral Confirmed"
+    care_status_filter: Optional[str] = None,
+    care_sub_status_filter: Optional[str] = None,
     sort_by: str = "Newest Added"
 ):
     """
@@ -397,6 +399,25 @@ def search_leads(
     if lead_id_filter:
         query = query.filter(models.Lead.id == lead_id_filter)
         
+    # 11. Care Status Filter (for Authorizations Received / Confirmations page)
+    if care_status_filter:
+        from sqlalchemy import or_
+        if care_status_filter == "Active":
+            # Active means NOT Hold and NOT Terminated (includes NULL care_status)
+            query = query.filter(or_(
+                models.Lead.care_status == None,
+                ~models.Lead.care_status.in_(["Hold", "Terminated"])
+            ))
+            
+            # Apply sub-filter if Active
+            if care_sub_status_filter and care_sub_status_filter != "All":
+                query = query.filter(models.Lead.care_status == care_sub_status_filter)
+                
+        elif care_status_filter in ["Hold", "Terminated"]:
+            query = query.filter(models.Lead.care_status == care_status_filter)
+        elif care_status_filter != "All":
+            query = query.filter(models.Lead.care_status == care_status_filter)
+        
             
             
     # 10.6 Lead Type Filter
@@ -441,7 +462,9 @@ def count_search_leads(
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
-    lead_type_filter: Optional[str] = None
+    lead_type_filter: Optional[str] = None,
+    care_status_filter: Optional[str] = None,
+    care_sub_status_filter: Optional[str] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -515,5 +538,23 @@ def count_search_leads(
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
         elif lead_type_filter == "Referral Confirmed":
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
+            
+    # 11. Care Status Filter (Mirroring search_leads)
+    if care_status_filter:
+        from sqlalchemy import or_
+        if care_status_filter == "Active":
+            query = query.filter(or_(
+                models.Lead.care_status == None,
+                ~models.Lead.care_status.in_(["Hold", "Terminated"])
+            ))
+            
+            # Apply sub-filter if Active
+            if care_sub_status_filter and care_sub_status_filter != "All":
+                query = query.filter(models.Lead.care_status == care_sub_status_filter)
+                
+        elif care_status_filter in ["Hold", "Terminated"]:
+            query = query.filter(models.Lead.care_status == care_status_filter)
+        elif care_status_filter != "All":
+            query = query.filter(models.Lead.care_status == care_status_filter)
         
     return query.scalar()
