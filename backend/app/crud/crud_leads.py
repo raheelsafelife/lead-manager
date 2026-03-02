@@ -302,6 +302,7 @@ def search_leads(
     lead_type_filter: Optional[str] = None, # "Lead", "Referral Sent", "Referral Confirmed"
     care_status_filter: Optional[str] = None,
     care_sub_status_filter: Optional[str] = None,
+    tag_color_filter: Optional[str] = None,
     sort_by: str = "Newest Added"
 ):
     """
@@ -374,6 +375,10 @@ def search_leads(
     # 8. Priority Filter
     if priority_filter and priority_filter != "All":
         query = query.filter(models.Lead.priority == priority_filter)
+        
+    # 8.5 Tag Color Filter
+    if tag_color_filter and tag_color_filter != "All":
+        query = query.filter(models.Lead.tag_color == tag_color_filter)
         
     # 9. Active/Inactive Filter
     if active_inactive_filter == "Active":
@@ -464,7 +469,8 @@ def count_search_leads(
     lead_id_filter: Optional[int] = None,
     lead_type_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
-    care_sub_status_filter: Optional[str] = None
+    care_sub_status_filter: Optional[str] = None,
+    tag_color_filter: Optional[str] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -509,6 +515,9 @@ def count_search_leads(
         
     if priority_filter and priority_filter != "All":
         query = query.filter(models.Lead.priority == priority_filter)
+        
+    if tag_color_filter and tag_color_filter != "All":
+        query = query.filter(models.Lead.tag_color == tag_color_filter)
         
     if active_inactive_filter == "Active":
         query = query.filter(models.Lead.last_contact_status != "Inactive")

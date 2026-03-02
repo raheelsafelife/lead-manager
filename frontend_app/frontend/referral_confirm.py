@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, show_add_comment_dialog, render_comment_stack, clear_leads_cache, get_pagination_params, render_pagination
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, show_add_comment_dialog, render_comment_stack, clear_leads_cache, get_pagination_params, render_pagination
 
 
 def display_referral_confirm(lead, db, highlight=False):
@@ -32,7 +32,9 @@ def display_referral_confirm(lead, db, highlight=False):
     # Show care status indicator in the expander title
     care_indicator = ""
     # Highlight if this is the focused referral
-    expander_title = f"ID: {lead.id} | {care_indicator} {lead.first_name} {lead.last_name} - {lead.staff_name}"
+    from frontend.common import get_tag_color_dot, render_tag_color_picker
+    tag_dot = get_tag_color_dot(lead.tag_color)
+    expander_title = f"{tag_dot} ID: {lead.id} | {care_indicator} {lead.first_name} {lead.last_name} - {lead.staff_name}"
     if highlight:
         expander_title = f"{expander_title}"
 
@@ -141,6 +143,10 @@ def display_referral_confirm(lead, db, highlight=False):
             
             # Display chronological comment stack
             render_comment_stack(lead)
+            
+            st.divider()
+            # Tag Color Picker
+            render_tag_color_picker(lead.id, lead.tag_color, db, page_type="confirmations")
 
         st.divider()
 
@@ -500,10 +506,27 @@ def referral_confirm():
             st.session_state.confirm_ccu_filter = selected_ccu
             st.rerun()
 
-    st.divider()
-    
-    # Filter buttons for Status
     st.write("**Filter by Status:**")
+    
+    # Tag Color Filter Dropdown
+    ct_colors = ["All", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
+    ct_icons = {"All": "All", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
+               "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
+    
+    selected_ct = st.selectbox(
+        "Filter by Color Tag",
+        options=ct_colors,
+        format_func=lambda x: ct_icons.get(x, x),
+        index=ct_colors.index(st.session_state.confirm_tag_color_filter) if st.session_state.confirm_tag_color_filter in ct_colors else 0,
+        key="referral_confirm_tag_color_filter_select"
+    )
+    
+    if selected_ct != st.session_state.confirm_tag_color_filter:
+        st.session_state.confirm_tag_color_filter = selected_ct
+        st.session_state.conf_page = 0
+        st.rerun()
+                
+    st.divider()
     
     col_active, col_hold, col_term, col_spacer = st.columns([1, 1, 1, 3])
     
@@ -582,6 +605,7 @@ def referral_confirm():
         lead_type_filter=st.session_state.confirm_lead_type_filter,
         care_status_filter=st.session_state.confirm_status_filter,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+        tag_color_filter=st.session_state.confirm_tag_color_filter,
         sort_by=st.session_state.confirmations_sort_by
     )
     
@@ -605,6 +629,7 @@ def referral_confirm():
         care_status_filter=st.session_state.confirm_status_filter,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         lead_id_filter=lead_id_filter,
+        tag_color_filter=st.session_state.confirm_tag_color_filter,
         lead_type_filter=st.session_state.confirm_lead_type_filter
     )
     

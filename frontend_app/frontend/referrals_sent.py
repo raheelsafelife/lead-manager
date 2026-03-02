@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params, render_tag_color_picker
 
 
 def view_referrals():
@@ -204,32 +204,44 @@ def view_referrals():
             st.session_state.referral_type_filter = "All"
             st.rerun()
     
-    # Priority Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
-    p_col1, p_col2, p_col3, p_col4, p_spacer = st.columns([1, 1, 1, 1.2, 1.3])
+    # Call Status Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Call Status</h4>", unsafe_allow_html=True)
+    cs_col1, cs_col2, cs_col3, cs_col4, cs_spacer = st.columns([1.1, 1, 1, 1, 1.3])
+
+    with cs_col1:
+        if st.button("Not Called", key="rcs_notcalled", use_container_width=True,
+                    type="primary" if st.session_state.referral_call_status_filter == "Not Called" else "secondary"):
+            st.session_state.referral_call_status_filter = "Not Called"
+            st.rerun()
+    with cs_col2:
+        if st.button("Pending", key="rcs_pending", use_container_width=True,
+                    type="primary" if st.session_state.referral_call_status_filter == "Pending" else "secondary"):
+            st.session_state.referral_call_status_filter = "Pending"
+            st.rerun()
+    with cs_col3:
+        if st.button("Called", key="rcs_called", use_container_width=True,
+                    type="primary" if st.session_state.referral_call_status_filter == "Called" else "secondary"):
+            st.session_state.referral_call_status_filter = "Called"
+            st.rerun()
+            st.session_state.referral_call_status_filter = "All"
+            st.rerun()
+
+    # Tag Color Filter Dropdown
+    ct_colors = ["All", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
+    ct_icons = {"All": "All", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
+               "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
     
-    # Priority filter is now initialized in init_session_state() in common.py
+    selected_ct = st.selectbox(
+        "Filter by Color Tag",
+        options=ct_colors,
+        format_func=lambda x: ct_icons.get(x, x),
+        index=ct_colors.index(st.session_state.referral_tag_color_filter) if st.session_state.referral_tag_color_filter in ct_colors else 0,
+        key="referrals_sent_tag_color_filter_select"
+    )
     
-    with p_col1:
-        if st.button("High", key="rp_high", use_container_width=True,
-                    type="primary" if st.session_state.referral_priority_filter == "High" else "secondary"):
-            st.session_state.referral_priority_filter = "High"
-            st.rerun()
-    with p_col2:
-        if st.button("Medium", key="rp_medium", use_container_width=True,
-                    type="primary" if st.session_state.referral_priority_filter == "Medium" else "secondary"):
-            st.session_state.referral_priority_filter = "Medium"
-            st.rerun()
-    with p_col3:
-        if st.button("Low", key="rp_low", use_container_width=True,
-                    type="primary" if st.session_state.referral_priority_filter == "Low" else "secondary"):
-            st.session_state.referral_priority_filter = "Low"
-            st.rerun()
-    with p_col4:
-        if st.button("All Priorities", key="rp_all", use_container_width=True,
-                    type="primary" if st.session_state.referral_priority_filter == "All" else "secondary"):
-            st.session_state.referral_priority_filter = "All"
-            st.rerun()
+    if selected_ct != st.session_state.referral_tag_color_filter:
+        st.session_state.referral_tag_color_filter = selected_ct
+        st.rerun()
     
     # Payor Filter
     st.write("**Filter by Payor:**")
@@ -271,7 +283,7 @@ def view_referrals():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.referral_status_filter,
-        priority_filter=st.session_state.referral_priority_filter,
+        priority_filter=st.session_state.referral_call_status_filter,
         active_inactive_filter=st.session_state.referral_active_inactive_filter,
         owner_id=owner_id,
         only_my_leads=only_my_referrals,
@@ -282,6 +294,7 @@ def view_referrals():
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
+        tag_color_filter=st.session_state.referral_tag_color_filter,
         sort_by=st.session_state.referrals_sort_by
     )
     
@@ -294,7 +307,7 @@ def view_referrals():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.referral_status_filter,
-        priority_filter=st.session_state.referral_priority_filter,
+        priority_filter=st.session_state.referral_call_status_filter,
         active_inactive_filter=st.session_state.referral_active_inactive_filter,
         owner_id=owner_id,
         only_my_leads=only_my_referrals,
@@ -302,7 +315,8 @@ def view_referrals():
         exclude_clients=False,
         only_clients=True,
         auth_received_filter=auth_val,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=lead_id_filter,
+        tag_color_filter=st.session_state.referral_tag_color_filter
     )
     
     # UI Metadata
@@ -310,7 +324,7 @@ def view_referrals():
     current_page_display = st.session_state.refs_page + 1 if total_leads > 0 else 0
     
     # Show count with filter info
-    filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Priority: {st.session_state.referral_priority_filter}"
+    filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Call Status: {st.session_state.referral_call_status_filter} | Tag: {st.session_state.referral_tag_color_filter}"
     if only_my_referrals:
         filter_info += f" | Showing: My Referrals Only"
     
@@ -320,16 +334,50 @@ def view_referrals():
     
     if leads:
         for lead in leads:
-            p_tag = get_priority_tag(lead.priority)
-            header_text = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+            from frontend.common import get_tag_color_dot
+            tag_dot = get_tag_color_dot(lead.tag_color)
+            
+            header_text = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
             if lead.staff_name:
                 header_text += f" - {lead.staff_name}"
-                
+
             with st.expander(header_text):
-                # Add priority tag at the top of expander
-                st.markdown(p_tag, unsafe_allow_html=True)
+                # -- Call Status: colored badge + inline dropdown --
+                cs_options = ["Not Called", "Pending", "Called"]
+                cur_cs = lead.priority if lead.priority in cs_options else "Not Called"
+                cs_upd_by = getattr(lead, 'call_status_updated_by', None)
+                cs_upd_at = getattr(lead, 'call_status_updated_at', None)
+                badge_html = get_call_status_tag(cur_cs, cs_upd_by, cs_upd_at)
+
+                hdr_col1, hdr_col2 = st.columns([3, 1])
+                with hdr_col1:
+                    st.markdown(badge_html, unsafe_allow_html=True)
+                with hdr_col2:
+                    cs_key = f"inline_cs_ref_{lead.id}"
+                    selected_cs = st.selectbox(
+                        "Call Status",
+                        cs_options,
+                        index=cs_options.index(cur_cs),
+                        key=cs_key,
+                        label_visibility="collapsed"
+                    )
+                    if selected_cs != cur_cs:
+                        from datetime import datetime
+                        from app.crud.crud_leads import update_lead as _ul
+                        _ul(db, lead.id, LeadUpdate(
+                            priority=selected_cs,
+                            call_status_updated_by=st.session_state.username,
+                            call_status_updated_at=datetime.utcnow()
+                        ), st.session_state.username, st.session_state.get('db_user_id'))
+                        clear_leads_cache()
+                        st.rerun()
+
+                # Tag Color Picker
+                render_tag_color_picker(lead.id, lead.tag_color, db, page_type="referrals")
+                st.divider()
+
                 col1, col2 = st.columns(2)
-                
+
                 with col1:
                     st.write(f"**ID:** {lead.id}")
                     st.write(f"**Name:** {lead.first_name} {lead.last_name}")
@@ -338,9 +386,8 @@ def view_referrals():
                     st.write(f"**Phone:** {lead.phone}")
                     if lead.age:
                         st.write(f"**Age:** {lead.age}")
-                    st.markdown(f"**Priority:** {p_tag}", unsafe_allow_html=True)
                     st.write(f"**City:** {lead.city or 'N/A'}")
-                
+
                 with col2:
                     st.write(f"**Status:** {lead.last_contact_status}")
                     st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
@@ -349,12 +396,10 @@ def view_referrals():
                             st.info(f"**Payor Information:**")
                             try:
                                 st.write(f"**Name:** {lead.agency.name}")
-                                # Safely get Agency fields to avoid AttributeError due to caching
                                 a_addr = getattr(lead.agency, 'address', None)
                                 a_phone = getattr(lead.agency, 'phone', None)
                                 a_fax = getattr(lead.agency, 'fax', None)
                                 a_email = getattr(lead.agency, 'email', None)
-
                                 if a_addr: st.write(f"**Address:** {a_addr}")
                                 if a_phone: st.write(f"**Phone:** {a_phone}")
                                 if a_fax: st.write(f"**Fax:** {a_fax}")
@@ -367,14 +412,11 @@ def view_referrals():
                             st.info(f"**CCU Information:**")
                             try:
                                 st.write(f"**Name:** {lead.ccu.name}")
-                                # Safely get new fields to avoid AttributeError due to caching
                                 c_street = getattr(lead.ccu, 'street', None)
                                 c_city = getattr(lead.ccu, 'city', None)
                                 c_state = getattr(lead.ccu, 'state', None)
                                 c_zip = getattr(lead.ccu, 'zip_code', None)
                                 c_coord = getattr(lead.ccu, 'care_coordinator_name', None)
-
-                                # Display individual address components if available, otherwise fallback to full address
                                 if any([c_street, c_city, c_state, c_zip]):
                                     addr_parts = []
                                     if c_street: addr_parts.append(c_street)
@@ -384,7 +426,6 @@ def view_referrals():
                                     st.write(f"**Address:** {', '.join(addr_parts)}")
                                 elif lead.ccu.address:
                                     st.write(f"**Address:** {lead.ccu.address}")
-                                
                                 if lead.ccu.phone: st.write(f"**Phone:** {lead.ccu.phone}")
                                 if lead.ccu.fax: st.write(f"**Fax:** {lead.ccu.fax}")
                                 if lead.ccu.email: st.write(f"**Email:** {lead.ccu.email}")
@@ -401,10 +442,11 @@ def view_referrals():
                     st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
                     if lead.comments:
                         st.write(f"**Comments:** {lead.comments}")
-                    
+
                     # Display chronological comment stack
                     render_comment_stack(lead)
-                
+
+
                 # Creator/Updater Info
                 st.divider()
                 info_col1, info_col2 = st.columns(2)

@@ -19,7 +19,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, clear_leads_cache
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, clear_leads_cache
 
 
 def add_lead():
@@ -253,18 +253,6 @@ def add_lead():
     
     st.divider()
 
-    # Priority Selection
-    st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Priority</h4>", unsafe_allow_html=True)
-    col_p1, col_p2 = st.columns([1, 2])
-    with col_p1:
-        priority = st.selectbox("Priority", ["High", "Medium", "Low"], index=1, key="priority_select")
-    with col_p2:
-        st.markdown('<div style="margin-top: 28px;"></div>', unsafe_allow_html=True)
-        st.markdown(get_priority_tag(priority), unsafe_allow_html=True)
-    
-    st.divider()
-
-    st.divider()
 
     # Fetch approved users for admin selection
     approved_users = crud_users.get_approved_users(db)
@@ -435,7 +423,6 @@ def add_lead():
                         "care_status": "Care Start" if last_contact_status == "Care Start" else ("Not Start" if last_contact_status == "Not Start" else None),
                         "authorization_received": True if last_contact_status in ["Care Start", "Not Start"] or source in ["Transfer", "Direct Through CCU"] else False,
                         "soc_date": soc_date if (source == "Transfer" or last_contact_status == "Care Start") else None,
-                        "priority": priority,
                         "last_contact_status": last_contact_status,
                         "dob": dob.strftime('%Y-%m-%d') if dob else None, # JSON serializable
                         "medicaid_no": medicaid_no or None,

@@ -694,20 +694,43 @@ GLOBAL_CSS = """
         display: none !important;
     }
 
-    /* Priority Tag Styles */
-    .priority-tag {
+    /* Call Status Tag Styles */
+    .call-status-tag {
         display: inline-block;
-        padding: 2px 10px;
-        border-radius: 4px;
+        padding: 4px 12px;
+        border-radius: 6px;
         color: white !important;
         font-weight: 700;
-        font-size: 0.75rem;
+        font-size: 0.78rem;
         text-transform: uppercase;
         margin-right: 5px;
+        line-height: 1.4;
     }
-    .priority-high { background-color: #FF4B4B !important; }
-    .priority-medium { background-color: #FFD700 !important; color: #000000 !important; }
-    .priority-low { background-color: #28A745 !important; }
+    .call-status-not-called { background-color: #EF4444 !important; }
+    .call-status-pending    { background-color: #EAB308 !important; color: #1a1a1a !important; }
+    .call-status-called     { background-color: #22C55E !important; }
+
+    /* Color Tag Styles */
+    .color-tag-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        border: 1px solid rgba(0,0,0,0.1);
+        vertical-align: middle;
+    }
+    
+    .ct-Red    { background-color: #EF4444 !important; }
+    .ct-Orange { background-color: #F97316 !important; }
+    .ct-Yellow { background-color: #FACC15 !important; }
+    .ct-Green  { background-color: #22C55E !important; }
+    .ct-Blue   { background-color: #3B82F6 !important; }
+    .ct-Purple { background-color: #A855F7 !important; }
+    .ct-Pink   { background-color: #EC4899 !important; }
+    .ct-Black  { background-color: #1F2937 !important; }
+    .ct-Brown  { background-color: #78350F !important; }
+    .ct-Grey   { background-color: #94A3B8 !important; }
 
     /* Referral Tag Styles */
     .referral-tag {
@@ -888,8 +911,8 @@ def init_session_state():
     
     if 'status_filter' not in st.session_state:
         st.session_state.status_filter = "All"
-    if 'priority_filter' not in st.session_state:
-        st.session_state.priority_filter = "All"
+    if 'call_status_filter' not in st.session_state:
+        st.session_state.call_status_filter = "All"
     if 'show_only_my_leads' not in st.session_state:
         st.session_state.show_only_my_leads = True
     if 'active_inactive_filter' not in st.session_state:
@@ -900,6 +923,9 @@ def init_session_state():
         st.session_state.lead_type_filter = "All"
     if 'leads_sort_by' not in st.session_state:
         st.session_state.leads_sort_by = "Newest Added"
+    if 'tag_color_filter' not in st.session_state:
+        st.session_state.tag_color_filter = "All"
+
     
     # Referrals Filters
     if 'referral_status_filter' not in st.session_state:
@@ -912,8 +938,11 @@ def init_session_state():
         st.session_state.show_deleted_referrals = False
     if 'referral_type_filter' not in st.session_state:
         st.session_state.referral_type_filter = "All"
-    if 'referral_priority_filter' not in st.session_state:
-        st.session_state.referral_priority_filter = "All"
+    if 'referral_call_status_filter' not in st.session_state:
+        st.session_state.referral_call_status_filter = "All"
+    if 'referral_tag_color_filter' not in st.session_state:
+        st.session_state.referral_tag_color_filter = "All"
+
     if 'payor_filter' not in st.session_state:
         st.session_state.payor_filter = "All"
     if 'ccu_filter' not in st.session_state:
@@ -938,6 +967,9 @@ def init_session_state():
         st.session_state.confirmations_sort_by = "Newest Added"
     if 'confirm_status_filter' not in st.session_state:
         st.session_state.confirm_status_filter = "Active" # Default requested
+    if 'confirm_tag_color_filter' not in st.session_state:
+        st.session_state.confirm_tag_color_filter = "All"
+
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
@@ -1261,16 +1293,84 @@ def send_initial_lead_reminders(db, lead_id, username):
 
 
 
-def get_priority_tag(priority):
-    # Returns HTML for a color-coded priority tag
-    colors = {"High": "#ef4444", "Medium": "#f59e0b", "Low": "#10b981"}
-    color = colors.get(priority, "#6b7280")
-    return f'<span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600;">{priority}</span>'
+def get_call_status_tag(priority, updated_by=None, updated_at=None):
+    """Returns HTML for a color-coded Call Status box with optional tracking info."""
+    colors = {
+        "Not Called": ("#EF4444", "white"),
+        "Pending":    ("#EAB308", "#1a1a1a"),
+        "Called":     ("#22C55E", "white"),
+    }
+    bg, text_color = colors.get(priority, ("#6b7280", "white"))
+    label = priority or "Not Called"
+    # Build tracking line
+    tracker_html = ""
+    if updated_by:
+        time_str = ""
+        if updated_at:
+            from app.utils.activity_logger import format_time_ago
+            try:
+                time_str = f" &bull; {format_time_ago(updated_at)}"
+            except Exception:
+                pass
+        tracker_html = f"<div style='font-size:0.68rem; margin-top:2px; opacity:0.92;'>by {updated_by}{time_str}</div>"
+    return (
+        f'<div style="display:inline-block; background-color:{bg}; color:{text_color}; '
+        f'padding:4px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; '
+        f'text-transform:uppercase; min-width:90px; text-align:center; line-height:1.4;">'
+        f'{label}{tracker_html}</div>'
+    )
 
 
+# Keep old name as alias for any missed references
+def get_priority_tag(priority, updated_by=None, updated_at=None):
+    return get_call_status_tag(priority, updated_by, updated_at)
+
+
+
+
+def get_tag_color_dot(color_name):
+    """Returns a small colored emoji dot for a given color name."""
+    if not color_name or color_name == "None":
+        return ""
+    
+    color_map = {
+        "Red": "🔴", "Orange": "🟠", "Yellow": "🟡", 
+        "Green": "🟢", "Blue": "🔵", "Purple": "🟣", 
+        "Pink": "🩷", "Black": "⚫", "Brown": "🤎", "Grey": "⚪"
+    }
+    return color_map.get(color_name, "⚪")
+
+
+def render_tag_color_picker(lead_id, current_color, db, page_type="leads"):
+    """Renders an inline color picker for tags."""
+    colors = ["None", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
+    color_icons = {"None": "🚫 None", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
+                  "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
+    
+    current_val = current_color if current_color in colors else "None"
+    
+    selected_color = st.selectbox(
+        "Assign Color Tag:",
+        options=colors,
+        format_func=lambda x: color_icons.get(x, x),
+        index=colors.index(current_val),
+        key=f"tag_select_{lead_id}_{page_type}"
+    )
+    
+    if selected_color != current_val:
+        from app.crud.crud_leads import update_lead
+        from app.schemas import LeadUpdate
+        
+        new_tag = None if selected_color == "None" else selected_color
+        update_lead(db, lead_id, LeadUpdate(tag_color=new_tag), st.session_state.username, st.session_state.get('db_user_id'))
+        
+        from frontend.common import clear_leads_cache
+        clear_leads_cache()
+        st.rerun()
 
 
 def get_referral_status_tag(lead):
+
     """Returns HTML for color-coded referral status tags (multiple possible)"""
     if not lead.active_client:
         return ""
@@ -1640,10 +1740,7 @@ def show_edit_modal_dialog(m):
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
             
-            priority_options = ["High", "Medium", "Low"]
-            current_priority = lead.get('priority', 'Medium')
-            priority_index = priority_options.index(current_priority) if current_priority in priority_options else 1
-            new_priority = st.selectbox("Priority", priority_options, index=priority_index, key=f"edit_priority_{m['target_id']}")
+            # Call Status is now changed inline on the lead header row (not here)
             
             dob_value = lead.get('dob')
             if isinstance(dob_value, str) and dob_value:
@@ -1756,7 +1853,7 @@ def show_edit_modal_dialog(m):
                     "first_name": new_first, "last_name": new_last, "phone": new_phone, "staff_name": new_staff, "source": new_source,
                     "event_name": new_event_name, "soc_date": new_soc_date, "other_source_type": new_other_source, "word_of_mouth_type": new_word_of_mouth,
                     "city": new_city, "street": new_street, "state": new_state, "zip_code": new_zip, "last_contact_status": new_status,
-                    "priority": new_priority, "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
+                    "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
                     "e_contact_phone": new_e_phone, "active_client": lead.get('active_client'), "comments": new_comments, "age": new_age if new_age > 0 else None,
                     "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders,
                     "care_status": new_care_status

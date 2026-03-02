@@ -91,8 +91,9 @@ class LeadBase(BaseModel):
     mco_id: Optional[int] = None
     authorization_received: bool = False
     care_status: Optional[str] = None  # "Care Start" or "Not Start"
-    priority: Optional[str] = "Medium"  # "High", "Medium", "Low"
-    soc_date: Optional[date] = None  # Start of Care date
+    priority: Optional[str] = "Not Called"
+    tag_color: Optional[str] = None  # color tag
+    soc_date: Optional[date] = None
     phone: str
     street: Optional[str] = None
     city: Optional[str] = None
@@ -159,6 +160,9 @@ class LeadUpdate(BaseModel):
     custom_user_id: Optional[str] = None
     owner_id: Optional[int] = None
     send_reminders: Optional[bool] = None
+    call_status_updated_by: Optional[str] = None
+    call_status_updated_at: Optional[datetime] = None
+    tag_color: Optional[str] = None
 
 
 

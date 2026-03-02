@@ -20,7 +20,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_priority_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
 
 
 def view_leads():
@@ -142,34 +142,47 @@ def view_leads():
             st.session_state.leads_page = 0
             st.rerun()
     
-    # Priority Filter Buttons
-    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Priority</h4>", unsafe_allow_html=True)
-    p_col1, p_col2, p_col3, p_col4, p_spacer = st.columns([1, 1, 1, 1.2, 1.3])
+    # Call Status Filter Buttons
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Call Status</h4>", unsafe_allow_html=True)
+    cs_col1, cs_col2, cs_col3, cs_col4, cs_spacer = st.columns([1.1, 1, 1, 1, 1.3])
+    with cs_col1:
+        if st.button("Not Called", key="cs_notcalled", use_container_width=True,
+                    type="primary" if st.session_state.call_status_filter == "Not Called" else "secondary"):
+            st.session_state.call_status_filter = "Not Called"
+            st.session_state.leads_page = 0
+            st.rerun()
+    with cs_col2:
+        if st.button("Pending", key="cs_pending", use_container_width=True,
+                    type="primary" if st.session_state.call_status_filter == "Pending" else "secondary"):
+            st.session_state.call_status_filter = "Pending"
+            st.session_state.leads_page = 0
+            st.rerun()
+    with cs_col3:
+        if st.button("Called", key="cs_called", use_container_width=True,
+                    type="primary" if st.session_state.call_status_filter == "Called" else "secondary"):
+            st.session_state.call_status_filter = "Called"
+            st.session_state.leads_page = 0
+            st.rerun()
+            st.session_state.leads_page = 0
+            st.rerun()
+
+    # Tag Color Filter Dropdown
+    ct_colors = ["All", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
+    ct_icons = {"All": "All", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
+               "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
     
-    with p_col1:
-        if st.button("High", key="p_high", use_container_width=True,
-                    type="primary" if st.session_state.priority_filter == "High" else "secondary"):
-            st.session_state.priority_filter = "High"
-            st.session_state.leads_page = 0
-            st.rerun()
-    with p_col2:
-        if st.button("Medium", key="p_medium", use_container_width=True,
-                    type="primary" if st.session_state.priority_filter == "Medium" else "secondary"):
-            st.session_state.priority_filter = "Medium"
-            st.session_state.leads_page = 0
-            st.rerun()
-    with p_col3:
-        if st.button("Low", key="p_low", use_container_width=True,
-                    type="primary" if st.session_state.priority_filter == "Low" else "secondary"):
-            st.session_state.priority_filter = "Low"
-            st.session_state.leads_page = 0
-            st.rerun()
-    with p_col4:
-        if st.button("All Priorities", key="p_all", use_container_width=True,
-                    type="primary" if st.session_state.priority_filter == "All" else "secondary"):
-            st.session_state.priority_filter = "All"
-            st.session_state.leads_page = 0
-            st.rerun()
+    selected_ct = st.selectbox(
+        "Filter by Color Tag",
+        options=ct_colors,
+        format_func=lambda x: ct_icons.get(x, x),
+        index=ct_colors.index(st.session_state.tag_color_filter) if st.session_state.tag_color_filter in ct_colors else 0,
+        key="view_leads_tag_color_filter_select"
+    )
+    
+    if selected_ct != st.session_state.tag_color_filter:
+        st.session_state.tag_color_filter = selected_ct
+        st.session_state.leads_page = 0
+        st.rerun()
     
     st.divider()
     
@@ -224,32 +237,33 @@ def view_leads():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.status_filter,
-        priority_filter=st.session_state.priority_filter,
+        priority_filter=st.session_state.call_status_filter,
         active_inactive_filter=st.session_state.active_inactive_filter,
         owner_id=owner_id,
-        only_my_leads=only_my_leads,
+        only_my_leads=st.session_state.show_only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
         auth_received_filter=False,
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter,
+        lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+        tag_color_filter=st.session_state.tag_color_filter,
         sort_by=st.session_state.leads_sort_by
     )
     
+    # Total count for pagination
     total_leads = count_search_leads(
         db,
         search_query=search_name if search_name else None,
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.status_filter,
-        priority_filter=st.session_state.priority_filter,
+        priority_filter=st.session_state.call_status_filter,
         active_inactive_filter=st.session_state.active_inactive_filter,
-        owner_id=owner_id,
-        only_my_leads=only_my_leads,
+        owner_id=st.session_state.db_user_id,
+        only_my_leads=st.session_state.show_only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
-        exclude_clients=not st.session_state.show_deleted_leads,
-        auth_received_filter=False,
-        lead_id_filter=lead_id_filter
+        lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+        tag_color_filter=st.session_state.tag_color_filter
     )
     
     # UI Metadata
@@ -257,7 +271,7 @@ def view_leads():
     current_page_display = page_index + 1 if total_leads > 0 else 0
     
     # Show count with filter info
-    filter_info = f"Active Status: {st.session_state.active_inactive_filter} | Status: {st.session_state.status_filter} | Priority: {st.session_state.priority_filter}"
+    filter_info = f"Active Status: {st.session_state.active_inactive_filter} | Status: {st.session_state.status_filter} | Call Status: {st.session_state.call_status_filter} | Tag: {st.session_state.tag_color_filter}"
     if only_my_leads:
         filter_info += f" | Showing: My Leads Only"
     
@@ -266,16 +280,48 @@ def view_leads():
     # Display leads
     if leads:
         for lead in leads:
-            p_tag = get_priority_tag(lead.priority)
-            header_label = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+            # -- Call Status: colored badge + inline dropdown --
+            cs_options = ["Not Called", "Pending", "Called"]
+            cur_cs = lead.priority if lead.priority in cs_options else "Not Called"
+            cs_upd_by = getattr(lead, 'call_status_updated_by', None)
+            cs_upd_at = getattr(lead, 'call_status_updated_at', None)
+            badge_html = get_call_status_tag(cur_cs, cs_upd_by, cs_upd_at)
+            from frontend.common import get_tag_color_dot, render_tag_color_picker
+            tag_dot = get_tag_color_dot(lead.tag_color)
+
+            header_label = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
             if lead.staff_name:
                 header_label += f" - {lead.staff_name}"
-            
+
             with st.expander(header_label):
-                # Add priority tag at the top of expander
-                st.markdown(p_tag, unsafe_allow_html=True)
-                col1, col2 = st.columns(2)
+                hdr_col1, hdr_col2 = st.columns([3, 1])
+                with hdr_col1:
+                    st.markdown(badge_html, unsafe_allow_html=True)
+                with hdr_col2:
+                    cs_key = f"inline_cs_lead_{lead.id}"
+                    selected_cs = st.selectbox(
+                        "Call Status",
+                        cs_options,
+                        index=cs_options.index(cur_cs),
+                        key=cs_key,
+                        label_visibility="collapsed"
+                    )
+                    if selected_cs != cur_cs:
+                        from datetime import datetime as _dt
+                        update_lead(db, lead.id, LeadUpdate(
+                            priority=selected_cs,
+                            call_status_updated_by=st.session_state.username,
+                            call_status_updated_at=_dt.utcnow()
+                        ), st.session_state.username, st.session_state.get('db_user_id'))
+                        clear_leads_cache()
+                        st.rerun()
                 
+                # Tag Color Picker
+                render_tag_color_picker(lead.id, lead.tag_color, db, page_type="leads")
+                st.divider()
+
+                col1, col2 = st.columns(2)
+
                 with col1:
                     st.write(f"**ID:** {lead.id}")
                     st.write(f"**Name:** {lead.first_name} {lead.last_name}")
@@ -284,7 +330,6 @@ def view_leads():
                     st.write(f"**Phone:** {lead.phone}")
                     if lead.age:
                         st.write(f"**Age:** {lead.age}")
-                    st.markdown(f"**Priority:** {p_tag}", unsafe_allow_html=True)
                     st.write(f"**City:** {lead.city or 'N/A'}")
                 
                 with col2:

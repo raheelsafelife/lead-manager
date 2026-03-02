@@ -82,8 +82,11 @@ class Lead(Base):
     # Authorization tracking
     authorization_received = Column(Boolean, nullable=False, default=False)  # Whether authorization was received
     care_status = Column(String(50), nullable=True)  # "Care Start" or "Not Start"
-    priority = Column(String(50), nullable=True, default="Medium")  # "High", "Medium", "Low"
-    soc_date = Column(Date, nullable=True)  # Start of Care date
+    priority = Column(String(50), nullable=True, default="Not Called")  # "Not Called", "Pending", "Called"
+    call_status_updated_by = Column(String(100), nullable=True)
+    call_status_updated_at = Column(DateTime, nullable=True)
+    tag_color = Column(String(30), nullable=True, default=None)  # Color tag: Red, Orange, Yellow, etc.
+    soc_date = Column(Date, nullable=True)
 
     # contact info
     phone = Column(String(50), nullable=False)
