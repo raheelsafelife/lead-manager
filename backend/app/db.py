@@ -58,3 +58,39 @@ SessionLocal = sessionmaker(
 
 # Base class for models
 Base = declarative_base()
+
+# Automatic Schema Upgrades
+from sqlalchemy import inspect, text
+
+def auto_upgrade_db(eng):
+    try:
+        inspector = inspect(eng)
+        if "leads" in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns("leads")]
+            
+            with eng.begin() as conn:
+                if "tag_color" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE leads ADD COLUMN tag_color VARCHAR(30)"))
+                        logger.info("Auto-added 'tag_color' column to leads table")
+                    except Exception as e:
+                        logger.error(f"Failed to add tag_color: {e}")
+                
+                if "call_status_updated_by" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE leads ADD COLUMN call_status_updated_by VARCHAR(50)"))
+                        logger.info("Auto-added 'call_status_updated_by' column to leads table")
+                    except Exception as e:
+                        pass
+                
+                if "call_status_updated_at" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE leads ADD COLUMN call_status_updated_at DATETIME"))
+                        logger.info("Auto-added 'call_status_updated_at' column to leads table")
+                    except Exception as e:
+                        pass
+    except Exception as e:
+        logger.error(f"DB Auto-upgrade failed: {e}")
+
+# Run upgrades automatically
+auto_upgrade_db(engine)
