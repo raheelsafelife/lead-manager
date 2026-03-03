@@ -1334,18 +1334,15 @@ def get_tag_color_dot(color_name):
         return ""
     
     color_map = {
-        "Red": "🔴", "Orange": "🟠", "Yellow": "🟡", 
-        "Green": "🟢", "Blue": "🔵", "Purple": "🟣", 
-        "Pink": "🩷", "Black": "⚫", "Brown": "🤎", "Grey": "⚪"
+        "Blue": "🔵", "Purple": "🟣"
     }
     return color_map.get(color_name, "⚪")
 
 
 def render_tag_color_picker(lead_id, current_color, db, page_type="leads"):
     """Renders an inline color picker for tags."""
-    colors = ["None", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
-    color_icons = {"None": "🚫 None", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
-                  "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
+    colors = ["None", "Blue", "Purple"]
+    color_icons = {"None": "🚫 None", "Blue": "🔵 Blue", "Purple": "🟣 Purple"}
     
     current_val = current_color if current_color in colors else "None"
     

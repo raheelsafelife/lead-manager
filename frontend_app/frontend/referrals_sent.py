@@ -227,9 +227,8 @@ def view_referrals():
             st.rerun()
 
     # Tag Color Filter Dropdown
-    ct_colors = ["All", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink", "Black", "Brown", "Grey"]
-    ct_icons = {"All": "All", "Red": "🔴 Red", "Orange": "🟠 Orange", "Yellow": "🟡 Yellow", "Green": "🟢 Green", "Blue": "🔵 Blue", 
-               "Purple": "🟣 Purple", "Pink": "🩷 Pink", "Black": "⚫ Black", "Brown": "🤎 Brown", "Grey": "⚪ Grey"}
+    ct_colors = ["All", "Blue", "Purple"]
+    ct_icons = {"All": "All", "Blue": "🔵 Blue", "Purple": "🟣 Purple"}
     
     selected_ct = st.selectbox(
         "Filter by Color Tag",
