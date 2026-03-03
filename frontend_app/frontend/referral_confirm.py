@@ -296,8 +296,9 @@ def display_referral_confirm(lead, db, highlight=False):
             with st.expander("➕ Upload New Attachment", expanded=False):
                 uploaded_file = st.file_uploader(
                     "Choose a file",
-                    key=f"attachment_upload_conf_{lead.id}",
-                    help="Upload documents, images, or other files related to this referral"
+                    type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg'],
+                    key=f"attachment_upload_{lead.id}",
+                    help="Upload documents, images, or other files related to this authorization"
                 )
                 
                 if uploaded_file is not None:

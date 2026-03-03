@@ -242,6 +242,7 @@ def view_leads():
         owner_id=owner_id,
         only_my_leads=st.session_state.show_only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
+        lead_type_filter="Lead",
         auth_received_filter=False,
         skip=skip,
         limit=limit,
@@ -262,6 +263,8 @@ def view_leads():
         owner_id=st.session_state.db_user_id,
         only_my_leads=st.session_state.show_only_my_leads,
         include_deleted=st.session_state.show_deleted_leads,
+        lead_type_filter="Lead",
+        auth_received_filter=False,
         lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
         tag_color_filter=st.session_state.tag_color_filter
     )
@@ -516,6 +519,7 @@ def view_leads():
                     with st.expander("➕ Upload New Attachment", expanded=False):
                         uploaded_file = st.file_uploader(
                             "Choose a file",
+                            type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg'],
                             key=f"attachment_upload_{lead.id}",
                             help="Upload documents, images, or other files related to this lead"
                         )

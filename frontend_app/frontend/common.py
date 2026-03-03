@@ -914,7 +914,7 @@ def init_session_state():
     if 'call_status_filter' not in st.session_state:
         st.session_state.call_status_filter = "All"
     if 'show_only_my_leads' not in st.session_state:
-        st.session_state.show_only_my_leads = True
+        st.session_state.show_only_my_leads = False
     if 'active_inactive_filter' not in st.session_state:
         st.session_state.active_inactive_filter = "Active"
     if 'show_deleted_leads' not in st.session_state:

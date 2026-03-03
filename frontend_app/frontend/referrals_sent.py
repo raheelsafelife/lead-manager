@@ -578,6 +578,7 @@ def view_referrals():
                     with st.expander("➕ Upload New Attachment", expanded=False):
                         uploaded_file = st.file_uploader(
                             "Choose a file",
+                            type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg'],
                             key=f"attachment_upload_ref_{lead.id}",
                             help="Upload documents, images, or other files related to this referral"
                         )
@@ -620,7 +621,7 @@ def view_referrals():
                                 # File icon based on extension
                                 ext = Path(att.filename).suffix.lower()
                                 icon = "📄"
-                                if ext in ['.jpg', ['.jpeg', '.png', '.gif']]:
+                                if ext in ['.jpg', '.jpeg', '.png', '.gif']:
                                     icon = "🖼️"
                                 elif ext in ['.pdf']:
                                     icon = "📕"
