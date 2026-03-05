@@ -197,6 +197,40 @@ GLOBAL_CSS = """
         box-shadow: 0 25px 80px rgba(0,0,0,0.55) !important;
     }
 
+    /* Fix missing close icon in modals (X logo) */
+    div[data-testid="stDialog"] button[aria-label="Close"],
+    .stDialog button[aria-label="Close"] {
+        background: transparent !important;
+        color: #3CA5AA !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        min-height: unset !important;
+        width: 32px !important;
+        height: 32px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
+        z-index: 1000 !important;
+        margin: 8px !important;
+    }
+    
+    div[data-testid="stDialog"] button[aria-label="Close"] svg,
+    div[data-testid="stDialog"] button[aria-label="Close"] svg path,
+    .stDialog button[aria-label="Close"] svg,
+    .stDialog button[aria-label="Close"] svg path {
+        fill: #3CA5AA !important;
+        stroke: #3CA5AA !important;
+        stroke-width: 0.5px !important;
+        width: 18px !important;
+        height: 18px !important;
+    }
+    
+    div[data-testid="stDialog"] button[aria-label="Close"]:hover {
+        background-color: rgba(60, 165, 170, 0.15) !important;
+    }
+
     /* Professional header style for use inside dialogs */
     .modal-dialog-header {
       background: #1f6f73;
@@ -798,15 +832,87 @@ GLOBAL_CSS = """
         font-weight: bold;
         color: #FFFFFF !important;
     }
+    /* --- NEW REFERRAL CARD UI (USER BLUEPRINT) --- */
+    .referral-card-header {
+      border: 2px solid #35A7C7 !important;
+      background: #EAF7FF !important;
+      border-radius: 10px !important;
+      padding: 0 !important;
+      margin: 8px 0 !important;
+    }
+
+    /* Target Streamlit/BaseWeb select control via marker presence */
+    div[data-testid="stHorizontalBlock"]:has(.status-marker) div[data-baseweb="select"] {
+        width: 155px !important;
+        max-width: 155px !important;
+        margin-left: auto !important;
+    }
+    
+    div[data-testid="stHorizontalBlock"]:has(.status-marker) div[data-baseweb="select"] > div {
+        border-radius: 6px !important;
+        font-weight: 800 !important;
+        border: 2px solid transparent !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        padding-bottom: 15px !important;
+        padding-top: 1px !important;
+        font-size: 0.85rem !important;
+        width: 155px !important;
+        max-width: 155px !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+    }
+    
+    /* Target the text inside the selectbox directly for uppercase */
+    div[data-testid="stHorizontalBlock"]:has(.status-marker) div[data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+    div[data-testid="stHorizontalBlock"]:has(.status-marker) div[data-baseweb="select"] span {
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
+    }
+
+    /* Color states (background + border) */
+    div[data-testid="stHorizontalBlock"]:has(.status-not-called) div[data-baseweb="select"] > div {
+      background: #FFEBEE !important;
+      border-color: #FFCDD2 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.status-pending) div[data-baseweb="select"] > div {
+      background: #FFFDE7 !important;
+      border-color: #FFF59D !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.status-called) div[data-baseweb="select"] > div {
+      background: #E8F5E9 !important;
+      border-color: #C8E6C9 !important;
+    }
+
+    /* Font colors depending on background */
+    div[data-testid="stHorizontalBlock"]:has(.status-not-called) div[data-baseweb="select"] * {
+        color: #D32F2F !important;
+        fill: #D32F2F !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.status-pending) div[data-baseweb="select"] * {
+        color: #F57F17 !important;
+        fill: #F57F17 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.status-called) div[data-baseweb="select"] * {
+        color: #2E7D32 !important;
+        fill: #2E7D32 !important;
+    }
+    div[data-testid="stDialog"] button[aria-label="Close"] svg path,
+    button[data-testid="stDialogCloseButton"] svg path,
+    .stDialog button svg path {
+        fill: #3CA5AA !important;
+        stroke: #3CA5AA !important;
+        stroke-width: 1.8px !important;
+    }
 </style>
 """
 
 
-def close_modal():
-    """Clear any active modal from session state and rerun.
-    CRITICAL: All state must be cleared BEFORE st.rerun() to prevent race conditions."""
-    
-    # STEP 1: Clear ALL modal state variables (order matters - clear before rerun)
+def clear_modal_state():
+    """Wipe modal state variables without triggering a rerun."""
     st.session_state.pop('active_modal', None)
     st.session_state.show_delete_modal = False
     st.session_state.modal_open = False
@@ -814,13 +920,15 @@ def close_modal():
     st.session_state.modal_lead_id = None
     st.session_state.modal_lead_name = None
     st.session_state.modal_data = {}
-    
-    # STEP 2: Clear any edit state that might persist
+    # Also clear any edit state
     for key in list(st.session_state.keys()):
         if key.startswith('edit_'):
             del st.session_state[key]
-    
-    # STEP 3: Force a rerun ONLY after all state is cleared
+
+def close_modal():
+    """Clear any active modal from session state and rerun.
+    CRITICAL: All state must be cleared BEFORE st.rerun() to prevent race conditions."""
+    clear_modal_state()
     st.rerun()
 
 
@@ -860,6 +968,59 @@ def render_download_csv(df: pd.DataFrame, filename="data.csv", label="Download d
 def clear_leads_cache():
     """Placeholder for cache invalidation (no-op since we removed caching)"""
     pass
+
+def get_status_display_text(lead, db):
+    """
+    Returns a simple formatted status string for the dropdown.
+    """
+    status = lead.priority or "Not Called"
+    emoji = "🔴"
+    if status == "Pending": emoji = "🟡"
+    elif status == "Called": emoji = "🟢"
+    
+    return f"{emoji} {status}"
+
+def get_status_pill_class(status):
+    """Returns the CSS class for the status pill based on the status string."""
+    s = (status or "").strip().lower()
+    if s == "called":
+        return "status-called"
+    if s == "pending":
+        return "status-pending"
+    return "status-not-called"
+
+def get_updater_info(lead):
+    """Returns styled HTML with updater name and localized time placed inside the selectbox visually."""
+    if not lead.call_status_updated_by:
+        return ""
+    
+    from app.utils.activity_logger import utc_to_local
+    from datetime import datetime
+    local_time = utc_to_local(lead.call_status_updated_at)
+    time_str = local_time.strftime("%I:%M %p").upper()
+    
+    # Compare both in the same localized timezone
+    now = utc_to_local(datetime.utcnow())
+    if local_time.date() == now.date():
+        date_str = "TODAY"
+    else:
+        # Check if yesterday
+        yesterday = now.date() - datetime.now().date().resolution
+        if local_time.date() == yesterday:
+            date_str = "YESTERDAY"
+        else:
+            date_str = local_time.strftime("%m/%d")
+        
+    text_color = "#444" # Dark grey for all light pastel backgrounds
+    
+    # Absolute overlay with pointer-events none, matching the selectbox margin properties
+    return f"""
+    <div style="width: 155px; margin-top: -24px; margin-left: auto; margin-right: 0; text-align: center; pointer-events: none; position: relative; z-index: 10;">
+        <p style="font-size: 10px; color: {text_color}; margin: 0; line-height: 1; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; text-align: center; opacity: 1.0;">
+            {lead.call_status_updated_by} • {date_str} {time_str}
+        </p>
+    </div>
+    """
 
 @st.cache_data(ttl=300) # Stats can live longer
 def get_stats_cached(func_name, *args, **kwargs):
@@ -1428,8 +1589,18 @@ def get_referral_status_emoji(lead):
 
 def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
     """Set the active modal in session state and rerun"""
-    # CRITICAL: Must set modal_open=True for handle_active_modal to process it
+    # STEP 0: Reset ALL previous modal state to prevent "clash" or "ghost" popups
+    clear_modal_state()
+    
     st.session_state.modal_open = True
+    st.session_state.modal_action = modal_type
+    st.session_state.modal_data = {
+        'title': title,
+        'message': message,
+        **kwargs
+    }
+    
+    # 2. Maintain legacy dictionary for backward compatibility
     st.session_state['active_modal'] = {
         'modal_type': modal_type,
         'target_id': target_id,
@@ -1568,6 +1739,13 @@ def confirmation_modal_dialog(m):
                     update_data = LeadUpdate(active_client=False, referral_type=None)
                     if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
                         msg = "Success! Client has been unmarked as a referral."
+                        success = True
+                elif m['modal_type'] == 'undo_auth':
+                    from app.schemas import LeadUpdate
+                    # Set authorization_received=False and move status back out of "Confirmed" if needed
+                    update_data = LeadUpdate(authorization_received=False, last_contact_status="Initial Referral Sent")
+                    if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
+                        msg = "Success! Authorization has been unmarked."
                         success = True
                 elif m['modal_type'] == 'update_password':
                     new_pwd = st.session_state.get('pending_password_update', {}).get('new_password')
@@ -1839,6 +2017,21 @@ def show_edit_modal_dialog(m):
         st.markdown("<h4 style='font-weight: bold; color: #00506b;'>Notifications & Tracking</h4>", unsafe_allow_html=True)
         new_send_reminders = st.checkbox("Send Auto Email Reminders for this Lead", value=lead.get('send_reminders', True), key=f"edit_send_reminders_{m['target_id']}")
 
+        if is_referral:
+            st.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
+            if st.button(" UNMARK AS REFERRAL", use_container_width=True, key=f"edit_unmark_{m['target_id']}"):
+                # Close edit dialog and open unmark confirmation
+                render_confirmation_modal(
+                    modal_type='unmark_ref', 
+                    target_id=m['target_id'], 
+                    title='Unmark Referral?', 
+                    message=f"Convert <b>{lead.get('first_name')} {lead.get('last_name')}</b> back to a standard Lead?", 
+                    icon='🚫', 
+                    type='warning', 
+                    confirm_label='UNMARK'
+                )
+                st.rerun()
+
         st.divider()
         c1, c2 = st.columns(2)
         with c1:
@@ -1933,81 +2126,149 @@ def render_comment_stack(lead_obj):
         </div>
         """, unsafe_allow_html=True)
 
+@st.dialog("Document Preview", width="large")
+def show_file_preview_dialog(file_path, filename):
+    """
+    Renders a preview of the document. Supports PDF and common images.
+    """
+    import base64
+    if not os.path.exists(file_path):
+        st.error("File not found.")
+        return
+
+    ext = filename.split('.')[-1].lower()
+    
+    try:
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+
+        if ext == 'pdf':
+            base64_pdf = base64.b64encode(file_bytes).decode('utf-8')
+            # Using iframe for better cross-browser PDF embedding
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+        elif ext in ['png', 'jpg', 'jpeg']:
+            st.image(file_bytes, caption=filename, use_container_width=True)
+        elif ext == 'csv':
+            import pandas as pd
+            import io
+            df = pd.read_csv(io.BytesIO(file_bytes))
+            st.dataframe(df, use_container_width=True)
+        elif ext == 'txt':
+            st.text_area("File Content", value=file_bytes.decode('utf-8', errors='ignore'), height=400)
+        elif ext == 'docx':
+            import docx
+            import io
+            import pandas as pd
+            doc = docx.Document(io.BytesIO(file_bytes))
+            
+            # Structured view container
+            with st.container(height=500, border=True):
+                # 1. Render Paragraphs
+                for para in doc.paragraphs:
+                    if not para.text.strip():
+                        continue
+                    
+                    # Detect Headers
+                    if para.style.name.startswith('Heading'):
+                        level = para.style.name.replace('Heading ', '')
+                        try:
+                            st.markdown(f"{'#' * int(level)} {para.text}")
+                        except:
+                            st.markdown(f"### {para.text}")
+                    else:
+                        # Detect Bold/Italic in runs
+                        md_para = ""
+                        for run in para.runs:
+                            t = run.text
+                            if run.bold: t = f"**{t}**"
+                            if run.italic: t = f"*{t}*"
+                            md_para += t
+                        st.markdown(md_para)
+                
+                # 2. Render Tables (Structured request)
+                for i, table in enumerate(doc.tables):
+                    st.markdown(f"**Table {i+1}**")
+                    table_data = []
+                    for row in table.rows:
+                        table_data.append([cell.text for cell in row.cells])
+                    if table_data:
+                        df_t = pd.DataFrame(table_data)
+                        st.dataframe(df_t, use_container_width=True)
+
+                # 3. Render Images / Graphs (User report)
+                st.divider()
+                st.markdown("### 📊 Graphs & Illustrations")
+                found_images = False
+                for rel in doc.part.rels.values():
+                    if "image" in rel.target_ref:
+                        try:
+                            image_bytes = rel.target_part.blob
+                            st.image(image_bytes, use_container_width=True)
+                            found_images = True
+                        except:
+                            continue
+                if not found_images:
+                    st.info("No embedded graphs or images found in this document.")
+        else:
+            st.warning(f"Preview not available for .{ext} files. Please download to view.")
+            st.info(f"File: {filename}")
+    except Exception as e:
+        st.error(f"Error loading preview: {str(e)}")
+    
+    if st.button("Close Preview", use_container_width=True):
+        close_modal() # Use the proper modal closer to wipe all state
+
 def handle_active_modal():
     """
     Centralized handler for all active modals in the application.
     (Updated with Stability Refactor logic + Ghost Popup Prevention)
     """
-    
-    # 0. ULTRA-DEFENSIVE: Detect and clear stale/incomplete modal state BEFORE processing
-    # This prevents ghost popups from incomplete state left over from previous interactions
     has_modal_open = st.session_state.get('modal_open', False)
     has_modal_action = st.session_state.get('modal_action')
-    has_active_modal = 'active_modal' in st.session_state
-    has_show_delete = st.session_state.get('show_delete_modal', False)
+    has_active_modal_dict = 'active_modal' in st.session_state
     
-    # helper to wipe EVERYTHING
-    def _wipe_all_modal_state():
-        st.session_state.modal_open = False
-        st.session_state.modal_action = None
-        st.session_state.modal_lead_id = None
-        st.session_state.modal_lead_name = None
-        st.session_state.modal_data = {}
-        st.session_state.pop('active_modal', None)
-        st.session_state.show_delete_modal = False
-
-    # If modal_open is True but modal_action is None/empty, it's stale state - clear it
-    if has_modal_open and not has_modal_action and not has_active_modal and not has_show_delete:
-        _wipe_all_modal_state()
+    # 0. GHOST KILLER: Wipe stale state if open flag is True but no action is defined
+    if has_modal_open and not has_modal_action and not has_active_modal_dict:
+        close_modal() # Wipe everything
         return
-    
+
     # 1. SPECIAL DELETE MODAL (legacy support for view_leads.py)
     if st.session_state.get('show_delete_modal', False):
-        # Consume the trigger immediately
         lead_id = st.session_state.get('delete_lead_id')
         name = st.session_state.get('delete_lead_name', 'Unknown')
-        _wipe_all_modal_state() # Wipe all triggers before showing dialog
+        close_modal()
         show_delete_modal_dialog(lead_id, name)
         return
 
-    # 2. HANDLE GENERIC ACTIVE_MODAL (Action-Scoped Priority)
+    # 2. HANDLE GENERIC ACTIVE_MODAL
     m = None
-    
-    # CRITICAL: We NO LONGER wipe state immediately. 
-    # We keep the trigger active so that interactions within the dialog 
-    # (like changing a selectbox) correctly re-render the dialog on rerun.
-    # The state is wiped ONLY when close_modal() is called.
-    
-    if st.session_state.get('modal_open', False) and st.session_state.get('modal_action'):
-         m = {
-             'modal_type': st.session_state.modal_action,
-             'target_id': st.session_state.modal_lead_id,
-             'title': st.session_state.modal_lead_name or st.session_state.modal_data.get('title'),
-             'lead_data': st.session_state.modal_data.get('lead_data'),
-             'icon': st.session_state.modal_data.get('icon'),
-             'type': st.session_state.modal_data.get('type'),
-             'confirm_label': st.session_state.modal_data.get('confirm_label'),
-             'cancel_label': st.session_state.modal_data.get('cancel_label'),
-             'indicator': st.session_state.modal_data.get('indicator'),
-             'message': st.session_state.modal_data.get('message')
-         }
-         
-    elif st.session_state.get('modal_open', False) and 'active_modal' in st.session_state:
-         # Legacy dictionary - keep it until close
-         m = st.session_state['active_modal']
-    else:
-         # No modal to show
-         return
+    if has_modal_open:
+        if has_modal_action:
+            # Reconstruct dictionary from flat state
+            m = {
+                'modal_type': st.session_state.modal_action,
+                'target_id': st.session_state.modal_lead_id,
+                'title': st.session_state.modal_lead_name or st.session_state.modal_data.get('title'),
+                'lead_data': st.session_state.modal_data.get('lead_data'),
+                'icon': st.session_state.modal_data.get('icon'),
+                'type': st.session_state.modal_data.get('type'),
+                'confirm_label': st.session_state.modal_data.get('confirm_label'),
+                'cancel_label': st.session_state.modal_data.get('cancel_label'),
+                'indicator': st.session_state.modal_data.get('indicator'),
+                'message': st.session_state.modal_data.get('message')
+            }
+        elif has_active_modal_dict:
+            m = st.session_state['active_modal']
     
     if not m:
         return
     
-    # DEBUG LOGGING
-    print(f"[DEBUG] Modal Triggered: action={m.get('modal_type')}, id={m.get('target_id')}")
-    
     # Dispatch to specific dialog functions
     if m['modal_type'] == 'save_edit_modal':
         show_edit_modal_dialog(m)
+    elif m['modal_type'] == 'file_preview':
+        show_file_preview_dialog(m['lead_data']['file_path'], m['lead_data']['filename'])
     else:
         confirmation_modal_dialog(m)
 
@@ -2016,18 +2277,13 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
     """
     Triggers a confirmation modal by setting isolated session state variables.
     """
-    # 1. HARD RESET any previous modal state to prevent ghosting
-    st.session_state.modal_open = False
-    st.session_state.modal_action = None
-    st.session_state.modal_lead_id = None
-    st.session_state.modal_data = {}
-    st.session_state.pop('active_modal', None)
-    
-    # 2. Set new state
+    # 1. HARD RESET ALL MODAL STATE
     st.session_state.modal_open = True
     st.session_state.modal_action = modal_type
     st.session_state.modal_lead_id = target_id
-    st.session_state.modal_data = {
+    st.session_state.modal_lead_name = title
+    
+    modal_data = {
         'title': title,
         'message': message,
         'icon': icon,
@@ -2036,20 +2292,17 @@ def render_confirmation_modal(title, message, icon="🗑️", type="info", confi
         'cancel_label': cancel_label,
         'indicator': indicator
     }
+    st.session_state.modal_data = modal_data
     
-    # 3. Maintain legacy dictionary for backward compatibility
+    # 2. Maintain legacy dictionary for backward compatibility
     st.session_state['active_modal'] = {
         'modal_type': modal_type,
+        'target_id': target_id,
         'title': title,
         'message': message,
-        'icon': icon,
-        'type': type,
-        'confirm_label': confirm_label,
-        'target_id': target_id,
-        'indicator': indicator
+        **modal_data
     }
-    
-    st.rerun()
+    # No rerun here as this is often called inside a button click which will trigger its own rerun/processing
     return None
 
 
@@ -2163,3 +2416,4 @@ def render_api_status():
                 st.sidebar.markdown("**System: Offline**")
     except:
         st.sidebar.markdown("**System: Offline**")
+

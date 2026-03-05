@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import json
+import os
 from app.db import SessionLocal
 from app import services_stats
 from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_agency_suboptions
@@ -223,6 +224,9 @@ def view_referrals():
                     type="primary" if st.session_state.referral_call_status_filter == "Called" else "secondary"):
             st.session_state.referral_call_status_filter = "Called"
             st.rerun()
+    with cs_col4:
+        if st.button("All", key="rcs_all", use_container_width=True,
+                    type="primary" if st.session_state.referral_call_status_filter == "All" else "secondary"):
             st.session_state.referral_call_status_filter = "All"
             st.rerun()
 
@@ -334,345 +338,316 @@ def view_referrals():
     if leads:
         for lead in leads:
             from frontend.common import get_tag_color_dot
-            tag_dot = get_tag_color_dot(lead.tag_color)
+            from datetime import datetime
+            from app.crud.crud_leads import update_lead as _ul
+
+            # Define status options with emojis
+            display_options = ["Not Called", "Pending", "Called"]
+            value_map = {"Not Called": "Not Called", "Pending": "Pending", "Called": "Called"}
+            reverse_map = {v: k for k, v in value_map.items()}
             
-            header_text = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
-            if lead.staff_name:
-                header_text += f" - {lead.staff_name}"
+            cur_cs = lead.priority if lead.priority in value_map.values() else "Not Called"
+            cur_display = reverse_map.get(cur_cs, "Not Called")
 
-            with st.expander(header_text):
-                # -- Call Status: colored badge + inline dropdown --
-                cs_options = ["Not Called", "Pending", "Called"]
-                cur_cs = lead.priority if lead.priority in cs_options else "Not Called"
-                cs_upd_by = getattr(lead, 'call_status_updated_by', None)
-                cs_upd_at = getattr(lead, 'call_status_updated_at', None)
-                badge_html = get_call_status_tag(cur_cs, cs_upd_by, cs_upd_at)
-
-                hdr_col1, hdr_col2 = st.columns([3, 1])
-                with hdr_col1:
-                    st.markdown(badge_html, unsafe_allow_html=True)
-                with hdr_col2:
-                    cs_key = f"inline_cs_ref_{lead.id}"
-                    selected_cs = st.selectbox(
-                        "Call Status",
-                        cs_options,
-                        index=cs_options.index(cur_cs),
-                        key=cs_key,
-                        label_visibility="collapsed"
-                    )
-                    if selected_cs != cur_cs:
-                        from datetime import datetime
-                        from app.crud.crud_leads import update_lead as _ul
-                        _ul(db, lead.id, LeadUpdate(
-                            priority=selected_cs,
-                            call_status_updated_by=st.session_state.username,
-                            call_status_updated_at=datetime.utcnow()
-                        ), st.session_state.username, st.session_state.get('db_user_id'))
-                        clear_leads_cache()
-                        st.rerun()
-
-                # Tag Color Picker
-                render_tag_color_picker(lead.id, lead.tag_color, db, page_type="referrals")
-                st.divider()
-
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.write(f"**ID:** {lead.id}")
-                    st.write(f"**Name:** {lead.first_name} {lead.last_name}")
-                    st.write(f"**Staff:** {lead.staff_name}")
-                    st.write(f"**Source:** {lead.source}")
-                    st.write(f"**Phone:** {lead.phone}")
-                    if lead.age:
-                        st.write(f"**Age:** {lead.age}")
-                    st.write(f"**City:** {lead.city or 'N/A'}")
-
-                with col2:
-                    st.write(f"**Status:** {lead.last_contact_status}")
-                    st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
-                    if lead.agency:
-                        with st.container():
-                            st.info(f"**Payor Information:**")
-                            try:
-                                st.write(f"**Name:** {lead.agency.name}")
-                                a_addr = getattr(lead.agency, 'address', None)
-                                a_phone = getattr(lead.agency, 'phone', None)
-                                a_fax = getattr(lead.agency, 'fax', None)
-                                a_email = getattr(lead.agency, 'email', None)
-                                if a_addr: st.write(f"**Address:** {a_addr}")
-                                if a_phone: st.write(f"**Phone:** {a_phone}")
-                                if a_fax: st.write(f"**Fax:** {a_fax}")
-                                if a_email: st.write(f"**Email:** {a_email}")
-                            except AttributeError:
-                                st.warning("Payor details temporarily unavailable due to system cache. Please refresh.")
-
-                    if lead.ccu:
-                        with st.container():
-                            st.info(f"**CCU Information:**")
-                            try:
-                                st.write(f"**Name:** {lead.ccu.name}")
-                                c_street = getattr(lead.ccu, 'street', None)
-                                c_city = getattr(lead.ccu, 'city', None)
-                                c_state = getattr(lead.ccu, 'state', None)
-                                c_zip = getattr(lead.ccu, 'zip_code', None)
-                                c_coord = getattr(lead.ccu, 'care_coordinator_name', None)
-                                if any([c_street, c_city, c_state, c_zip]):
-                                    addr_parts = []
-                                    if c_street: addr_parts.append(c_street)
-                                    if c_city: addr_parts.append(c_city)
-                                    if c_state: addr_parts.append(c_state)
-                                    if c_zip: addr_parts.append(c_zip)
-                                    st.write(f"**Address:** {', '.join(addr_parts)}")
-                                elif lead.ccu.address:
-                                    st.write(f"**Address:** {lead.ccu.address}")
-                                if lead.ccu.phone: st.write(f"**Phone:** {lead.ccu.phone}")
-                                if lead.ccu.fax: st.write(f"**Fax:** {lead.ccu.fax}")
-                                if lead.ccu.email: st.write(f"**Email:** {lead.ccu.email}")
-                                if c_coord: st.write(f"**Coordinator:** {c_coord}")
-                            except AttributeError:
-                                st.warning("CCU details temporarily unavailable due to system cache. Please refresh.")
-                    # Authorization Status
-                    if lead.authorization_received:
-                        soc_str = lead.soc_date.strftime('%m/%d/%Y') if lead.soc_date else 'Not Set'
-                        st.success(f"**Auth: Received | Care: {lead.care_status or 'N/A'} | SOC: {soc_str}**")
-                    else:
-                        st.warning("**Auth: Pending**")
-                    st.markdown(f"**Created:** {render_time(lead.created_at)}", unsafe_allow_html=True)
-                    st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
-                    if lead.comments:
-                        st.write(f"**Comments:** {lead.comments}")
-
-                    # Display chronological comment stack
-                    render_comment_stack(lead)
-
-
-                # Creator/Updater Info
-                st.divider()
-                info_col1, info_col2 = st.columns(2)
-                with info_col1:
-                    if lead.created_by:
-                        st.markdown(f"**Created by: {lead.created_by} on** {render_time(lead.created_at)}", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"**Created on** {render_time(lead.created_at)}", unsafe_allow_html=True)
+            # Layout: Expander on the left (wide), Dropdown on the right (narrow)
+            exp_col, cs_col = st.columns([4.5, 1.5])
+            
+            with exp_col:
+                tag_dot = get_tag_color_dot(lead.tag_color)
+                # Remove cs_emoji from here as it's now in the dropdown
+                header_text = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
+                if lead.staff_name:
+                    header_text += f" - {lead.staff_name}"
                 
-                with info_col2:
-                    if lead.updated_by:
-                        st.markdown(f"**Last updated by: {lead.updated_by} on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"**Last updated on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
-                
-                # Permission check for edit/delete
-                can_modify = (st.session_state.user_role == "admin" or 
-                             lead.staff_name == st.session_state.username)
-                
-                if not can_modify:
-                    st.warning("**You can only edit/delete your own referrals**")
-                
-                # RECYCLE BIN ACTIONS
-                if st.session_state.show_deleted_referrals:
-                    st.markdown("<div style='background-color: #fef3c7; padding: 10px; border-radius: 5px; margin: 10px 0;'>", unsafe_allow_html=True)
-                    st.markdown("<p style='margin: 0; color: #92400e; font-weight: 600;'>🗑️ Deleted Referral</p>", unsafe_allow_html=True)
-                    if lead.deleted_at:
-                        st.markdown(f"<p style='margin: 0; color: #78350f; font-size: 0.85rem;'>Deleted by: {lead.deleted_by} on {render_time(lead.deleted_at)}</p>", unsafe_allow_html=True)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                with st.expander(header_text):
+                    # Tag Color Picker
+                    render_tag_color_picker(lead.id, lead.tag_color, db, page_type="referrals")
+                    st.divider()
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("↻ Restore Referral", key=f"restore_ref_{lead.id}", type="primary", use_container_width=True):
-                            st.session_state['active_modal'] = {
-                                'modal_type': 'restore_ref',
-                                'target_id': lead.id,
-                                'title': 'Restore Referral?',
-                                'message': f"Restore <strong>{lead.first_name} {lead.last_name}</strong> back to active referrals?",
-                                'icon': '↻',
-                                'type': 'info',
-                                'confirm_label': 'RESTORE'
-                            }
-                            st.rerun()
-                    
-                    with col2:
-                        if st.session_state.user_role == "admin":
-                            if st.button("🗑️ Permanent Delete", key=f"perm_del_ref_{lead.id}", use_container_width=True):
-                                st.session_state['active_modal'] = {
-                                    'modal_type': 'perm_delete_ref',
-                                    'target_id': lead.id,
-                                    'title': 'Permanent Delete?',
-                                    'message': f"Are you sure you want to <strong>PERMANENTLY DELETE</strong> <strong>{lead.first_name} {lead.last_name}</strong>?<br><br><span style='color: #DC2626; font-weight: bold;'>🔥 This cannot be undone.</span>",
-                                    'icon': '⚠️',
-                                    'type': 'error',
-                                    'confirm_label': 'DELETE FOREVER'
-                                }
-                                st.rerun()
-                    
-                    # Skip normal actions in recycle bin mode
-                    st.divider()
-                    continue
+                        st.write(f"**ID:** {lead.id}")
+                        st.write(f"**Name:** {lead.first_name} {lead.last_name}")
+                        st.write(f"**Staff:** {lead.staff_name}")
+                        st.write(f"**Source:** {lead.source}")
+                        st.write(f"**Phone:** {lead.phone}")
+                        if lead.age:
+                            st.write(f"**Age:** {lead.age}")
+                        st.write(f"**City:** {lead.city or 'N/A'}")
 
-                # Action buttons
-                col1, col2, col3, col4 = st.columns([0.7, 0.7, 1.3, 3.3])
-                with col1:
-                    if can_modify:
-                        if st.button("Edit", key=f"edit_lead_btn_ref_{lead.id}", use_container_width=True):
-                            # Prepar lead data for edit modal
-                            lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
-                            st.session_state.modal_open = True
-                            st.session_state.modal_action = 'save_edit_modal'
-                            st.session_state.modal_lead_id = lead.id
-                            st.session_state.modal_lead_name = f"{lead.first_name} {lead.last_name}"
-                            st.session_state.modal_data = {'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
-                            st.session_state['active_modal'] = {'modal_type': 'save_edit_modal', 'target_id': lead.id, 'title': f"{lead.first_name} {lead.last_name}", 'lead_data': lead_dict}
-                            st.rerun()
-                with col2:
-                    if can_modify:
-                        if st.button("Delete", key=f"delete_lead_btn_ref_{lead.id}", use_container_width=True):
-                            render_confirmation_modal(modal_type='soft_delete_ref', target_id=lead.id, title='Delete Referral?', message=f"Are you sure you want to delete <strong>{lead.first_name} {lead.last_name}</strong>?", icon='🗑️', type='warning', confirm_label='DELETE', indicator='This will move it to the Recycle Bin.')
-                
-                with col3:
-                    # Unmark Referral button
-                    if can_modify:
-                        if st.button("Unmark Referral", key=f"unmark_ref_btn_ref_{lead.id}", type="primary", use_container_width=True):
-                            render_confirmation_modal(modal_type='unmark_ref', target_id=lead.id, title='Unmark Referral?', message=f"Are you sure you want to unmark <strong>{lead.first_name} {lead.last_name}</strong> as an active referral?", indicator='This will hide it from the Referrals list but keep the record in the main Lead List.', icon='🚫', type='warning', confirm_label='UNMARK')
-                
-                with col4:
-                    # History, Add Comment, and Auth buttons in 3 columns
-                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                    with col2:
+                        st.write(f"**Status:** {lead.last_contact_status}")
+                        st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
+                        if lead.agency:
+                            with st.container():
+                                st.info(f"**Payor Information:**")
+                                try:
+                                    st.write(f"**Name:** {lead.agency.name}")
+                                    a_addr = getattr(lead.agency, 'address', None)
+                                    a_phone = getattr(lead.agency, 'phone', None)
+                                    a_fax = getattr(lead.agency, 'fax', None)
+                                    a_email = getattr(lead.agency, 'email', None)
+                                    if a_addr: st.write(f"**Address:** {a_addr}")
+                                    if a_phone: st.write(f"**Phone:** {a_phone}")
+                                    if a_fax: st.write(f"**Fax:** {a_fax}")
+                                    if a_email: st.write(f"**Email:** {a_email}")
+                                except AttributeError:
+                                    st.warning("Payor details temporarily unavailable due to system cache. Please refresh.")
+
+                        if lead.ccu:
+                            with st.container():
+                                st.info(f"**CCU Information:**")
+                                try:
+                                    st.write(f"**Name:** {lead.ccu.name}")
+                                    c_street = getattr(lead.ccu, 'street', None)
+                                    c_city = getattr(lead.ccu, 'city', None)
+                                    c_state = getattr(lead.ccu, 'state', None)
+                                    c_zip = getattr(lead.ccu, 'zip_code', None)
+                                    c_coord = getattr(lead.ccu, 'care_coordinator_name', None)
+                                    if any([c_street, c_city, c_state, c_zip]):
+                                        addr_parts = []
+                                        if c_street: addr_parts.append(c_street)
+                                        if c_city: addr_parts.append(c_city)
+                                        if c_state: addr_parts.append(c_state)
+                                        if c_zip: addr_parts.append(c_zip)
+                                        st.write(f"**Address:** {', '.join(addr_parts)}")
+                                    elif lead.ccu.address:
+                                        st.write(f"**Address:** {lead.ccu.address}")
+                                    if lead.ccu.phone: st.write(f"**Phone:** {lead.ccu.phone}")
+                                    if lead.ccu.fax: st.write(f"**Fax:** {lead.ccu.fax}")
+                                    if lead.ccu.email: st.write(f"**Email:** {lead.ccu.email}")
+                                    if c_coord: st.write(f"**Coordinator:** {c_coord}")
+                                except AttributeError:
+                                    st.warning("CCU details temporarily unavailable due to system cache. Please refresh.")
+                        
+                        # Authorization Status
+                        if lead.authorization_received:
+                            soc_str = lead.soc_date.strftime('%m/%d/%Y') if lead.soc_date else 'Not Set'
+                            st.success(f"**Auth: Received | Care: {lead.care_status or 'N/A'} | SOC: {soc_str}**")
+                        else:
+                            st.warning("**Auth: Pending**")
+                        st.markdown(f"**Created:** {render_time(lead.created_at)}", unsafe_allow_html=True)
+                        st.markdown(f"**Updated:** {render_time(lead.updated_at)}", unsafe_allow_html=True)
+                        if lead.comments:
+                            st.write(f"**Comments:** {lead.comments}")
+
+                        # Display chronological comment stack
+                        render_comment_stack(lead)
+
+                    # Creator/Updater Info
+                    st.divider()
+                    info_col1, info_col2 = st.columns(2)
+                    with info_col1:
+                        if lead.created_by:
+                            st.markdown(f"**Created by: {lead.created_by} on** {render_time(lead.created_at)}", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"**Created on** {render_time(lead.created_at)}", unsafe_allow_html=True)
                     
-                    with btn_col1:
+                    with info_col2:
+                        if lead.updated_by:
+                            st.markdown(f"**Last updated by: {lead.updated_by} on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"**Last updated on** {render_time(lead.updated_at)}", unsafe_allow_html=True)
+
+                    # QUICK ACTIONS ROW
+                    st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+                    
+                    # Proportions: Mark Authorization is wider (ratio 1:1:2:1:1)
+                    sub_col1, sub_col2, sub_col3, sub_col4, sub_col5 = st.columns([1, 1, 2, 1, 1])
+                    
+                    with sub_col1:
+                        if st.button("Edit", key=f"edit_btn_ref_{lead.id}", use_container_width=True):
+                            lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
+                            open_modal('save_edit_modal', lead.id, title=f"{lead.first_name} {lead.last_name}", lead_data=lead_dict)
+                    
+                    with sub_col2:
+                        if st.button("Delete", key=f"del_btn_ref_{lead.id}", use_container_width=True):
+                            render_confirmation_modal(modal_type='soft_delete', target_id=lead.id, title='Delete Referral?', message=f"Delete <b>{lead.first_name} {lead.last_name}</b>?", icon='🗑️', type='warning', confirm_label='DELETE')
+                    
+                    with sub_col3:
+                        if st.button("Mark Authorization", key=f"mark_auth_btn_ref_{lead.id}", use_container_width=True, type="secondary"):
+                            render_confirmation_modal(modal_type='auth_received', target_id=lead.id, title='Authorization Received?', message=f"Mark <b>{lead.first_name} {lead.last_name}</b> as Authorized?", icon='✅', type='success', confirm_label='YES')
+                    
+                    with sub_col4:
+                        if st.button("💬 Comment", key=f"comment_btn_ref_{lead.id}", use_container_width=True):
+                            from frontend.common import clear_modal_state
+                            clear_modal_state()
+                            show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
+
+                    with sub_col5:
                         if st.button("History", key=f"history_btn_ref_{lead.id}", use_container_width=True):
-                            st.session_state.modal_open = False
-                            st.session_state.modal_action = None
-                            st.session_state.pop('active_modal', None)
+                            from frontend.common import clear_modal_state
+                            clear_modal_state()
                             key = f"show_history_ref_{lead.id}"
                             st.session_state[key] = not st.session_state.get(key, False)
                             st.rerun()
-                    
-                    with btn_col2:
-                         if st.button("💬 Comment", key=f"add_comment_btn_ref_{lead.id}", use_container_width=True, help="Add a new update/note"):
-                            show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
-                            
-                    with btn_col3:
-                        # Authorization Received button - toggleable
-                        if lead.authorization_received:
-                            if st.button("Unmark Auth", key=f"unmark_auth_btn_ref_{lead.id}", help="Remove authorization received status", type="primary", use_container_width=True):
-                                update_data = LeadUpdate(authorization_received=False)
-                                updated_lead = update_lead(db, lead.id, update_data, st.session_state.username, st.session_state.get('db_user_id'))
-                                if updated_lead:
-                                    st.toast(f"Auth reversed for {lead.last_name}", icon="↩️")
+
+                    # ATTACHMENTS SECTION
+                    st.divider()
+                    st.markdown("### 📎 Attachments")
+                    try:
+                        from app.crud import crud_attachments
+                        with st.expander("➕ Upload New Attachment", expanded=False):
+                            # GHOST UPLOAD FIX: Use a versioned key to force a reset after successful upload
+                            up_key_ver = st.session_state.get(f"up_ver_{lead.id}", 0)
+                            uploaded_file = st.file_uploader("Choose a file", type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg', 'csv', 'txt'], key=f"upload_ref_{lead.id}_{up_key_ver}")
+                            if uploaded_file is not None:
+                                if st.button("Upload", key=f"btn_upload_ref_{lead.id}_{up_key_ver}", type="primary"):
+                                    from frontend.common import clear_modal_state
+                                    # GHOST POPUP KILLER: Proactively clear any stale modal state before rerunning
+                                    clear_modal_state()
+                                    
+                                    upload_dir = Path(__file__).parent.parent.parent / "backend" / "uploads"
+                                    upload_dir.mkdir(exist_ok=True)
+                                    file_path = upload_dir / f"{lead.id}_{uploaded_file.name}"
+                                    with open(file_path, "wb") as f:
+                                        f.write(uploaded_file.getbuffer())
+                                    crud_attachments.create_attachment(db, lead_id=lead.id, filename=uploaded_file.name, file_path=str(file_path), file_size=uploaded_file.size, uploaded_by=st.session_state.username)
+                                    
+                                    # UPLOADER RESET: Increment version to force a new widget
+                                    st.session_state[f"up_ver_{lead.id}"] = up_key_ver + 1
+                                    st.success(f"✅ Uploaded: {uploaded_file.name}")
                                     st.rerun()
-                        else:
-                            if st.button("Mark Auth", key=f"mark_auth_btn_ref_{lead.id}", help="Mark as authorized and move to Authorizations Received", type="primary", use_container_width=True):
-                                render_confirmation_modal(modal_type='auth_received', target_id=lead.id, title='Authorization Received?', message=f"Mark authorization as received for <strong>{lead.first_name} {lead.last_name}</strong>?", icon='✅', type='info', confirm_label='MARK RECEIVED')
-                
-
-                # ATTACHMENTS SECTION
-                st.divider()
-                st.markdown("### 📎 Attachments")
-                
-                try:
-                    from app.crud import crud_attachments
-                    from pathlib import Path
-                    import os
-                    
-                    # File upload
-                    with st.expander("➕ Upload New Attachment", expanded=False):
-                        uploaded_file = st.file_uploader(
-                            "Choose a file",
-                            type=['pdf', 'docx', 'doc', 'png', 'jpg', 'jpeg'],
-                            key=f"attachment_upload_ref_{lead.id}",
-                            help="Upload documents, images, or other files related to this referral"
-                        )
                         
-                        if uploaded_file is not None:
-                            if st.button("Upload", key=f"upload_btn_ref_{lead.id}", type="primary"):
-                                # Save file
-                                upload_dir = Path(__file__).parent.parent.parent / "backend" / "uploads"
-                                upload_dir.mkdir(exist_ok=True)
-                                
-                                file_path = upload_dir / f"{lead.id}_{uploaded_file.name}"
-                                with open(file_path, "wb") as f:
-                                    f.write(uploaded_file.getbuffer())
-                                
-                                # Save to database
-                                crud_attachments.create_attachment(
-                                    db,
-                                    lead_id=lead.id,
-                                    filename=uploaded_file.name,
-                                    file_path=str(file_path),
-                                    file_size=uploaded_file.size,
-                                    uploaded_by=st.session_state.username
-                                )
-                                
-                                st.success(f"✅ Uploaded: {uploaded_file.name}")
-                                st.rerun()
-                    
-                    # List existing attachments
-                    attachments = crud_attachments.get_attachments_by_lead(db, lead.id)
-                    
-                    if not attachments:
-                        st.info("No attachments yet. Upload files using the section above.")
-                    else:
-                        st.markdown(f"**{len(attachments)} file(s) attached**")
-                        
-                        for att in attachments:
-                            col1, col2, col3 = st.columns([3, 1, 1])
-                            
-                            with col1:
-                                # File icon based on extension
-                                ext = Path(att.filename).suffix.lower()
-                                icon = "📄"
-                                if ext in ['.jpg', '.jpeg', '.png', '.gif']:
-                                    icon = "🖼️"
-                                elif ext in ['.pdf']:
-                                    icon = "📕"
-                                elif ext in ['.doc', '.docx']:
-                                    icon = "📝"
-                                
-                                st.markdown(f"{icon} **{att.filename}** <span style='color: gray; font-size: 0.8rem; margin-left: 10px;'>by {att.uploaded_by} • {render_time(att.uploaded_at)}</span>", unsafe_allow_html=True)
-                            
-                            with col2:
-                                # Download button
-                                if os.path.exists(att.file_path):
-                                    with open(att.file_path, "rb") as f:
-                                        st.download_button(
-                                            "⬇️ Download",
-                                            f,
-                                            file_name=att.filename,
-                                            key=f"download_ref_{att.id}"
-                                        )
-                            
-                            with col3:
-                                # Delete button (admin only)
-                                if st.session_state.user_role == "admin":
-                                    if st.button("🗑️", key=f"delete_att_ref_{att.id}"):
+                        attachments = crud_attachments.get_attachments_by_lead(db, lead.id)
+                        if attachments:
+                            for att in attachments:
+                                att_col1, att_col2, att_col3, att_col4 = st.columns([4, 1, 1, 1])
+                                with att_col1: st.write(f"📄 **{att.filename}**")
+                                with att_col2:
+                                    if st.button("👁️", key=f"view_ref_{att.id}", use_container_width=True, help="Preview Document"):
+                                        open_modal('file_preview', att.id, title=att.filename, lead_data={'file_path': att.file_path, 'filename': att.filename})
+                                with att_col3:
+                                    if os.path.exists(att.file_path):
+                                        with open(att.file_path, "rb") as f:
+                                            st.download_button("⬇️", f, file_name=att.filename, key=f"dl_ref_{att.id}", use_container_width=True)
+                                with att_col4:
+                                    if st.session_state.user_role == "admin" and st.button("🗑️", key=f"del_ref_{att.id}", use_container_width=True):
                                         crud_attachments.delete_attachment(db, att.id)
-                                        if os.path.exists(att.file_path):
-                                            os.remove(att.file_path)
-                                        st.success("Attachment deleted")
                                         st.rerun()
-                            
-                            st.divider()
-                except Exception as e:
-                    st.error(f"Attachment error: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Attachment error: {str(e)}")
 
-                # History View
-                if st.session_state.get(f"show_history_ref_{lead.id}", False):
-                    st.info(f"Activity History for {lead.first_name} {lead.last_name}")
-                    history_logs = crud_activity_logs.get_lead_history(db, lead.id)
-                    if history_logs:
-                        for log in history_logs:
-                            label = get_action_label(log.action_type)
-                            timeframe = render_time(log.timestamp, style="ago")
-                            st.markdown(f"**{label}** - {timeframe}", unsafe_allow_html=True)
-                            st.markdown(f"By **{log.username}** on {render_time(log.timestamp)}", unsafe_allow_html=True)
-                            if log.description: st.write(log.description)
-                            if log.old_value and log.new_value:
-                                changes = format_changes(log.old_value, log.new_value)
-                                if changes:
-                                    for field, old_val, new_val in changes:
-                                        st.caption(f"- {field}: {old_val} -> {new_val}")
-                            st.divider()
-                    else:
-                        st.caption("No history recorded yet.")
+                    # History View
+                    if st.session_state.get(f"show_history_ref_{lead.id}", False):
+                        st.info(f"Activity History for {lead.first_name} {lead.last_name}")
+                        history_logs = crud_activity_logs.get_lead_history(db, lead.id)
+                        if history_logs:
+                            for log in history_logs:
+                                label = get_action_label(log.action_type)
+                                timeframe = render_time(log.timestamp, style="ago")
+                                st.markdown(f"**{label}** - {timeframe}", unsafe_allow_html=True)
+                                st.markdown(f"By **{log.username}** on {render_time(log.timestamp)}", unsafe_allow_html=True)
+                                if log.description: st.write(log.description)
+                                if log.old_value and log.new_value:
+                                    changes = format_changes(log.old_value, log.new_value)
+                                    if changes:
+                                        for field, old_val, new_val in changes:
+                                            st.caption(f"- {field}: {old_val} -> {new_val}")
+                                st.divider()
+                        else:
+                            st.caption("No history recorded yet.")
+
+            with cs_col:
+                bg_color = {"Not Called": "#FF3B30", "Pending": "#FFCC00", "Called": "#34C759"}.get(cur_cs, "#f0f2f6")
+                text_color = "white" if cur_cs != "Pending" else "#1c1c1c"
+                
+                # Use the new status pill class from common.py
+                from frontend.common import get_status_pill_class
+                pill_cls = get_status_pill_class(cur_cs)
+
+                # Marker for robust CSS targeting holding the status pill coloring class
+                st.markdown(f'<div id="fused-marker-ref-{lead.id}" class="status-marker {pill_cls}" style="display:none"></div>', unsafe_allow_html=True)
+                
+                # Dynamic CSS for Pill Style + Referral Card
+                st.markdown(f"""
+                    <style>
+                    /* THE CARD: Target the row containing our marker */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) {{
+                        background: #EAF7FF !important;
+                        border: 2px solid #35A7C7 !important;
+                        border-radius: 10px !important;
+                        margin: 8px 0 !important;
+                        gap: 0 !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        min-height: 60px !important;
+                        padding: 4px 12px 4px 0 !important;
+                    }}
+                    
+                    /* THE LEFT SIDE (Expander) */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] {{
+                        background: transparent !important;
+                        border: none !important;
+                        flex-grow: 1 !important;
+                    }}
+                    
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] summary {{
+                        background: transparent !important;
+                    }}
+
+                    /* Remove default column padding/borders on the parent columns only */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) > div[data-testid*="olumn"] {{
+                        padding: 0 !important;
+                        background: transparent !important;
+                        border: none !important;
+                    }}
+                    
+                    /* Apply vertical flex layout only to the right column */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) > div[data-testid*="olumn"]:nth-child(2) {{
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justify-content: center !important;
+                        height: 100% !important;
+                    }}
+
+                    /* Eliminate internal Streamlit gaps that push text out of bounds (Right column only) */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) > div[data-testid*="olumn"]:nth-child(2) > div[data-testid="stVerticalBlock"] {{
+                        gap: 0 !important;
+                        padding: 0 !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: flex-end !important;
+                        justify-content: center !important;
+                    }}
+                    
+                    /* Remove margins from Streamlit element containers in right column */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) > div[data-testid*="olumn"]:nth-child(2) > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] {{
+                        margin-bottom: 0 !important;
+                        min-height: 0 !important;
+                    }}
+                    
+                    /* Header text styling matching blueprint */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] summary p {{
+                        font-size: 18px !important;
+                        font-weight: 600 !important;
+                        color: #0b2a35 !important;
+                    }}
+                    </style>
+                """, unsafe_allow_html=True)
+                
+                cs_key = f"inline_cs_ref_{lead.id}"
+                selected_display = st.selectbox(
+                    "Status",
+                    display_options,
+                    index=display_options.index(cur_display),
+                    key=cs_key,
+                    label_visibility="collapsed"
+                )
+
+                # Display updater info below the dropdown
+                from frontend.common import get_updater_info
+                st.markdown(get_updater_info(lead), unsafe_allow_html=True)
+                
+                selected_val = value_map.get(selected_display)
+                if selected_val != cur_cs:
+                    _ul(db, lead.id, LeadUpdate(
+                        priority=selected_val,
+                        call_status_updated_by=st.session_state.username,
+                        call_status_updated_at=datetime.utcnow()
+                    ), st.session_state.username, st.session_state.get('db_user_id'))
+                    clear_leads_cache()
+                    st.rerun()
     else:
         st.info("No referrals found")
     
