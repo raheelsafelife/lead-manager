@@ -232,13 +232,27 @@ def format_changes(old_value: Optional[str], new_value: Optional[str]) -> list:
         old_dict = json.loads(old_value) if isinstance(old_value, str) else old_value
         new_dict = json.loads(new_value) if isinstance(new_value, str) else new_value
         
+        def format_val(val):
+            if val is None:
+                return "None"
+            val_str = str(val)
+            # detect ISO datetime format like 2026-03-06T22:03:30.353436
+            if len(val_str) >= 19 and val_str[4] == '-' and val_str[7] == '-' and val_str[10] == 'T':
+                try:
+                    # Parse and format to more readable style
+                    dt = datetime.fromisoformat(val_str.replace('Z', '+00:00'))
+                    return dt.strftime('%m/%d/%Y %I:%M %p')
+                except:
+                    pass
+            return val_str
+
         changes = []
         for key in new_dict:
             if key in old_dict and old_dict[key] != new_dict[key]:
                 # Format field name
                 field_name = key.replace("_", " ").title()
-                old_val = str(old_dict[key]) if old_dict[key] is not None else "None"
-                new_val = str(new_dict[key]) if new_dict[key] is not None else "None"
+                old_val = format_val(old_dict[key])
+                new_val = format_val(new_dict[key])
                 changes.append((field_name, old_val, new_val))
         
         return changes

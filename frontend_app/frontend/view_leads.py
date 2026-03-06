@@ -444,8 +444,17 @@ def view_leads():
                         st.info(f"Activity History for {lead.first_name} {lead.last_name}")
                         history_logs = crud_activity_logs.get_lead_history(db, lead.id)
                         if history_logs:
-                            for log in history_logs[:5]:
-                                st.markdown(f"**{get_action_label(log.action_type)}** - {render_time(log.timestamp, style='ago')}", unsafe_allow_html=True)
+                            for log in history_logs[:10]:
+                                st.markdown(f"**{render_time(log.timestamp, style='ago')}**: {get_action_label(log.action_type)}", unsafe_allow_html=True)
+                                if log.description and log.description != get_action_label(log.action_type):
+                                    st.caption(log.description)
+                                
+                                # Show changes if available
+                                if log.old_value and log.new_value:
+                                    changes = format_changes(log.old_value, log.new_value)
+                                    if changes:
+                                        for field, old, new in changes:
+                                            st.markdown(f"<div style='font-size: 0.85rem; color: #6B7280; margin-left: 20px;'>&bull; **{field}:** {old} &rarr; {new}</div>", unsafe_allow_html=True)
                                 st.divider()
                         else:
                             st.caption("No history recorded yet.")
