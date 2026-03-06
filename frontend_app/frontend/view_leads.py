@@ -445,7 +445,7 @@ def view_leads():
                         history_logs = crud_activity_logs.get_lead_history(db, lead.id)
                         if history_logs:
                             for log in history_logs[:5]:
-                                st.write(f"**{get_action_label(log.action_type)}** - {render_time(log.timestamp, style='ago')}")
+                                st.markdown(f"**{get_action_label(log.action_type)}** - {render_time(log.timestamp, style='ago')}", unsafe_allow_html=True)
                                 st.divider()
                         else:
                             st.caption("No history recorded yet.")

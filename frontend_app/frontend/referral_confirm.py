@@ -284,18 +284,17 @@ def display_referral_confirm(lead, db, highlight=False):
                     with a_col3: 
                          if os.path.exists(att.file_path):
                              with open(att.file_path, "rb") as f:
-                                 st.download_button("⬇️", f, file_name=att.filename, key=f"dl_{att.id}", use_container_width=True)
+                                 st.download_button("⬇", f, file_name=att.filename, key=f"dl_{att.id}", use_container_width=True)
                     with a_col4:
                          if st.session_state.user_role == "admin" and st.button("🗑️", key=f"del_{att.id}", use_container_width=True):
                              crud_attachments.delete_attachment(db, att.id)
                              st.rerun()
         except Exception as e: st.error(f"Attachment error: {e}")
-
         if st.session_state.get(f"show_history_conf_{lead.id}", False):
             history_logs = crud_activity_logs.get_lead_history(db, lead.id)
             if history_logs:
                 for log in history_logs[:5]:
-                    st.write(f"**{get_action_label(log.action_type)}** - {render_time(log.timestamp, style='ago')}")
+                    st.markdown(f"**{render_time(log.timestamp, style='ago')}**: {get_action_label(log.action_type)}", unsafe_allow_html=True)
                     st.divider()
 
 def referral_confirm():
