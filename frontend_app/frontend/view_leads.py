@@ -445,7 +445,8 @@ def view_leads():
                         history_logs = crud_activity_logs.get_lead_history(db, lead.id)
                         if history_logs:
                             for log in history_logs[:10]:
-                                st.markdown(f"**{render_time(log.timestamp, style='ago')}**: {get_action_label(log.action_type)}", unsafe_allow_html=True)
+                                st.markdown(f"**{render_time(log.timestamp, style='ago')}** &bull; **{get_action_label(log.action_type)}** by **{log.username}**", unsafe_allow_html=True)
+                                st.caption(f"Time: {render_time(log.timestamp)}")
                                 if log.description and log.description != get_action_label(log.action_type):
                                     st.caption(log.description)
                                 
@@ -454,7 +455,7 @@ def view_leads():
                                     changes = format_changes(log.old_value, log.new_value)
                                     if changes:
                                         for field, old, new in changes:
-                                            st.markdown(f"<div style='font-size: 0.85rem; color: #6B7280; margin-left: 20px;'>&bull; **{field}:** {old} &rarr; {new}</div>", unsafe_allow_html=True)
+                                            st.markdown(f"<div style='font-size: 0.85rem; color: #6B7280; margin-left: 20px;'>&bull; <b>{field}:</b> {old} &rarr; {new}</div>", unsafe_allow_html=True)
                                 st.divider()
                         else:
                             st.caption("No history recorded yet.")
