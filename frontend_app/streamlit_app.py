@@ -1,31 +1,62 @@
-"""
-Lead Manager - Main Application Entry Point (Brain)
-This file serves as the router and imports page modules from frontend folder.
-"""
+import streamlit as st
 import sys
 import os
 from pathlib import Path
 
-# Add backend to Python path for importing backend modules
-backend_path = Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(backend_path))
+# 0. ULTRA-FAST PAGE CONFIGURATION (Must be the very first Streamlit command)
+# Avoid importing heavy modules here to minimize the "Streamlit Crown" flash on refresh
 
-import streamlit as st
+# Pre-computed base64 logo for near-instant application
+try:
+    # Add the current directory to path to ensure assets_base64 is found
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    if _script_dir not in sys.path:
+        sys.path.insert(0, _script_dir)
+    from assets_base64 import LOGO_BASE64
+except Exception:
+    # Fallback if the file is missing or import fails
+    LOGO_BASE64 = "2.png.jpeg"
 
-# Import early for page configuration
-from frontend.common import get_logo_path
-
-# Page configuration - must be first Streamlit command
 st.set_page_config(
     page_title="Lead Manager",
-    page_icon=get_logo_path("2.png.jpeg"),
+    page_icon=LOGO_BASE64,
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Import other page modules from frontend folder
-from frontend.common import init_session_state, inject_custom_css, handle_active_modal
-# (Note: get_logo_path already imported above)
+# BRANDING LOCKER: Aggressively force title and favicon to stop Streamlit flash
+st.markdown(f"""
+    <script>
+    (function() {{
+        const title = "Lead Manager";
+        const favicon = "{LOGO_BASE64}";
+        
+        const forceBranding = () => {{
+            if (document.title !== title) document.title = title;
+            let link = document.querySelector("link[rel*='icon']");
+            if (!link) {{
+                link = document.createElement('link');
+                link.rel = 'shortcut icon';
+                document.head.appendChild(link);
+            }}
+            if (link.href !== favicon) link.href = favicon;
+        }};
+
+        // Run immediately and then frequently for the first 3 seconds
+        forceBranding();
+        const interval = setInterval(forceBranding, 50);
+        setTimeout(() => clearInterval(interval), 3000);
+    }})();
+    </script>
+    """, unsafe_allow_html=True)
+
+# 1. PATH CONFIGURATION
+# Add backend to Python path for importing backend modules
+backend_path = Path(__file__).parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
+
+# 2. HEAVY IMPORTS (Import after branding is applied)
+from frontend.common import get_logo_path, init_session_state, inject_custom_css, handle_active_modal
 from frontend.auth import login, signup, forgot_password
 from frontend.dashboard import dashboard, view_all_user_dashboards, discovery_tool
 from frontend.view_leads import view_leads, mark_referral_page

@@ -22,6 +22,12 @@ RUN pip3 install --no-cache-dir --default-timeout=100 -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
+# Patch Streamlit Branding (Deep Fix to eliminate flash)
+RUN STREAMLIT_PATH=$(python3 -c "import streamlit; import os; print(os.path.dirname(streamlit.__file__))") && \
+    cp frontend_app/icon1.png "$STREAMLIT_PATH/static/favicon.png" && \
+    sed -i 's/<title>Streamlit<\/title>/<title>Lead Manager<\/title>/g' "$STREAMLIT_PATH/static/index.html" && \
+    sed -i 's/favicon.png/favicon.png?v=2/g' "$STREAMLIT_PATH/static/index.html"
+
 # Create a data directory for the persistent database and set permissions
 RUN mkdir -p /app/data && chmod -R 777 /app/data
 
