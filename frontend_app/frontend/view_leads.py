@@ -446,7 +446,7 @@ def view_leads():
                         if history_logs:
                             for log in history_logs[:10]:
                                 st.markdown(f"**{render_time(log.timestamp, style='ago')}** &bull; **{get_action_label(log.action_type)}** by **{log.username}**", unsafe_allow_html=True)
-                                st.caption(f"Time: {render_time(log.timestamp)}")
+                                st.markdown(f"<div style='font-size: 0.85rem; color: #6B7280;'>Time: {render_time(log.timestamp)}</div>", unsafe_allow_html=True)
                                 if log.description and log.description != get_action_label(log.action_type):
                                     st.caption(log.description)
                                 
