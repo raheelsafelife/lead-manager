@@ -1629,6 +1629,8 @@ def open_modal(modal_type, target_id, title=None, message=None, **kwargs):
     
     st.session_state.modal_open = True
     st.session_state.modal_action = modal_type
+    st.session_state.modal_lead_id = target_id
+    st.session_state.modal_lead_name = title
     st.session_state.modal_data = {
         'title': title,
         'message': message,
@@ -1863,7 +1865,9 @@ def show_edit_modal_dialog(m):
         with col1:
             new_first = st.text_input("First Name", value=str(lead.get('first_name') or ""), key=f"edit_first_{m['target_id']}")
             new_last = st.text_input("Last Name", value=str(lead.get('last_name') or ""), key=f"edit_last_{m['target_id']}")
+            new_custom_user_id = st.text_input("Employee ID", value=str(lead.get('custom_user_id') or ""), key=f"edit_custom_user_id_{m['target_id']}")
             new_phone = st.text_input("Phone", value=str(lead.get('phone') or ""), key=f"edit_phone_{m['target_id']}")
+            new_email = st.text_input("Email", value=str(lead.get('email') or ""), key=f"edit_email_{m['target_id']}")
             new_staff = st.text_input("Staff Name", value=str(lead.get('staff_name') or ""), key=f"edit_staff_{m['target_id']}")
             
             source_options = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"]
@@ -1974,6 +1978,7 @@ def show_edit_modal_dialog(m):
             if age_key not in st.session_state:
                 st.session_state[age_key] = int(lead.get('age') or 0)
             new_age = st.number_input("Age / Year", min_value=0, max_value=3000, key=age_key)
+            new_ssn = st.text_input("SSN", value=str(lead.get('ssn') or ""), key=f"edit_ssn_{m['target_id']}")
             new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
             new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")
             new_e_relation = st.text_input("Relation", value=str(lead.get('e_contact_relation') or ""), key=f"edit_erelation_{m['target_id']}")
@@ -2074,26 +2079,35 @@ def show_edit_modal_dialog(m):
                 close_modal()
         with c2:
             if st.button("SAVE CHANGES", type="primary", use_container_width=True, key=f"edit_save_{m['target_id']}"):
-                update_dict = {
-                    "first_name": new_first, "last_name": new_last, "phone": new_phone, "staff_name": new_staff, "source": new_source,
-                    "event_name": new_event_name, "soc_date": new_soc_date, "other_source_type": new_other_source, "word_of_mouth_type": new_word_of_mouth,
-                    "city": new_city, "street": new_street, "state": new_state, "zip_code": new_zip, "last_contact_status": new_status,
-                    "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
-                    "e_contact_phone": new_e_phone, "active_client": lead.get('active_client'), "comments": new_comments, "age": new_age if new_age > 0 else None,
-                    "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders,
-                    "care_status": new_care_status
-                }
-                
-                if is_referral and new_status == "Not Approved":
-                    update_dict["care_status"], update_dict["authorization_received"] = None, False
-                
-                schema_data = LeadUpdate(**update_dict)
-                if crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id')):
-                    st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
-                    clear_leads_cache()
-                    close_modal()
-                else:
-                    st.error("Save failed.")
+                try:
+                    update_dict = {
+                        "first_name": new_first, "last_name": new_last, "phone": new_phone, "staff_name": new_staff, "source": new_source,
+                        "event_name": new_event_name, "soc_date": new_soc_date, "other_source_type": new_other_source, "word_of_mouth_type": new_word_of_mouth,
+                        "city": new_city, "street": new_street, "state": new_state, "zip_code": new_zip, "last_contact_status": new_status,
+                        "dob": new_dob, "medicaid_no": new_medicaid, "e_contact_name": new_e_name, "e_contact_relation": new_e_relation,
+                        "e_contact_phone": new_e_phone, "active_client": lead.get('active_client'), "comments": new_comments, "age": new_age if new_age > 0 else None,
+                        "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders,
+                        "care_status": new_care_status,
+                        "custom_user_id": new_custom_user_id,
+                        "email": new_email,
+                        "ssn": new_ssn
+                    }
+                    
+                    if is_referral and new_status == "Not Approved":
+                        update_dict["care_status"], update_dict["authorization_received"] = None, False
+                    
+                    schema_data = LeadUpdate(**update_dict)
+                    res = crud_leads.update_lead(db, m['target_id'], schema_data, st.session_state.username, st.session_state.get('db_user_id'))
+                    if res:
+                        st.session_state['success_msg'] = f"Success! Lead '{new_first} {new_last}' updated successfully!"
+                        clear_leads_cache()
+                        close_modal()
+                    else:
+                        st.error("Save failed: update_lead returned None")
+                except Exception as e:
+                    import traceback
+                    st.error(f"Error: {e}")
+                    st.exception(e)
     finally:
         db.close()
 

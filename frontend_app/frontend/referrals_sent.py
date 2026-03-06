@@ -369,11 +369,35 @@ def view_referrals():
                         st.write(f"**ID:** {lead.id}")
                         st.write(f"**Name:** {lead.first_name} {lead.last_name}")
                         st.write(f"**Staff:** {lead.staff_name}")
+                        st.write(f"**Employee ID:** {lead.custom_user_id or 'N/A'}")
                         st.write(f"**Source:** {lead.source}")
-                        st.write(f"**Phone:** {lead.phone}")
-                        if lead.age:
-                            st.write(f"**Age:** {lead.age}")
-                        st.write(f"**City:** {lead.city or 'N/A'}")
+                        # Source sub-type
+                        if lead.source == "Event" and lead.event_name:
+                            st.write(f"**Event:** {lead.event_name}")
+                        elif lead.source == "Word of Mouth" and lead.word_of_mouth_type:
+                            st.write(f"**Word of Mouth Type:** {lead.word_of_mouth_type}")
+                        elif lead.source == "Other" and lead.other_source_type:
+                            st.write(f"**Other Source:** {lead.other_source_type}")
+                        st.write(f"**Phone:** {lead.phone or 'N/A'}")
+                        st.write(f"**Email:** {lead.email or 'N/A'}")
+                        dob_str = lead.dob.strftime('%m/%d/%Y') if lead.dob else 'N/A'
+                        st.write(f"**DOB:** {dob_str}")
+                        st.write(f"**Age:** {lead.age if lead.age is not None else 'N/A'}")
+                        st.write(f"**SSN:** {lead.ssn or 'N/A'}")
+                        st.write(f"**Medicaid #:** {lead.medicaid_no or 'N/A'}")
+                        # Address
+                        city_str = lead.city or ''
+                        state_str = lead.state or ''
+                        if city_str and state_str and state_str.lower() in city_str.lower():
+                            addr_parts = [p for p in [lead.street, lead.city, lead.zip_code] if p]
+                        else:
+                            addr_parts = [p for p in [lead.street, lead.city, lead.state, lead.zip_code] if p]
+                        st.write(f"**Address:** {', '.join(addr_parts) if addr_parts else 'N/A'}")
+                        
+                        # Emergency Contact
+                        st.write(f"**Emergency Contact:** {lead.e_contact_name or 'N/A'}")
+                        st.write(f"**Relation:** {lead.e_contact_relation or 'N/A'}")
+                        st.write(f"**EC Phone:** {lead.e_contact_phone or 'N/A'}")
 
                     with col2:
                         st.write(f"**Status:** {lead.last_contact_status}")
