@@ -275,7 +275,9 @@ def display_referral_confirm(lead, db, highlight=False):
             if attachments:
                 for att in attachments:
                     a_col1, a_col2, a_col3, a_col4 = st.columns([4, 1, 1, 1])
-                    with a_col1: st.write(f"📄 **{att.filename}** - {att.uploaded_by}")
+                    with a_col1:
+                        time_str = render_time(att.uploaded_at)
+                        st.markdown(f"📄 **{att.filename}** - Uploaded by **{att.uploaded_by}** on {time_str}", unsafe_allow_html=True)
                     with a_col2:
                         if st.button("👁️", key=f"view_{att.id}", use_container_width=True, help="Preview Document"):
                             open_modal('file_preview', att.id, title=att.filename, lead_data={'file_path': att.file_path, 'filename': att.filename})

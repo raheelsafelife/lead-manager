@@ -537,7 +537,9 @@ def view_referrals():
                         if attachments:
                             for att in attachments:
                                 att_col1, att_col2, att_col3, att_col4 = st.columns([4, 1, 1, 1])
-                                with att_col1: st.write(f"📄 **{att.filename}**")
+                                with att_col1:
+                                    time_str = render_time(att.uploaded_at)
+                                    st.markdown(f"📄 **{att.filename}** - Uploaded by **{att.uploaded_by}** on {time_str}", unsafe_allow_html=True)
                                 with att_col2:
                                     if st.button("👁️", key=f"view_ref_{att.id}", use_container_width=True, help="Preview Document"):
                                         open_modal('file_preview', att.id, title=att.filename, lead_data={'file_path': att.file_path, 'filename': att.filename})

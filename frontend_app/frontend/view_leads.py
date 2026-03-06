@@ -478,7 +478,9 @@ def view_leads():
                         if attachments:
                             for att in attachments:
                                 atcol1, atcol2, atcol3, atcol4 = st.columns([4, 1, 1, 1])
-                                with atcol1: st.write(f"📄 **{att.filename}**")
+                                with atcol1:
+                                    time_str = render_time(att.uploaded_at)
+                                    st.markdown(f"📄 **{att.filename}** - Uploaded by **{att.uploaded_by}** on {time_str}", unsafe_allow_html=True)
                                 with atcol2:
                                     if st.button("👁️", key=f"view_lead_att_{att.id}", use_container_width=True, help="Preview Document"):
                                         open_modal('file_preview', att.id, title=att.filename, lead_data={'file_path': att.file_path, 'filename': att.filename})
