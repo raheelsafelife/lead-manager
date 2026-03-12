@@ -374,7 +374,11 @@ def search_leads(
         
     # 8. Priority Filter
     if priority_filter and priority_filter != "All":
-        query = query.filter(models.Lead.priority == priority_filter)
+        if priority_filter == "Not Called":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.priority == "Not Called", models.Lead.priority == None))
+        else:
+            query = query.filter(models.Lead.priority == priority_filter)
         
     # 8.5 Tag Color Filter
     if tag_color_filter and tag_color_filter != "All":
@@ -514,7 +518,11 @@ def count_search_leads(
         query = query.filter(models.Lead.last_contact_status == status_filter)
         
     if priority_filter and priority_filter != "All":
-        query = query.filter(models.Lead.priority == priority_filter)
+        if priority_filter == "Not Called":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.priority == "Not Called", models.Lead.priority == None))
+        else:
+            query = query.filter(models.Lead.priority == priority_filter)
         
     if tag_color_filter and tag_color_filter != "All":
         query = query.filter(models.Lead.tag_color == tag_color_filter)

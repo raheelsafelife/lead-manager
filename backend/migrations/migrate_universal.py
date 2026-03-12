@@ -113,13 +113,35 @@ def migrate():
             
             # Soft Delete
             ('deleted_at', 'DATETIME'),
-            ('deleted_by', 'VARCHAR(100)')
+            ('deleted_by', 'VARCHAR(100)'),
+
+            # Call Status Tracking (new fields)
+            ('call_status_updated_by', 'VARCHAR(100)'),
+            ('call_status_updated_at', 'DATETIME'),
+
+            # Tag Color
+            ('tag_color', 'VARCHAR(50)'),
         ]
         
         for col_name, col_type in lead_updates:
             if col_name not in lead_cols:
                 print(f"  + Adding {col_name} ({col_type})...")
                 cursor.execute(f"ALTER TABLE leads ADD COLUMN {col_name} {col_type}")
+
+        # --- DATA MIGRATION: Convert old priority values to new call status values ---
+        print("\nStep: Migrating old priority values to call status values...")
+        old_priority_values = ['High', 'Medium', 'Low']
+        total_migrated = 0
+        for old_val in old_priority_values:
+            cursor.execute("UPDATE leads SET priority = 'Not Called' WHERE priority = ?", (old_val,))
+            count = cursor.rowcount
+            if count > 0:
+                print(f"  Converted '{old_val}' -> 'Not Called': {count} rows")
+                total_migrated += count
+        if total_migrated == 0:
+            print("  ✓ No old priority values found (already migrated or clean DB)")
+        else:
+            print(f"  ✓ Migrated {total_migrated} rows total")
 
         # --- AGENCIES TABLE ---
         print("\nChecking 'agencies' table...")
