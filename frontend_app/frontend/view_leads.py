@@ -21,7 +21,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params, export_leads_to_excel
 
 
 def view_leads():
@@ -41,6 +41,7 @@ def view_leads():
     st.markdown('<div class="main-header">Manage Leads</div>', unsafe_allow_html=True)
     
     db = SessionLocal()
+    owner_id = st.session_state.get('db_user_id')
 
     # --- TOP-LEVEL NAVIGATION HANDLING ---
     
@@ -206,6 +207,42 @@ def view_leads():
             st.session_state.leads_page = 0
             st.rerun()
 
+    # Excel Download Button
+    download_all_col1, download_all_col2 = st.columns([4, 1])
+    with download_all_col2:
+        if st.button("📥 Download Excel", key="download_leads_excel_btn", use_container_width=True):
+            # Fetch all matching leads (limit 2000 to cover all if user wants "all")
+            all_filtered_leads = search_leads(
+                db,
+                search_query=search_name if search_name else None,
+                staff_filter=filter_staff if filter_staff else None,
+                source_filter=filter_source if filter_source else None,
+                status_filter=st.session_state.status_filter,
+                priority_filter=st.session_state.call_status_filter,
+                active_inactive_filter=st.session_state.active_inactive_filter,
+                owner_id=owner_id,
+                only_my_leads=st.session_state.show_only_my_leads,
+                include_deleted=st.session_state.show_deleted_leads,
+                lead_type_filter="Lead",
+                auth_received_filter=False,
+                skip=0,
+                limit=2000, 
+                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+                tag_color_filter=st.session_state.tag_color_filter,
+                sort_by=st.session_state.leads_sort_by
+            )
+            if all_filtered_leads:
+                excel_data = export_leads_to_excel(all_filtered_leads)
+                st.download_button(
+                    label="Click here to download",
+                    data=excel_data,
+                    file_name=f"leads_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="trigger_download_leads"
+                )
+            else:
+                st.warning("No leads found to download.")
+
     # Sorting
     sort_col1, sort_col2 = st.columns([1, 4])
     with sort_col1:
@@ -224,8 +261,6 @@ def view_leads():
     # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
     skip, limit, page_index, rows_per_page = get_pagination_params("leads", default_limit=10)
     
-    # Owner filter logic
-    owner_id = st.session_state.get('db_user_id')
     only_my_leads = False
     if st.session_state.user_role != "admin" and st.session_state.show_only_my_leads:
         only_my_leads = True
@@ -690,7 +725,7 @@ def mark_referral_page():
     with col_t1:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
     with col_t2:
-        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused",  "Inactive"])
+        initial_status = st.selectbox("**Initial Status:**", ["Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused",  "Inactive"])
     
     st.divider()
     

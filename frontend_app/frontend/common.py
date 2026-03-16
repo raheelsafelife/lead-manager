@@ -15,6 +15,7 @@ from app.utils.activity_logger import utc_to_local
 from app.crud import crud_session_tokens # crud_leads moved to local import
 from streamlit.components.v1 import html
 import os
+import io
 
 def get_logo_path(filename="icon1.png"):
     """Find the specified logo file in multiple possible locations"""
@@ -1595,7 +1596,7 @@ def get_status_emoji(status):
         "Initial Call": "📞", "Intro Call": "🤝", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤",
         "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️",
-        "Initial Referral Sent": "📤", "Referral Sent": "📤", "Not Approved": "🚫",
+        "Referral Sent": "📤", "Not Approved": "🚫",
         "Services Refused": "🙅"
     }
     return status_map.get(status, "📄")
@@ -1780,7 +1781,7 @@ def confirmation_modal_dialog(m):
                 elif m['modal_type'] == 'undo_auth':
                     from app.schemas import LeadUpdate
                     # Set authorization_received=False and move status back out of "Confirmed" if needed
-                    update_data = LeadUpdate(authorization_received=False, last_contact_status="Initial Referral Sent")
+                    update_data = LeadUpdate(authorization_received=False, last_contact_status="Referral Sent")
                     if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
                         msg = "Success! Authorization has been unmarked."
                         success = True
@@ -1941,8 +1942,8 @@ def show_edit_modal_dialog(m):
                     new_care_status = status_group # Hold or Terminated
             
             elif is_referral:
-                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
-                current_status = lead.get('last_contact_status', 'Initial Referral Sent')
+                status_options = ["Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
+                current_status = lead.get('last_contact_status', 'Referral Sent')
                 status_idx = status_options.index(current_status) if current_status in status_options else 0
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
@@ -2466,3 +2467,74 @@ def render_api_status():
     except:
         st.sidebar.markdown("**System: Offline**")
 
+
+
+def export_leads_to_excel(leads):
+    """
+    Exports a list of lead objects to an Excel file (XLSX).
+    Returns the binary content of the Excel file.
+    """
+    data = []
+    for lead in leads:
+        # Format CCU Information
+        ccu_info = "N/A"
+        if lead.ccu:
+            ccu_parts = [f"Name: {lead.ccu.name}"]
+            
+            # Address parts
+            addr_parts = [p for p in [lead.ccu.street, lead.ccu.city, lead.ccu.state, lead.ccu.zip_code] if p]
+            if addr_parts:
+                ccu_parts.append(f"Address: {', '.join(addr_parts)}")
+            
+            if lead.ccu.phone:
+                ccu_parts.append(f"Phone: {lead.ccu.phone}")
+            
+            if lead.ccu.email:
+                ccu_parts.append(f"Email: {lead.ccu.email}")
+            
+            ccu_info = "\n".join(ccu_parts)
+
+        # Get Payor name safely
+        payor_name = "N/A"
+        if lead.agency:
+            payor_name = lead.agency.name
+
+        # Format SOC Date
+        soc_str = lead.soc_date.strftime('%m/%d/%Y') if (hasattr(lead, 'soc_date') and lead.soc_date) else "N/A"
+
+        # Build row
+        row = {
+            "ID": lead.id,
+            "Name": f"{lead.first_name} {lead.last_name}",
+            "Staff": lead.staff_name or "N/A",
+            "Phone": lead.phone or "N/A",
+            "Email": lead.email if lead.email else "N/A",
+            "SSN": lead.ssn if lead.ssn else "N/A",
+            "Emergency Contact": lead.e_contact_name if lead.e_contact_name else "N/A",
+            "Relation": (lead.e_contact_relation or getattr(lead, 'relation_to_client', None)) or "N/A",
+            "EC Phone": lead.e_contact_phone if lead.e_contact_phone else "N/A",
+            "CCU Information": ccu_info,
+            "Payor": payor_name,
+            "Start of Care": soc_str
+        }
+        data.append(row)
+
+    # Create DataFrame
+    df = pd.DataFrame(data)
+
+    # Buffer for Excel file
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Leads')
+        
+        # Auto-adjust columns width (optional but nice)
+        worksheet = writer.sheets['Leads']
+        for i, col in enumerate(df.columns):
+            # Set width to max length of column name or values, capped at 50
+            max_len = max(
+                df[col].astype(str).map(len).max(),
+                len(str(col))
+            ) + 2
+            worksheet.column_dimensions[chr(65 + i)].width = min(max_len, 50)
+            
+    return output.getvalue()

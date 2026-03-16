@@ -385,10 +385,16 @@ def search_leads(
         query = query.filter(models.Lead.tag_color == tag_color_filter)
         
     # 9. Active/Inactive Filter
-    if active_inactive_filter == "Active":
-        query = query.filter(models.Lead.last_contact_status != "Inactive")
-    elif active_inactive_filter == "Inactive":
-        query = query.filter(models.Lead.last_contact_status == "Inactive")
+    if only_clients:
+        if active_inactive_filter == "Active":
+            query = query.filter(models.Lead.last_contact_status.in_(["Referral Sent", "Initial Referral Sent", "Assessment Scheduled"]))
+        elif active_inactive_filter == "Inactive":
+            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused"]))
+    else:
+        if active_inactive_filter == "Active":
+            query = query.filter(models.Lead.last_contact_status != "Inactive")
+        elif active_inactive_filter == "Inactive":
+            query = query.filter(models.Lead.last_contact_status == "Inactive")
         
     # 10. Advanced Filters (City / Zip)
     if city_filter:
@@ -527,10 +533,16 @@ def count_search_leads(
     if tag_color_filter and tag_color_filter != "All":
         query = query.filter(models.Lead.tag_color == tag_color_filter)
         
-    if active_inactive_filter == "Active":
-        query = query.filter(models.Lead.last_contact_status != "Inactive")
-    elif active_inactive_filter == "Inactive":
-        query = query.filter(models.Lead.last_contact_status == "Inactive")
+    if only_clients:
+        if active_inactive_filter == "Active":
+            query = query.filter(models.Lead.last_contact_status.in_(["Referral Sent", "Initial Referral Sent", "Assessment Scheduled"]))
+        elif active_inactive_filter == "Inactive":
+            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused"]))
+    else:
+        if active_inactive_filter == "Active":
+            query = query.filter(models.Lead.last_contact_status != "Inactive")
+        elif active_inactive_filter == "Inactive":
+            query = query.filter(models.Lead.last_contact_status == "Inactive")
         
     if city_filter:
         from sqlalchemy import or_

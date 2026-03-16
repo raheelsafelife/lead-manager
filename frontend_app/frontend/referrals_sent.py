@@ -21,7 +21,7 @@ from sqlalchemy import func
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
-from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params, render_tag_color_picker
+from frontend.common import prepare_lead_data_for_email, get_call_status_tag, render_time, render_confirmation_modal, open_modal, close_modal, get_leads_cached, clear_leads_cache, show_add_comment_dialog, render_comment_stack, render_pagination, get_pagination_params, render_tag_color_picker, export_leads_to_excel
 
 
 def view_referrals():
@@ -118,9 +118,9 @@ def view_referrals():
     f_col1, f_col2, f_col3, f_col4, f_col5, f_spacer = st.columns([1.5, 1.5, 1.2, 1.3, 0.8, 0.7])
     
     with f_col1:
-        if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
-                    type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
-            st.session_state.referral_status_filter = "Initial Referral Sent"
+        if st.button("Referral Sent", key="rs_sent", use_container_width=True, 
+                    type="primary" if st.session_state.referral_status_filter == "Referral Sent" else "secondary"):
+            st.session_state.referral_status_filter = "Referral Sent"
             st.session_state.refs_page = 0
             st.rerun()
     
@@ -169,6 +169,42 @@ def view_referrals():
         if st.button("Search", key="search_referrals_btn", use_container_width=True):
             st.session_state.refs_page = 0
             st.rerun()
+
+    # Excel Download Button
+    download_all_col1, download_all_col2 = st.columns([4, 1])
+    with download_all_col2:
+        if st.button("📥 Download Excel", key="download_referrals_excel_btn", use_container_width=True):
+            # Fetch all matching referrals
+            all_filtered_leads = search_leads(
+                db,
+                search_query=search_name if search_name else None,
+                staff_filter=filter_staff if filter_staff else None,
+                source_filter=filter_source if filter_source else None,
+                status_filter=st.session_state.referral_status_filter,
+                priority_filter=st.session_state.referral_call_status_filter,
+                active_inactive_filter=st.session_state.referral_active_inactive_filter,
+                owner_id=st.session_state.db_user_id if st.session_state.show_only_my_referrals else None,
+                only_my_leads=st.session_state.show_only_my_referrals,
+                include_deleted=st.session_state.show_deleted_referrals,
+                only_clients=True, # Referral page specific
+                lead_type_filter=st.session_state.referral_type_filter,
+                skip=0,
+                limit=2000, 
+                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+                tag_color_filter=st.session_state.referral_tag_color_filter,
+                sort_by=st.session_state.referrals_sort_by
+            )
+            if all_filtered_leads:
+                excel_data = export_leads_to_excel(all_filtered_leads)
+                st.download_button(
+                    label="Click here to download",
+                    data=excel_data,
+                    file_name=f"referrals_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="trigger_download_referrals"
+                )
+            else:
+                st.warning("No referrals found to download.")
 
     # Sorting
     sort_col1, sort_col2 = st.columns([1, 4])
@@ -338,7 +374,6 @@ def view_referrals():
     if leads:
         for lead in leads:
             from frontend.common import get_tag_color_dot
-            from datetime import datetime
             from app.crud.crud_leads import update_lead as _ul
 
             # Define status options with emojis

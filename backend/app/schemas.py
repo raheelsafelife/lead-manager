@@ -114,6 +114,7 @@ class LeadBase(BaseModel):
     custom_user_id: Optional[str] = None
     owner_id: Optional[int] = None
     send_reminders: bool = True
+    relation_to_client: Optional[str] = None
 
 
 
@@ -163,6 +164,7 @@ class LeadUpdate(BaseModel):
     call_status_updated_by: Optional[str] = None
     call_status_updated_at: Optional[datetime] = None
     tag_color: Optional[str] = None
+    relation_to_client: Optional[str] = None
 
 
 
