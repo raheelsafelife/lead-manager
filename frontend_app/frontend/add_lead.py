@@ -420,7 +420,7 @@ def add_lead():
                         "state": state or None,
                         "zip_code": zip_code or None,
                         "active_client": True if source in ["Transfer", "Direct Through CCU"] else False,
-                        "care_status": "Care Start" if last_contact_status == "Care Start" else ("Not Start" if last_contact_status == "Not Start" else None),
+                        "care_status": "Transfer Received" if source == "Transfer" and last_contact_status == "Care Start" else ("Care Start" if last_contact_status == "Care Start" else ("Not Start" if last_contact_status == "Not Start" else None)),
                         "authorization_received": True if last_contact_status in ["Care Start", "Not Start"] or source in ["Transfer", "Direct Through CCU"] else False,
                         "soc_date": soc_date if (source == "Transfer" or last_contact_status == "Care Start") else None,
                         "last_contact_status": last_contact_status,

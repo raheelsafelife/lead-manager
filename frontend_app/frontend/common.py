@@ -1913,12 +1913,12 @@ def show_edit_modal_dialog(m):
                 # Determine current group
                 current_care_status = lead.get('care_status')
                 initial_group = "Active"
-                if current_care_status in ["Hold", "Terminated"]:
+                if current_care_status in ["Hold", "Terminated", "Deceased"]:
                     initial_group = current_care_status
                 
                 # Main Group selection
-                status_group = st.radio("Main Status", ["Active", "Hold", "Terminated"], 
-                                         index=["Active", "Hold", "Terminated"].index(initial_group),
+                status_group = st.radio("Main Status", ["Active", "Hold", "Terminated", "Deceased"], 
+                                         index=["Active", "Hold", "Terminated", "Deceased"].index(initial_group),
                                          horizontal=True, key=f"edit_status_group_{m['target_id']}")
                 
                 new_care_status = status_group
@@ -1939,7 +1939,7 @@ def show_edit_modal_dialog(m):
                     elif selected_sub == "Care Not Start": new_care_status = "Not Start"
                     else: new_care_status = None
                 else:
-                    new_care_status = status_group # Hold or Terminated
+                    new_care_status = status_group # Hold, Terminated, or Deceased
             
             elif is_referral:
                 status_options = ["Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
@@ -2287,7 +2287,8 @@ def handle_active_modal():
     if st.session_state.get('show_delete_modal', False):
         lead_id = st.session_state.get('delete_lead_id')
         name = st.session_state.get('delete_lead_name', 'Unknown')
-        close_modal()
+        # GHOST FIX: Clear state WITHOUT rerun so we can actually reach the dialog call below
+        clear_modal_state() 
         show_delete_modal_dialog(lead_id, name)
         return
 
@@ -2313,6 +2314,10 @@ def handle_active_modal():
     
     if not m:
         return
+        
+    # GHOST FIX: Clear the trigger state BEFORE dispatching.
+    # This ensures that subsequent reruns don't re-trigger the modal logic.
+    clear_modal_state()
     
     # Dispatch to specific dialog functions
     if m['modal_type'] == 'save_edit_modal':

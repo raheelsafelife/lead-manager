@@ -418,16 +418,29 @@ def search_leads(
     if care_status_filter:
         from sqlalchemy import or_
         if care_status_filter == "Active":
-            # Active means NOT Hold and NOT Terminated (includes NULL care_status)
+            # Active means NOT Hold, NOT Terminated, and NOT Deceased (includes NULL care_status)
             query = query.filter(or_(
                 models.Lead.care_status == None,
-                ~models.Lead.care_status.in_(["Hold", "Terminated"])
+                ~models.Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+            ))
+            
+            # REFINED: If source is Transfer, it ONLY shows in Active if care_status is "Care Start"
+            # Cases with source "Transfer" and care_status "Transfer Received" (or others) are hidden from Active
+            query = query.filter(or_(
+                models.Lead.source != "Transfer",
+                models.Lead.care_status == "Care Start"
             ))
             
             # Apply sub-filter if Active
             if care_sub_status_filter and care_sub_status_filter != "All":
                 query = query.filter(models.Lead.care_status == care_sub_status_filter)
                 
+        elif care_status_filter == "Transfer":
+            # Dedicated filter for Transfer cases that aren't yet Care Start
+            query = query.filter(
+                models.Lead.source == "Transfer",
+                models.Lead.care_status != "Care Start"
+            )
         elif care_status_filter in ["Hold", "Terminated"]:
             query = query.filter(models.Lead.care_status == care_status_filter)
         elif care_status_filter != "All":
@@ -574,14 +587,25 @@ def count_search_leads(
         if care_status_filter == "Active":
             query = query.filter(or_(
                 models.Lead.care_status == None,
-                ~models.Lead.care_status.in_(["Hold", "Terminated"])
+                ~models.Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+            ))
+            
+            # REFINED: Mirror search_leads logic for count
+            query = query.filter(or_(
+                models.Lead.source != "Transfer",
+                models.Lead.care_status == "Care Start"
             ))
             
             # Apply sub-filter if Active
             if care_sub_status_filter and care_sub_status_filter != "All":
                 query = query.filter(models.Lead.care_status == care_sub_status_filter)
                 
-        elif care_status_filter in ["Hold", "Terminated"]:
+        elif care_status_filter == "Transfer":
+            query = query.filter(
+                models.Lead.source == "Transfer",
+                models.Lead.care_status != "Care Start"
+            )
+        elif care_status_filter in ["Hold", "Terminated", "Deceased"]:
             query = query.filter(models.Lead.care_status == care_status_filter)
         elif care_status_filter != "All":
             query = query.filter(models.Lead.care_status == care_status_filter)

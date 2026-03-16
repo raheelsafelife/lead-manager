@@ -151,7 +151,7 @@ async def create_external_lead(
         care_status = None
         active_client = False
         if form_data.source == "Transfer":
-            care_status = "Care Start"
+            care_status = "Transfer Received"
             active_client = True
             authorization_received = True
         else:
