@@ -11,3 +11,4 @@ requests
 plotly
 extra-streamlit-components
 python-docx
+openpyxl

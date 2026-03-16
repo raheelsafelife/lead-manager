@@ -174,7 +174,7 @@ def view_referrals():
     download_all_col1, download_all_col2 = st.columns([4, 1])
     with download_all_col2:
         if st.button("📥 Download Excel", key="download_referrals_excel_btn", use_container_width=True):
-            # Fetch all matching referrals
+            # Fetch all matching referrals (Match display logic exactly)
             all_filtered_leads = search_leads(
                 db,
                 search_query=search_name if search_name else None,
@@ -186,7 +186,9 @@ def view_referrals():
                 owner_id=st.session_state.db_user_id if st.session_state.show_only_my_referrals else None,
                 only_my_leads=st.session_state.show_only_my_referrals,
                 include_deleted=st.session_state.show_deleted_referrals,
-                only_clients=True, # Referral page specific
+                exclude_clients=False,
+                only_clients=True,
+                auth_received_filter=False, # Match display logic
                 lead_type_filter=st.session_state.referral_type_filter,
                 skip=0,
                 limit=2000, 

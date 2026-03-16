@@ -10,3 +10,4 @@ extra-streamlit-components
 psycopg2-binary
 st-js
 streamlit-cookies-manager
+openpyxl

@@ -41,7 +41,18 @@ def dashboard():
     
     # Load all leads for drill-down mapping
     all_leads_list = crud_leads.list_leads(db, limit=10000)
-    df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads_list])
+    
+    # FIX: If no leads, initialize with expected columns to prevent KeyError
+    if not all_leads_list:
+        expected_cols = [
+            'id', 'first_name', 'last_name', 'phone', 'source', 
+            'last_contact_status', 'staff_name', 'created_at', 
+            'active_client', 'care_status', 'priority', 'ccu_id',
+            'event_name', 'word_of_mouth_type', 'authorization_received'
+        ]
+        df_all_leads = pd.DataFrame(columns=expected_cols)
+    else:
+        df_all_leads = pd.DataFrame([l.__dict__ for l in all_leads_list])
     
     # Pre-map CCU names
     ccus = crud_ccus.get_all_ccus(db)
@@ -50,6 +61,13 @@ def dashboard():
     if not df_all_leads.empty:
         if '_sa_instance_state' in df_all_leads.columns:
             df_all_leads = df_all_leads.drop('_sa_instance_state', axis=1)
+        
+        # Ensure critical columns exist even if list_leads returned partial data 
+        # (though SQLAlchemy usually provides them all, this is defensive)
+        for col in ['active_client', 'care_status', 'priority', 'source', 'ccu_id']:
+            if col not in df_all_leads.columns:
+                df_all_leads[col] = None
+
         df_all_leads['ccu_name'] = df_all_leads['ccu_id'].map(ccu_map).fillna("N/A")
         df_all_leads['month_str'] = pd.to_datetime(df_all_leads['created_at']).dt.strftime('%Y-%m')
 
