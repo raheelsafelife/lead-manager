@@ -32,16 +32,20 @@ def recover():
             func.date(ActivityLog.timestamp) == today
         ).all()
         
-        if manual_deletes:
-            print(f"Found {len(manual_deletes)} manual deletes from today.")
-            # We don't necessarily want to modify them if they are already deleted,
-            # but we could restore their Authorization status if it was lost.
-        
-        
-        print(f"Found {len(logs)} recovery logs.")
-        
         reverted = 0
         deleted = 0
+        
+        if manual_deletes:
+            print(f"Found {len(manual_deletes)} manual deletes from today.")
+            for log in manual_deletes:
+                lead = db.query(Lead).filter(Lead.id == log.entity_id).first()
+                if lead and not lead.authorization_received:
+                    lead.authorization_received = True
+                    print(f"  RE-AUTHORIZED Deleted Lead: {lead.first_name} {lead.last_name} (ID: {lead.id})")
+                    reverted += 1
+        
+        print(f"Processing {len(logs)} recovery logs from sync cleanup...")
+        
         
         for log in logs:
             lead = db.query(Lead).filter(Lead.id == log.entity_id).first()
