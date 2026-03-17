@@ -179,6 +179,7 @@ def run_import(csv_path: str, dry_run: bool = True):
         created  = 0
         updated  = 0
         skipped  = 0
+        processed_ids = set()
 
         for c in clients:
             care_status, active_client = map_status(c["status"])
@@ -237,6 +238,8 @@ def run_import(csv_path: str, dry_run: bool = True):
                 else:
                     print(f"  SKIP    ID {match.id:5d}  {display_name} {chart_label}  (no changes)")
                     skipped += 1
+                
+                processed_ids.add(match.id)
 
             else:
                 # ── CREATE new lead ───────────────────────────────────────
@@ -274,7 +277,40 @@ def run_import(csv_path: str, dry_run: bool = True):
                         ),
                     )
                     db.add(log)
+                    processed_ids.add(new_lead.id)
                 created += 1
+
+        # ── EXACT SYNC CLEANUP ────────────────────────────────────────────────
+        print(f"\n─── Cleanup Extra Authorized Clients ───────")
+        base_query = db.query(Lead).filter(
+            Lead.authorization_received == True,
+            Lead.deleted_at == None
+        )
+        if processed_ids:
+            unmatched = base_query.filter(Lead.id.notin_(processed_ids)).all()
+        else:
+            unmatched = base_query.all()
+
+        removed = 0
+        for u in unmatched:
+            old_status = u.care_status
+            u.authorization_received = False
+            u.care_status = None
+            u.active_client = False
+            print(f"  REMOVE AUTH  ID {u.id:5d}  {u.first_name} {u.last_name}  (was {old_status!r})")
+            if not dry_run:
+                log = ActivityLog(
+                    username="system_import",
+                    action_type="UPDATE",
+                    entity_type="Lead",
+                    entity_id=u.id,
+                    entity_name=f"{u.first_name} {u.last_name}",
+                    description=f"Authorization removed: Not present in CSV export. Previous status={old_status!r}",
+                )
+                db.add(log)
+            removed += 1
+        print(f"  Total Removed  : {removed}")
+        print(f"───────────────────────────────────────────")
 
         # ── commit ────────────────────────────────────────────────────────
         if not dry_run:
@@ -288,6 +324,7 @@ def run_import(csv_path: str, dry_run: bool = True):
         print(f"  Created        : {created}")
         print(f"  Updated        : {updated}")
         print(f"  Skipped (same) : {skipped}")
+        print(f"  Auth Removed   : {removed}")
         print(f"───────────────────────────────────────────\n")
 
     except Exception as exc:
