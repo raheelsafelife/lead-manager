@@ -185,79 +185,98 @@ def display_referral_confirm(lead, db, highlight=False):
         # QUICK ACTIONS ROW
         st.markdown("<div style='margin-bottom: 5px;'></div>", unsafe_allow_html=True)
         
-        # Proportions: Mark Authorization is wider (ratio 1:1:2:1:1)
-        sub_col1, sub_col2, sub_col3, sub_col4, sub_col5 = st.columns([1, 1, 2, 1, 1])
-        
-        with sub_col1:
-            if st.button("Edit", key=f"edit_btn_confirm_{lead.id}", use_container_width=True):
-                lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
-                open_modal('save_edit_modal', lead.id, title=f"{lead.first_name} {lead.last_name}", lead_data=lead_dict)
-        
-        with sub_col2:
-            if st.button("Delete", key=f"del_btn_confirm_{lead.id}", use_container_width=True):
-                render_confirmation_modal(modal_type='soft_delete', target_id=lead.id, title='Delete Referral?', message=f"Delete <b>{lead.first_name} {lead.last_name}</b>?", icon='🗑️', type='warning', confirm_label='DELETE')
-        
-        with sub_col3:
-            if st.button("Unmark Authorization", key=f"unmark_auth_btn_confirm_{lead.id}", use_container_width=True, type="primary"):
-                render_confirmation_modal(modal_type='undo_auth', target_id=lead.id, title='Undo Authorization?', message=f"Undo Authorization for <b>{lead.first_name} {lead.last_name}</b>?", icon='↩️', type='info', confirm_label='UNDO')
-        
-        with sub_col4:
-            if st.button("💬 Comment", key=f"add_comment_btn_{lead.id}", use_container_width=True):
-                from frontend.common import clear_modal_state
-                clear_modal_state()
-                show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
-
-        with sub_col5:
-            if st.button("History", key=f"history_btn_{lead.id}", use_container_width=True):
-                from frontend.common import clear_modal_state
-                clear_modal_state()
-                key = f"show_history_conf_{lead.id}"
-                st.session_state[key] = not st.session_state.get(key, False)
-                st.rerun()
-
-        st.divider()
-        st.write("**Manage Status:**")
-        current_group = "Active"
-        if lead.care_status in ["Hold", "Terminated", "Deceased"]:
-            current_group = lead.care_status
-        elif lead.care_status and "Transfer" in lead.care_status:
-            current_group = "Transfer"
+        if lead.deleted_at:
+            # DELETE BOX MODE: Show Restore and Permanent Delete
+            st.warning(f"⚠️ **This client is in the Recycle Bin** (Deleted on {render_time(lead.deleted_at)})")
+            res_col1, res_col2, res_col3 = st.columns([1, 1, 2])
+            with res_col1:
+                if st.button("RESTORE", key=f"restore_auth_{lead.id}", type="primary", use_container_width=True):
+                    render_confirmation_modal(modal_type='restore_ref', target_id=lead.id, title='Restore Client?', message=f"Restore <b>{lead.first_name} {lead.last_name}</b> to active list?", icon='♻️', type='info', confirm_label='RESTORE')
+            with res_col2:
+                if st.button("DELETE FOREVER", key=f"perm_del_auth_{lead.id}", use_container_width=True):
+                    render_confirmation_modal(modal_type='perm_delete_ref', target_id=lead.id, title='PERMANENT DELETE?', message=f"Are you sure you want to PERMANENTLY delete <b>{lead.first_name} {lead.last_name}</b>? This cannot be undone.", icon='⚠️', type='error', confirm_label='DELETE PERMANENTLY')
+            with res_col3:
+                if st.button("History", key=f"history_btn_{lead.id}", use_container_width=True):
+                    from frontend.common import clear_modal_state
+                    clear_modal_state()
+                    key = f"show_history_conf_{lead.id}"
+                    st.session_state[key] = not st.session_state.get(key, False)
+                    st.rerun()
+        else:
+            # NORMAL MODE: Mark Authorization is wider (ratio 1:1:2:1:1)
+            sub_col1, sub_col2, sub_col3, sub_col4, sub_col5 = st.columns([1, 1, 2, 1, 1])
             
-        g_col1, g_col2, g_col3, g_col4, g_col5 = st.columns([1, 1, 1, 1, 1])
-        with g_col1:
-            if st.button("Active", key=f"active_grp_{lead.id}", type="primary" if current_group == "Active" else "secondary", use_container_width=True):
-                if current_group != "Active":
-                    update_lead(db, lead.id, LeadUpdate(care_status=None), st.session_state.username, st.session_state.get('db_user_id'))
+            with sub_col1:
+                if st.button("Edit", key=f"edit_btn_confirm_{lead.id}", use_container_width=True):
+                    lead_dict = {c.name: getattr(lead, c.name) for c in lead.__table__.columns}
+                    open_modal('save_edit_modal', lead.id, title=f"{lead.first_name} {lead.last_name}", lead_data=lead_dict)
+            
+            with sub_col2:
+                if st.button("Delete", key=f"del_btn_confirm_{lead.id}", use_container_width=True):
+                    render_confirmation_modal(modal_type='soft_delete', target_id=lead.id, title='Delete Referral?', message=f"Delete <b>{lead.first_name} {lead.last_name}</b>?", icon='🗑️', type='warning', confirm_label='DELETE')
+            
+            with sub_col3:
+                if st.button("Unmark Authorization", key=f"unmark_auth_btn_confirm_{lead.id}", use_container_width=True, type="primary"):
+                    render_confirmation_modal(modal_type='undo_auth', target_id=lead.id, title='Undo Authorization?', message=f"Undo Authorization for <b>{lead.first_name} {lead.last_name}</b>?", icon='↩️', type='info', confirm_label='UNDO')
+            
+            with sub_col4:
+                if st.button("💬 Comment", key=f"add_comment_btn_{lead.id}", use_container_width=True):
+                    from frontend.common import clear_modal_state
+                    clear_modal_state()
+                    show_add_comment_dialog(lead.id, f"{lead.first_name} {lead.last_name}")
+
+            with sub_col5:
+                if st.button("History", key=f"history_btn_{lead.id}", use_container_width=True):
+                    from frontend.common import clear_modal_state
+                    clear_modal_state()
+                    key = f"show_history_conf_{lead.id}"
+                    st.session_state[key] = not st.session_state.get(key, False)
                     st.rerun()
-        with g_col2:
-            if st.button("Hold", key=f"hold_grp_{lead.id}", type="primary" if current_group == "Hold" else "secondary", use_container_width=True):
-                update_lead(db, lead.id, LeadUpdate(care_status="Hold", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
-                st.rerun()
-        with g_col3:
-            if st.button("Terminated", key=f"term_grp_{lead.id}", type="primary" if current_group == "Terminated" else "secondary", use_container_width=True):
-                update_lead(db, lead.id, LeadUpdate(care_status="Terminated", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
-                st.rerun()
-        with g_col4:
-            if st.button("Deceased", key=f"deceased_grp_{lead.id}", type="primary" if current_group == "Deceased" else "secondary", use_container_width=True):
-                update_lead(db, lead.id, LeadUpdate(care_status="Deceased", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
-                st.rerun()
-        with g_col5:
-            if st.button("Transfer", key=f"transfer_grp_{lead.id}", type="primary" if current_group == "Transfer" else "secondary", use_container_width=True):
-                update_lead(db, lead.id, LeadUpdate(care_status="Transfer Received", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
-                st.rerun()
-        
-        if current_group == "Active":
-            st.write("**Care Sub-Status:**")
-            s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
-            with s_col1:
-                if st.button("Care Start", key=f"care_start_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
-                    from datetime import date
-                    update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=date.today()), st.session_state.username, st.session_state.get('db_user_id'))
+
+        if not lead.deleted_at:
+            st.divider()
+            st.write("**Manage Status:**")
+            current_group = "Active"
+            if lead.care_status in ["Hold", "Terminated", "Deceased"]:
+                current_group = lead.care_status
+            elif lead.care_status and "Transfer" in lead.care_status:
+                current_group = "Transfer"
+                
+            g_col1, g_col2, g_col3, g_col4, g_col5 = st.columns([1, 1, 1, 1, 1])
+            with g_col1:
+                if st.button("Active", key=f"active_grp_{lead.id}", type="primary" if current_group == "Active" else "secondary", use_container_width=True):
+                    if current_group != "Active":
+                        update_lead(db, lead.id, LeadUpdate(care_status=None), st.session_state.username, st.session_state.get('db_user_id'))
+                        st.rerun()
+            with g_col2:
+                if st.button("Hold", key=f"hold_grp_{lead.id}", type="primary" if current_group == "Hold" else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status="Hold", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                     st.rerun()
-            with s_col2:
-                if st.button("Care Not Start", key=f"not_start_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
-                    update_lead(db, lead.id, LeadUpdate(care_status="Not Start", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+            with g_col3:
+                if st.button("Terminated", key=f"term_grp_{lead.id}", type="primary" if current_group == "Terminated" else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status="Terminated", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                     st.rerun()
+            with g_col4:
+                if st.button("Deceased", key=f"deceased_grp_{lead.id}", type="primary" if current_group == "Deceased" else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status="Deceased", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                    st.rerun()
+            with g_col5:
+                if st.button("Transfer", key=f"transfer_grp_{lead.id}", type="primary" if current_group == "Transfer" else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status="Transfer Received", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                    st.rerun()
+            
+            if current_group == "Active":
+                st.write("**Care Sub-Status:**")
+                s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
+                with s_col1:
+                    if st.button("Care Start", key=f"care_start_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
+                        from datetime import date
+                        update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=date.today()), st.session_state.username, st.session_state.get('db_user_id'))
+                        st.rerun()
+                with s_col2:
+                    if st.button("Care Not Start", key=f"not_start_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
+                        update_lead(db, lead.id, LeadUpdate(care_status="Not Start", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                        st.rerun()
 
         st.divider()
         st.markdown("### 📎 Attachments")
@@ -530,66 +549,68 @@ def referral_confirm():
 
     st.divider()
     
-    col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer = st.columns([1, 1, 1, 1, 1, 1])
-    
-    with col_all_main:
-        if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "All"
-            st.session_state.conf_page = 0
-            st.rerun()
-
-    with col_active:
-        if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Active"
-            st.session_state.conf_page = 0
-            st.rerun()
-    
-    with col_hold:
-        if st.button("Hold", key="filter_hold_confirm", type="primary" if st.session_state.confirm_status_filter == "Hold" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Hold"
-            st.session_state.conf_page = 0
-            st.rerun()
-    
-    with col_term:
-        if st.button("Terminated", key="filter_terminated_confirm", type="primary" if st.session_state.confirm_status_filter == "Terminated" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Terminated"
-            st.session_state.conf_page = 0
-            st.rerun()
-
-    with col_deceased:
-        if st.button("Deceased", key="filter_deceased_confirm", type="primary" if st.session_state.confirm_status_filter == "Deceased" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Deceased"
-            st.session_state.conf_page = 0
-            st.rerun()
-
-    with col_transfer:
-        if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Transfer"
-            st.session_state.conf_page = 0
-            st.rerun()
-            
-    # Sub-filter for Active
-    if st.session_state.confirm_status_filter == "Active":
-        st.write("Filter by Care Status:")
-        col_all, col_start, col_not_start, col_spacer_sub = st.columns([1, 1, 1, 3])
+    # --- STATUS FILTER BUTTONS ---
+    if not filter_deleted:
+        col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer = st.columns([1, 1, 1, 1, 1, 1])
         
-        with col_all:
-            if st.button("All", key="filter_active_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
-                st.session_state.confirm_care_filter = "All"
+        with col_all_main:
+            if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "All"
+                st.session_state.conf_page = 0
+                st.rerun()
+
+        with col_active:
+            if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Active"
+                st.session_state.conf_page = 0
+                st.rerun()
+        
+        with col_hold:
+            if st.button("Hold", key="filter_hold_confirm", type="primary" if st.session_state.confirm_status_filter == "Hold" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Hold"
+                st.session_state.conf_page = 0
+                st.rerun()
+        
+        with col_term:
+            if st.button("Terminated", key="filter_terminated_confirm", type="primary" if st.session_state.confirm_status_filter == "Terminated" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Terminated"
+                st.session_state.conf_page = 0
+                st.rerun()
+
+        with col_deceased:
+            if st.button("Deceased", key="filter_deceased_confirm", type="primary" if st.session_state.confirm_status_filter == "Deceased" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Deceased"
+                st.session_state.conf_page = 0
+                st.rerun()
+
+        with col_transfer:
+            if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Transfer"
                 st.session_state.conf_page = 0
                 st.rerun()
                 
-        with col_start:
-            if st.button("Care Start", key="filter_active_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
-                st.session_state.confirm_care_filter = "Care Start"
-                st.session_state.conf_page = 0
-                st.rerun()
-                
-        with col_not_start:
-            if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
-                st.session_state.confirm_care_filter = "Not Start"
-                st.session_state.conf_page = 0
-                st.rerun()
+        # Sub-filter for Active
+        if st.session_state.confirm_status_filter == "Active":
+            st.write("Filter by Care Status:")
+            col_all, col_start, col_not_start, col_spacer_sub = st.columns([1, 1, 1, 3])
+            
+            with col_all:
+                if st.button("All", key="filter_active_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+            with col_start:
+                if st.button("Care Start", key="filter_active_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "Care Start"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+            with col_not_start:
+                if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "Not Start"
+                    st.session_state.conf_page = 0
+                    st.rerun()
     
     st.divider()
     
@@ -642,7 +663,8 @@ def referral_confirm():
         exclude_clients=False,
         only_clients=False, # Show all authorized leads
         auth_received_filter=True,
-        care_status_filter=st.session_state.confirm_status_filter,
+        include_deleted=filter_deleted,
+        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         lead_id_filter=lead_id_filter,
         tag_color_filter=st.session_state.confirm_tag_color_filter,
