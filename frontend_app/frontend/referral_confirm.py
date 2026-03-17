@@ -336,7 +336,7 @@ def referral_confirm():
     st.markdown('<div class="main-header">Authorizations Received</div>', unsafe_allow_html=True)
 
     # Ensure invalid filters aren't stuck from previous sessions
-    if st.session_state.confirm_status_filter in ["Deleted", "Transfer"]:
+    if st.session_state.confirm_status_filter == "Deleted":
         st.session_state.confirm_status_filter = "All"
 
     db = SessionLocal()
