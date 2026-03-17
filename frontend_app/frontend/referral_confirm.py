@@ -217,10 +217,19 @@ def display_referral_confirm(lead, db, highlight=False):
 
         st.divider()
         st.write("**Manage Status:**")
-        current_group = "Active"
-        if lead.care_status in ["Hold", "Terminated", "Deceased"]:
-            current_group = lead.care_status
-        g_col1, g_col2, g_col3, g_col4 = st.columns([1, 1, 1, 1])
+        # Detect which main group the current care_status belongs to
+        if lead.care_status in ["Hold"]:
+            current_group = "Hold"
+        elif lead.care_status in ["Terminated"]:
+            current_group = "Terminated"
+        elif lead.care_status in ["Deceased"]:
+            current_group = "Deceased"
+        elif lead.care_status in ["Transfer Received"]:
+            current_group = "Transfer Received"
+        else:
+            current_group = "Active"  # Care Start, Not Start, None all fall under Active
+
+        g_col1, g_col2, g_col3, g_col4, g_col5 = st.columns([1, 1, 1, 1, 1])
         with g_col1:
             if st.button("Active", key=f"active_grp_{lead.id}", type="primary" if current_group == "Active" else "secondary", use_container_width=True):
                 if current_group != "Active":
@@ -238,7 +247,11 @@ def display_referral_confirm(lead, db, highlight=False):
             if st.button("Deceased", key=f"deceased_grp_{lead.id}", type="primary" if current_group == "Deceased" else "secondary", use_container_width=True):
                 update_lead(db, lead.id, LeadUpdate(care_status="Deceased", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 st.rerun()
-        
+        with g_col5:
+            if st.button("Transfer", key=f"transfer_grp_{lead.id}", type="primary" if current_group == "Transfer Received" else "secondary", use_container_width=True):
+                update_lead(db, lead.id, LeadUpdate(care_status="Transfer Received", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                st.rerun()
+
         if current_group == "Active":
             st.write("**Care Sub-Status:**")
             s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
@@ -250,6 +263,10 @@ def display_referral_confirm(lead, db, highlight=False):
             with s_col2:
                 if st.button("Care Not Start", key=f"not_start_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):
                     update_lead(db, lead.id, LeadUpdate(care_status="Not Start", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                    st.rerun()
+            with s_col3:
+                if st.button("Not Set", key=f"not_set_{lead.id}", type="primary" if lead.care_status is None else "secondary", use_container_width=True):
+                    update_lead(db, lead.id, LeadUpdate(care_status=None, soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                     st.rerun()
 
         st.divider()

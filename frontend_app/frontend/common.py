@@ -1910,19 +1910,27 @@ def show_edit_modal_dialog(m):
                 # Special Status Logic for Authorizations Received
                 st.write("**Referral Status:**")
                 
-                # Determine current group
+                # Determine current group from care_status
                 current_care_status = lead.get('care_status')
-                initial_group = "Active"
-                if current_care_status in ["Hold", "Terminated", "Deceased"]:
-                    initial_group = current_care_status
+                if current_care_status == "Hold":
+                    initial_group = "Hold"
+                elif current_care_status == "Terminated":
+                    initial_group = "Terminated"
+                elif current_care_status == "Deceased":
+                    initial_group = "Deceased"
+                elif current_care_status == "Transfer Received":
+                    initial_group = "Transfer Received"
+                else:
+                    initial_group = "Active"  # Care Start, Not Start, None
                 
-                # Main Group selection
-                status_group = st.radio("Main Status", ["Active", "Hold", "Terminated", "Deceased"], 
-                                         index=["Active", "Hold", "Terminated", "Deceased"].index(initial_group),
+                # All 5 main status groups
+                ALL_GROUPS = ["Active", "Hold", "Terminated", "Deceased", "Transfer Received"]
+                status_group = st.radio("Main Status", ALL_GROUPS, 
+                                         index=ALL_GROUPS.index(initial_group),
                                          horizontal=True, key=f"edit_status_group_{m['target_id']}")
                 
                 new_care_status = status_group
-                new_status = lead.get('last_contact_status') # Keep existing contact status
+                new_status = lead.get('last_contact_status')  # Keep existing contact status
                 
                 if status_group == "Active":
                     # Show sub-options
@@ -1939,7 +1947,7 @@ def show_edit_modal_dialog(m):
                     elif selected_sub == "Care Not Start": new_care_status = "Not Start"
                     else: new_care_status = None
                 else:
-                    new_care_status = status_group # Hold, Terminated, or Deceased
+                    new_care_status = status_group  # Hold, Terminated, Deceased, or Transfer Received
             
             elif is_referral:
                 status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
