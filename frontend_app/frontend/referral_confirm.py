@@ -328,10 +328,29 @@ def referral_confirm():
 
     st.markdown('<div class="main-header">Authorizations Received</div>', unsafe_allow_html=True)
 
+    # Ensure invalid filters aren't stuck from previous sessions
+    if st.session_state.confirm_status_filter in ["Deleted", "Transfer"]:
+        st.session_state.confirm_status_filter = "All"
+
     db = SessionLocal()
     
     # Use native SQL filtering for both count and the main list
     auth_filter = True
+
+    # Recycle Bin Toggle
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
+    show_deleted = st.checkbox(
+        "Show Deleted Leads",
+        value=st.session_state.confirm_show_deleted,
+        help="View authorized clients that have been deleted (can be restored)",
+        key="conf_show_deleted_chk"
+    )
+    if show_deleted != st.session_state.confirm_show_deleted:
+        st.session_state.confirm_show_deleted = show_deleted
+        st.session_state.conf_page = 0
+        st.rerun()
+    
+    st.divider()
 
     # Check if we should focus on a specific referral
     specific_lead_id = st.session_state.get('referral_confirm_lead_id')
@@ -351,7 +370,7 @@ def referral_confirm():
                 st.session_state.pop('referral_confirm_lead_id', None)
 
     # Total count for the header
-    filter_deleted = (st.session_state.confirm_status_filter == "Deleted")
+    filter_deleted = st.session_state.confirm_show_deleted
     
     total_authorized = count_search_leads(
         db,
@@ -363,13 +382,9 @@ def referral_confirm():
         include_deleted=filter_deleted
     )
     
-    header_label = st.session_state.confirm_status_filter
+    header_label = "Deleted (Recycle Bin)" if filter_deleted else st.session_state.confirm_status_filter
     if header_label == "All":
         header_label = "All Authorized"
-    elif header_label == "Transfer":
-        header_label = "Transfer Cases"
-    elif header_label == "Deleted":
-        header_label = "Deleted (Recycle Bin)"
     st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
     
     st.divider()
@@ -506,7 +521,7 @@ def referral_confirm():
 
     st.divider()
     
-    col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer, col_deleted = st.columns([1, 1, 1, 1, 1, 1, 1])
+    col_all_main, col_active, col_hold, col_term, col_deceased = st.columns([1, 1, 1, 1, 1])
     
     with col_all_main:
         if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
@@ -535,18 +550,6 @@ def referral_confirm():
     with col_deceased:
         if st.button("Deceased", key="filter_deceased_confirm", type="primary" if st.session_state.confirm_status_filter == "Deceased" else "secondary", use_container_width=True):
             st.session_state.confirm_status_filter = "Deceased"
-            st.session_state.conf_page = 0
-            st.rerun()
-
-    with col_transfer:
-        if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Transfer"
-            st.session_state.conf_page = 0
-            st.rerun()
-
-    with col_deleted:
-        if st.button("Deleted", key="filter_deleted_confirm", type="primary" if st.session_state.confirm_status_filter == "Deleted" else "secondary", use_container_width=True):
-            st.session_state.confirm_status_filter = "Deleted"
             st.session_state.conf_page = 0
             st.rerun()
             

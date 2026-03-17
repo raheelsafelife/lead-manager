@@ -1166,6 +1166,8 @@ def init_session_state():
         st.session_state.confirm_status_filter = "All" # Default to see everything
     if 'confirm_tag_color_filter' not in st.session_state:
         st.session_state.confirm_tag_color_filter = "All"
+    if 'confirm_show_deleted' not in st.session_state:
+        st.session_state.confirm_show_deleted = False
 
     
     # Timezone Detection - Force Central Time as requested
