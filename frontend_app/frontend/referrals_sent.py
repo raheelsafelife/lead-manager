@@ -335,6 +335,7 @@ def view_referrals():
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
+        referral_category_filter=st.session_state.referral_type_filter,
         tag_color_filter=st.session_state.referral_tag_color_filter,
         sort_by=st.session_state.referrals_sort_by
     )
@@ -357,6 +358,7 @@ def view_referrals():
         only_clients=True,
         auth_received_filter=auth_val,
         lead_id_filter=lead_id_filter,
+        referral_category_filter=st.session_state.referral_type_filter,
         tag_color_filter=st.session_state.referral_tag_color_filter
     )
     

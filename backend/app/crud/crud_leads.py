@@ -300,6 +300,7 @@ def search_leads(
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
     lead_type_filter: Optional[str] = None, # "Lead", "Initial Referral Sent", "Referral Confirmed"
+    referral_category_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
     care_sub_status_filter: Optional[str] = None,
     tag_color_filter: Optional[str] = None,
@@ -370,7 +371,11 @@ def search_leads(
         
     # 7. Status Filter
     if status_filter and status_filter != "All":
-        query = query.filter(models.Lead.last_contact_status == status_filter)
+        if status_filter in ["Initial Referral Sent", "Referral Sent"]:
+            from sqlalchemy import or_
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent"]))
+        else:
+            query = query.filter(models.Lead.last_contact_status == status_filter)
         
     # 8. Priority Filter
     if priority_filter and priority_filter != "All":
@@ -456,8 +461,14 @@ def search_leads(
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
         elif lead_type_filter == "Referral Confirmed":
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
-        elif lead_type_filter in ["Regular", "Interim"]:
-            query = query.filter(models.Lead.referral_type == lead_type_filter)
+            
+    # 10.7 Referral Category Filter
+    if referral_category_filter and referral_category_filter != "All":
+        if referral_category_filter == "Regular":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.referral_type == "Regular", models.Lead.referral_type == None, models.Lead.referral_type == ""))
+        elif referral_category_filter == "Interim":
+            query = query.filter(models.Lead.referral_type == "Interim")
         
         
     # 11. Order and Pagination
@@ -493,6 +504,7 @@ def count_search_leads(
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
     lead_type_filter: Optional[str] = None,
+    referral_category_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
     care_sub_status_filter: Optional[str] = None,
     tag_color_filter: Optional[str] = None
@@ -536,7 +548,11 @@ def count_search_leads(
         query = query.filter(models.Lead.source.ilike(f"%{source_filter}%"))
         
     if status_filter and status_filter != "All":
-        query = query.filter(models.Lead.last_contact_status == status_filter)
+        if status_filter in ["Initial Referral Sent", "Referral Sent"]:
+            from sqlalchemy import or_
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent"]))
+        else:
+            query = query.filter(models.Lead.last_contact_status == status_filter)
         
     if priority_filter and priority_filter != "All":
         if priority_filter == "Not Called":
@@ -582,8 +598,13 @@ def count_search_leads(
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
         elif lead_type_filter == "Referral Confirmed":
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
-        elif lead_type_filter in ["Regular", "Interim"]:
-            query = query.filter(models.Lead.referral_type == lead_type_filter)
+
+    if referral_category_filter and referral_category_filter != "All":
+        if referral_category_filter == "Regular":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.referral_type == "Regular", models.Lead.referral_type == None, models.Lead.referral_type == ""))
+        elif referral_category_filter == "Interim":
+            query = query.filter(models.Lead.referral_type == "Interim")
             
     # 11. Care Status Filter (Mirroring search_leads)
     if care_status_filter:

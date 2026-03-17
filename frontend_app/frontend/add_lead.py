@@ -338,6 +338,13 @@ def add_lead():
         last_contact_status = st.selectbox("Contact Status", status_options, index=default_idx, key="status_select", label_visibility="collapsed")
                                             
         st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+        
+        referral_type = None
+        if is_referral_source:
+             st.markdown('Referral Type <span class="required-star">*</span>', unsafe_allow_html=True)
+             referral_type = st.selectbox("Referral Type", ["Regular", "Interim"], key="reftype_select", label_visibility="collapsed")
+             st.markdown('<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+             
         street = st.text_input("**Street**", key="street_input")
         city = st.text_input("**City**", key="city_input")
         state = st.text_input("**State**", value="IL", max_chars=2, key="state_input")
@@ -419,6 +426,7 @@ def add_lead():
                         "city": city or None,
                         "state": state or None,
                         "zip_code": zip_code or None,
+                        "referral_type": referral_type if 'referral_type' in locals() else None,
                         "active_client": True if source in ["Transfer", "Direct Through CCU"] else False,
                         "care_status": "Transfer Received" if source == "Transfer" and last_contact_status == "Care Start" else ("Care Start" if last_contact_status == "Care Start" else ("Not Start" if last_contact_status == "Not Start" else None)),
                         "authorization_received": True if last_contact_status in ["Care Start", "Not Start"] or source in ["Transfer", "Direct Through CCU"] else False,
