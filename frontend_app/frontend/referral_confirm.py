@@ -355,13 +355,15 @@ def referral_confirm():
         db,
         exclude_clients=False,
         auth_received_filter=True,
-        only_clients=True,
+        only_clients=False,  # Allow Terminated/Deceased (active_client=False) leads to show
         care_status_filter=st.session_state.confirm_status_filter,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All"
     )
     
     header_label = st.session_state.confirm_status_filter
-    if header_label == "Transfer":
+    if header_label == "All":
+        header_label = "All Authorized"
+    elif header_label == "Transfer":
         header_label = "Transfer Cases"
     st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
     
@@ -407,7 +409,7 @@ def referral_confirm():
                 include_deleted=False,
                 exclude_clients=False, 
                 auth_received_filter=True, 
-                only_clients=True,        
+                only_clients=False,  # Allow all authorized leads        
                 skip=0,
                 limit=2000,
                 lead_id_filter=lead_id_filter,
@@ -583,7 +585,7 @@ def referral_confirm():
         include_deleted=False,
         exclude_clients=False, # We want active clients
         auth_received_filter=auth_val, # SQL FILTERING
-        only_clients=True,        # NEW: Filter at SQL level
+        only_clients=False,        # Show Terminated/Deceased as well
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
@@ -609,7 +611,7 @@ def referral_confirm():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         exclude_clients=False,
-        only_clients=True, # NEW: Filter at SQL level
+        only_clients=False, # Show all authorized leads
         auth_received_filter=True,
         care_status_filter=st.session_state.confirm_status_filter,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
