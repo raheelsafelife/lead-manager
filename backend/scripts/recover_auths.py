@@ -11,6 +11,7 @@ data_db = Path("/app/data/leads.db")
 if data_db.exists():
     os.environ["DATABASE_URL"] = f"sqlite:///{data_db}"
 
+from sqlalchemy import func
 from app.db import SessionLocal
 from app.models import Lead, ActivityLog
 
@@ -24,6 +25,19 @@ def recover():
             ActivityLog.description.like("Authorization removed: Not present in CSV%")
         ).all()
         
+        # Also check for any manual DELETES from today just in case
+        today = datetime.now(pytz.utc).date()
+        manual_deletes = db.query(ActivityLog).filter(
+            ActivityLog.action_type == "DELETE",
+            func.date(ActivityLog.timestamp) == today
+        ).all()
+        
+        if manual_deletes:
+            print(f"Found {len(manual_deletes)} manual deletes from today.")
+            # We don't necessarily want to modify them if they are already deleted,
+            # but we could restore their Authorization status if it was lost.
+        
+        
         print(f"Found {len(logs)} recovery logs.")
         
         reverted = 0
@@ -35,7 +49,6 @@ def recover():
                 continue
                 
             # Extract the old status from the log description
-            # E.g. "Authorization removed: Not present in CSV export. Previous status='Care Start'"
             desc = log.description
             old_status = None
             if "Previous status=" in desc:
@@ -43,22 +56,19 @@ def recover():
                 if len(parts) > 1:
                     old_status = parts[1].strip("'\" ")
             
-            # Restore authorization
+            # 1. Restore authorization and status
             lead.authorization_received = True
             if old_status and old_status != 'None':
                 lead.care_status = old_status
             
-            # Revert active_client based on status
-            if old_status in ["Care Start", "Hold", "Not Start"]:
+            # 2. Revert active_client based on status
+            if old_status in ["Care Start", "Hold", "Not Start", "Transfer Received"]:
                 lead.active_client = True
             
-            print(f"Recovering ID {lead.id}: {lead.first_name} {lead.last_name} -> {old_status}")
+            # 3. MOVE TO RECYCLE BIN (Soft Delete) - The user wants ALL of these in the recycle bin
+            lead.deleted_at = datetime.now(pytz.utc)
             
-            # If it was active, move to delete box
-            if old_status == "Care Start" or old_status == "Active":
-                lead.deleted_at = datetime.now(pytz.utc)
-                print(f"  -> Moving to Delete Box")
-                deleted += 1
+            print(f"Recovering & Deleting ID {lead.id}: {lead.first_name} {lead.last_name} -> {old_status}")
             
             db.add(ActivityLog(
                 username="system_recovery",
@@ -66,16 +76,18 @@ def recover():
                 entity_type="Lead",
                 entity_id=lead.id,
                 entity_name=f"{lead.first_name} {lead.last_name}",
-                description=f"Reverted accidental auth removal. Restored to status={old_status}"
+                description=f"Recovered auth (status={old_status}) and moved to Recycle Bin per user request."
             ))
             
             reverted += 1
-            
+            deleted += 1
+        
+        db.commit()
         print(f"\nSummary:")
-        print(f"  Total Reverted: {reverted}")
-        print(f"  Total Deleted:  {deleted}")
+        print(f"  Total Reverted & Moved to Recycle Bin: {reverted}")
         
     except Exception as e:
+        db.rollback()
         print(f"Error: {e}")
     finally:
         db.close()
