@@ -1163,7 +1163,7 @@ def init_session_state():
     if 'confirmations_sort_by' not in st.session_state:
         st.session_state.confirmations_sort_by = "Newest Added"
     if 'confirm_status_filter' not in st.session_state:
-        st.session_state.confirm_status_filter = "All" # Default to see everything
+        st.session_state.confirm_status_filter = "Active" # Default to see Active clients
     if 'confirm_tag_color_filter' not in st.session_state:
         st.session_state.confirm_tag_color_filter = "All"
     if 'confirm_show_deleted' not in st.session_state:

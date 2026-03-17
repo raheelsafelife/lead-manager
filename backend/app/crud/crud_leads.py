@@ -423,14 +423,14 @@ def search_leads(
     if care_status_filter:
         from sqlalchemy import or_
         if care_status_filter == "Active":
-            # Active means NOT Hold, NOT Terminated, and NOT Deceased (includes NULL care_status)
+            # Active means NOT Hold, NOT Terminated, NOT Deceased, and NOT Transfer Received
             query = query.filter(or_(
                 models.Lead.care_status == None,
-                ~models.Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+                ~models.Lead.care_status.in_(["Hold", "Terminated", "Deceased", "Transfer Received"])
             ))
             
             # REFINED: If source is Transfer, it ONLY shows in Active if care_status is "Care Start"
-            # Cases with source "Transfer" and care_status "Transfer Received" (or others) are hidden from Active
+            # Cases with source "Transfer" OR care_status "Transfer Received" are hidden from Active
             query = query.filter(or_(
                 models.Lead.source != "Transfer",
                 models.Lead.care_status == "Care Start"
@@ -441,11 +441,12 @@ def search_leads(
                 query = query.filter(models.Lead.care_status == care_sub_status_filter)
                 
         elif care_status_filter == "Transfer":
-            # Dedicated filter for Transfer cases that aren't yet Care Start
-            query = query.filter(
-                models.Lead.source == "Transfer",
-                models.Lead.care_status != "Care Start"
-            )
+            # Dedicated filter for Transfer cases (either by source OR by care_status)
+            from sqlalchemy import and_
+            query = query.filter(or_(
+                models.Lead.care_status.ilike("%Transfer%"),
+                and_(models.Lead.source == "Transfer", models.Lead.care_status != "Care Start")
+            ))
         elif care_status_filter in ["Hold", "Terminated"]:
             query = query.filter(models.Lead.care_status == care_status_filter)
         elif care_status_filter != "All":
