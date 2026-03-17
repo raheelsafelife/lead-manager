@@ -351,13 +351,16 @@ def referral_confirm():
                 st.session_state.pop('referral_confirm_lead_id', None)
 
     # Total count for the header
+    filter_deleted = (st.session_state.confirm_status_filter == "Deleted")
+    
     total_authorized = count_search_leads(
         db,
         exclude_clients=False,
         auth_received_filter=True,
         only_clients=False,  # Allow Terminated/Deceased (active_client=False) leads to show
-        care_status_filter=st.session_state.confirm_status_filter,
-        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All"
+        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
+        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+        include_deleted=filter_deleted
     )
     
     header_label = st.session_state.confirm_status_filter
@@ -365,6 +368,8 @@ def referral_confirm():
         header_label = "All Authorized"
     elif header_label == "Transfer":
         header_label = "Transfer Cases"
+    elif header_label == "Deleted":
+        header_label = "Deleted (Recycle Bin)"
     st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
     
     st.divider()
@@ -406,7 +411,7 @@ def referral_confirm():
                 active_inactive_filter=None,
                 owner_id=None,
                 only_my_leads=False,
-                include_deleted=False,
+                include_deleted=filter_deleted,
                 exclude_clients=False, 
                 auth_received_filter=True, 
                 only_clients=False,  # Allow all authorized leads        
@@ -501,7 +506,7 @@ def referral_confirm():
 
     st.divider()
     
-    col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer = st.columns([1, 1, 1, 1, 1, 1])
+    col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer, col_deleted = st.columns([1, 1, 1, 1, 1, 1, 1])
     
     with col_all_main:
         if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
@@ -536,6 +541,12 @@ def referral_confirm():
     with col_transfer:
         if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
             st.session_state.confirm_status_filter = "Transfer"
+            st.session_state.conf_page = 0
+            st.rerun()
+
+    with col_deleted:
+        if st.button("Deleted", key="filter_deleted_confirm", type="primary" if st.session_state.confirm_status_filter == "Deleted" else "secondary", use_container_width=True):
+            st.session_state.confirm_status_filter = "Deleted"
             st.session_state.conf_page = 0
             st.rerun()
             
@@ -582,7 +593,7 @@ def referral_confirm():
         active_inactive_filter=None,
         owner_id=None,
         only_my_leads=False,
-        include_deleted=False,
+        include_deleted=filter_deleted,
         exclude_clients=False, # We want active clients
         auth_received_filter=auth_val, # SQL FILTERING
         only_clients=False,        # Show Terminated/Deceased as well
@@ -590,7 +601,7 @@ def referral_confirm():
         limit=limit,
         lead_id_filter=lead_id_filter,
         lead_type_filter=st.session_state.confirm_lead_type_filter,
-        care_status_filter=st.session_state.confirm_status_filter,
+        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         tag_color_filter=st.session_state.confirm_tag_color_filter,
         sort_by=st.session_state.confirmations_sort_by
