@@ -1917,10 +1917,13 @@ def show_edit_modal_dialog(m):
                 initial_group = "Active"
                 if current_care_status in ["Hold", "Terminated", "Deceased"]:
                     initial_group = current_care_status
+                elif current_care_status and "Transfer" in current_care_status:
+                    initial_group = "Transfer Received"
                 
                 # Main Group selection
-                status_group = st.radio("Main Status", ["Active", "Hold", "Terminated", "Deceased"], 
-                                         index=["Active", "Hold", "Terminated", "Deceased"].index(initial_group),
+                options = ["Active", "Hold", "Terminated", "Deceased", "Transfer Received"]
+                status_group = st.radio("Main Status", options, 
+                                         index=options.index(initial_group) if initial_group in options else 0,
                                          horizontal=True, key=f"edit_status_group_{m['target_id']}")
                 
                 new_care_status = status_group

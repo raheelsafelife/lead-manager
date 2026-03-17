@@ -220,7 +220,10 @@ def display_referral_confirm(lead, db, highlight=False):
         current_group = "Active"
         if lead.care_status in ["Hold", "Terminated", "Deceased"]:
             current_group = lead.care_status
-        g_col1, g_col2, g_col3, g_col4 = st.columns([1, 1, 1, 1])
+        elif lead.care_status and "Transfer" in lead.care_status:
+            current_group = "Transfer"
+            
+        g_col1, g_col2, g_col3, g_col4, g_col5 = st.columns([1, 1, 1, 1, 1])
         with g_col1:
             if st.button("Active", key=f"active_grp_{lead.id}", type="primary" if current_group == "Active" else "secondary", use_container_width=True):
                 if current_group != "Active":
@@ -237,6 +240,10 @@ def display_referral_confirm(lead, db, highlight=False):
         with g_col4:
             if st.button("Deceased", key=f"deceased_grp_{lead.id}", type="primary" if current_group == "Deceased" else "secondary", use_container_width=True):
                 update_lead(db, lead.id, LeadUpdate(care_status="Deceased", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
+                st.rerun()
+        with g_col5:
+            if st.button("Transfer", key=f"transfer_grp_{lead.id}", type="primary" if current_group == "Transfer" else "secondary", use_container_width=True):
+                update_lead(db, lead.id, LeadUpdate(care_status="Transfer Received", soc_date=None), st.session_state.username, st.session_state.get('db_user_id'))
                 st.rerun()
         
         if current_group == "Active":
@@ -385,6 +392,8 @@ def referral_confirm():
     header_label = "Deleted (Recycle Bin)" if filter_deleted else st.session_state.confirm_status_filter
     if header_label == "All":
         header_label = "All Authorized"
+    elif header_label == "Transfer":
+        header_label = "Transfer Cases"
     st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
     
     st.divider()
@@ -521,7 +530,7 @@ def referral_confirm():
 
     st.divider()
     
-    col_all_main, col_active, col_hold, col_term, col_deceased = st.columns([1, 1, 1, 1, 1])
+    col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer = st.columns([1, 1, 1, 1, 1, 1])
     
     with col_all_main:
         if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
@@ -550,6 +559,12 @@ def referral_confirm():
     with col_deceased:
         if st.button("Deceased", key="filter_deceased_confirm", type="primary" if st.session_state.confirm_status_filter == "Deceased" else "secondary", use_container_width=True):
             st.session_state.confirm_status_filter = "Deceased"
+            st.session_state.conf_page = 0
+            st.rerun()
+
+    with col_transfer:
+        if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
+            st.session_state.confirm_status_filter = "Transfer"
             st.session_state.conf_page = 0
             st.rerun()
             
