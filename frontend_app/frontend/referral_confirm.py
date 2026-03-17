@@ -187,7 +187,11 @@ def display_referral_confirm(lead, db, highlight=False):
         
         if lead.deleted_at:
             # DELETE BOX MODE: Show Restore and Permanent Delete
-            st.warning(f"⚠️ **This client is in the Recycle Bin** (Deleted on {render_time(lead.deleted_at)})")
+            st.markdown(f"""
+                <div style="padding: 1rem; border-radius: 0.5rem; background-color: #fef3c7; border: 1px solid #f59e0b; color: #92400e; font-weight: bold; margin-bottom: 1rem;">
+                    ⚠️ This client is in the Recycle Bin (Deleted on {render_time(lead.deleted_at)})
+                </div>
+            """, unsafe_allow_html=True)
             res_col1, res_col2, res_col3 = st.columns([1, 1, 2])
             with res_col1:
                 if st.button("RESTORE", key=f"restore_auth_{lead.id}", type="primary", use_container_width=True):
