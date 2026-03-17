@@ -443,53 +443,6 @@ def referral_confirm():
             st.session_state.conf_page = 0
             st.rerun()
 
-    # Excel Download Button
-    download_all_col1, download_all_col2 = st.columns([4, 1])
-    with download_all_col2:
-        if st.button("📥 Download Excel", key="download_confirm_excel_btn", use_container_width=True):
-            # Fetch all matching authorized referrals
-            all_filtered_leads = search_leads(
-                db,
-                search_query=search_name if search_name else None,
-                staff_filter=filter_staff if filter_staff else None,
-                source_filter=filter_source if filter_source else None,
-                status_filter=None, 
-                priority_filter=None, 
-                active_inactive_filter=None,
-                owner_id=None,
-                only_my_leads=False,
-                include_deleted=filter_deleted,
-                exclude_clients=False, 
-                auth_received_filter=True, 
-                only_clients=False,  # Allow all authorized leads        
-                skip=0,
-                limit=2000,
-                lead_id_filter=lead_id_filter,
-                lead_type_filter=st.session_state.confirm_lead_type_filter,
-                care_status_filter=st.session_state.confirm_status_filter,
-                care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-                tag_color_filter=st.session_state.confirm_tag_color_filter,
-                sort_by=st.session_state.confirmations_sort_by
-            )
-            
-            # Post-filter for Payor/CCU as they are in-memory (to maintain current page logic)
-            if st.session_state.confirm_payor_filter != "All":
-                all_filtered_leads = [l for l in all_filtered_leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
-            if st.session_state.confirm_ccu_filter != "All":
-                all_filtered_leads = [l for l in all_filtered_leads if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
-
-            if all_filtered_leads:
-                excel_data = export_leads_to_excel(all_filtered_leads)
-                st.download_button(
-                    label="Click here to download",
-                    data=excel_data,
-                    file_name=f"authorizations_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="trigger_download_confirm"
-                )
-            else:
-                st.warning("No authorized referrals found to download.")
-
     # Sorting
     sort_col1, sort_col2 = st.columns([1.4, 4])
     with sort_col1:
@@ -678,6 +631,53 @@ def referral_confirm():
     # UI Metadata
     num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
     current_page_display = page_index + 1 if total_leads > 0 else 0
+
+    # Excel Download Button
+    download_all_col1, download_all_col2 = st.columns([4, 1])
+    with download_all_col2:
+        if st.button("📥 Download Excel", key="download_confirm_excel_btn", use_container_width=True):
+            # Fetch all matching authorized referrals
+            all_filtered_leads = search_leads(
+                db,
+                search_query=search_name if search_name else None,
+                staff_filter=filter_staff if filter_staff else None,
+                source_filter=filter_source if filter_source else None,
+                status_filter=None, 
+                priority_filter=None, 
+                active_inactive_filter=None,
+                owner_id=None,
+                only_my_leads=False,
+                include_deleted=filter_deleted,
+                exclude_clients=False, 
+                auth_received_filter=True, 
+                only_clients=False,  # Allow all authorized leads        
+                skip=0,
+                limit=2000,
+                lead_id_filter=lead_id_filter,
+                lead_type_filter=st.session_state.confirm_lead_type_filter,
+                care_status_filter=st.session_state.confirm_status_filter,
+                care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+                tag_color_filter=st.session_state.confirm_tag_color_filter,
+                sort_by=st.session_state.confirmations_sort_by
+            )
+            
+            # Post-filter for Payor/CCU as they are in-memory (to maintain current page logic)
+            if st.session_state.confirm_payor_filter != "All":
+                all_filtered_leads = [l for l in all_filtered_leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
+            if st.session_state.confirm_ccu_filter != "All":
+                all_filtered_leads = [l for l in all_filtered_leads if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
+
+            if all_filtered_leads:
+                excel_data = export_leads_to_excel(all_filtered_leads)
+                st.download_button(
+                    label="Click here to download",
+                    data=excel_data,
+                    file_name=f"authorizations_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="trigger_download_confirm"
+                )
+            else:
+                st.warning("No authorized referrals found to download.")
 
     # Show filtered count
     st.write(f"**Showing {len(leads)} clients of {total_leads} total**")

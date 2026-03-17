@@ -170,44 +170,6 @@ def view_referrals():
             st.session_state.refs_page = 0
             st.rerun()
 
-    # Excel Download Button
-    download_all_col1, download_all_col2 = st.columns([4, 1])
-    with download_all_col2:
-        if st.button("📥 Download Excel", key="download_referrals_excel_btn", use_container_width=True):
-            # Fetch all matching referrals (Match display logic exactly)
-            all_filtered_leads = search_leads(
-                db,
-                search_query=search_name if search_name else None,
-                staff_filter=filter_staff if filter_staff else None,
-                source_filter=filter_source if filter_source else None,
-                status_filter=st.session_state.referral_status_filter,
-                priority_filter=st.session_state.referral_call_status_filter,
-                active_inactive_filter=st.session_state.referral_active_inactive_filter,
-                owner_id=st.session_state.db_user_id if st.session_state.show_only_my_referrals else None,
-                only_my_leads=st.session_state.show_only_my_referrals,
-                include_deleted=st.session_state.show_deleted_referrals,
-                exclude_clients=False,
-                only_clients=True,
-                auth_received_filter=False, # Match display logic
-                lead_type_filter=st.session_state.referral_type_filter,
-                skip=0,
-                limit=2000, 
-                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
-                tag_color_filter=st.session_state.referral_tag_color_filter,
-                sort_by=st.session_state.referrals_sort_by
-            )
-            if all_filtered_leads:
-                excel_data = export_leads_to_excel(all_filtered_leads)
-                st.download_button(
-                    label="Click here to download",
-                    data=excel_data,
-                    file_name=f"referrals_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="trigger_download_referrals"
-                )
-            else:
-                st.warning("No referrals found to download.")
-
     # Sorting
     sort_col1, sort_col2 = st.columns([1, 4])
     with sort_col1:
@@ -366,6 +328,44 @@ def view_referrals():
     num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
     current_page_display = st.session_state.refs_page + 1 if total_leads > 0 else 0
     
+    # Excel Download Button
+    download_all_col1, download_all_col2 = st.columns([4, 1])
+    with download_all_col2:
+        if st.button("📥 Download Excel", key="download_referrals_excel_btn", use_container_width=True):
+            # Fetch all matching referrals (Match display logic exactly)
+            all_filtered_leads = search_leads(
+                db,
+                search_query=search_name if search_name else None,
+                staff_filter=filter_staff if filter_staff else None,
+                source_filter=filter_source if filter_source else None,
+                status_filter=st.session_state.referral_status_filter,
+                priority_filter=st.session_state.referral_call_status_filter,
+                active_inactive_filter=st.session_state.referral_active_inactive_filter,
+                owner_id=st.session_state.db_user_id if st.session_state.show_only_my_referrals else None,
+                only_my_leads=st.session_state.show_only_my_referrals,
+                include_deleted=st.session_state.show_deleted_referrals,
+                exclude_clients=False,
+                only_clients=True,
+                auth_received_filter=False, # Match display logic
+                lead_type_filter=st.session_state.referral_type_filter,
+                skip=0,
+                limit=2000, 
+                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+                tag_color_filter=st.session_state.referral_tag_color_filter,
+                sort_by=st.session_state.referrals_sort_by
+            )
+            if all_filtered_leads:
+                excel_data = export_leads_to_excel(all_filtered_leads)
+                st.download_button(
+                    label="Click here to download",
+                    data=excel_data,
+                    file_name=f"referrals_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="trigger_download_referrals"
+                )
+            else:
+                st.warning("No referrals found to download.")
+
     # Show count with filter info
     filter_info = f"Active Status: {st.session_state.referral_active_inactive_filter} | Status: {st.session_state.referral_status_filter} | Call Status: {st.session_state.referral_call_status_filter} | Tag: {st.session_state.referral_tag_color_filter}"
     if only_my_referrals:

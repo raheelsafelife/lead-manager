@@ -179,9 +179,14 @@ def run_import(csv_path: str, dry_run: bool = True):
         created  = 0
         updated  = 0
         skipped  = 0
+        ignored_non_active = 0
         processed_ids = set()
 
         for c in clients:
+            if c["status"].strip().lower() != "active":
+                ignored_non_active += 1
+                continue
+
             care_status, active_client = map_status(c["status"])
             display_name = f"{c['first_name']} {c['last_name']}".strip()
             chart_label  = f"[Chart {c['chart_id']}]" if c["chart_id"] else ""
@@ -320,11 +325,12 @@ def run_import(csv_path: str, dry_run: bool = True):
             print("\n⚠️   Dry-run only — no changes written. Re-run with --commit to apply.")
 
         print(f"\n─── Summary ───────────────────────────────")
-        print(f"  Total CSV rows : {len(clients)}")
-        print(f"  Created        : {created}")
-        print(f"  Updated        : {updated}")
-        print(f"  Skipped (same) : {skipped}")
-        print(f"  Auth Removed   : {removed}")
+        print(f"  Total CSV rows      : {len(clients)}")
+        print(f"  Ignored (Not Active): {ignored_non_active}")
+        print(f"  Created             : {created}")
+        print(f"  Updated             : {updated}")
+        print(f"  Skipped (same)      : {skipped}")
+        print(f"  Auth Removed        : {removed}")
         print(f"───────────────────────────────────────────\n")
 
     except Exception as exc:
