@@ -118,9 +118,9 @@ def view_referrals():
     f_col1, f_col2, f_col3, f_col4, f_col5, f_spacer = st.columns([1.5, 1.5, 1.2, 1.3, 0.8, 0.7])
     
     with f_col1:
-        if st.button("Referral Sent", key="rs_sent", use_container_width=True, 
-                    type="primary" if st.session_state.referral_status_filter == "Referral Sent" else "secondary"):
-            st.session_state.referral_status_filter = "Referral Sent"
+        if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
+                    type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
+            st.session_state.referral_status_filter = "Initial Referral Sent"
             st.session_state.refs_page = 0
             st.rerun()
     

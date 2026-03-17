@@ -1572,7 +1572,7 @@ def get_referral_status_tag(lead):
     tags = []
     
     # Base tag for any referral
-    tags.append('<span class="referral-tag referral-sent">Referral Sent</span>')
+    tags.append('<span class="referral-tag referral-sent">Initial Referral Sent</span>')
     
     # Specific stage tags
     if lead.last_contact_status == "Assessment Scheduled":
@@ -1596,7 +1596,7 @@ def get_status_emoji(status):
         "Initial Call": "📞", "Intro Call": "🤝", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤",
         "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️",
-        "Referral Sent": "📤", "Not Approved": "🚫",
+        "Initial Referral Sent": "📤", "Not Approved": "🚫",
         "Services Refused": "🙅"
     }
     return status_map.get(status, "📄")
@@ -1781,7 +1781,7 @@ def confirmation_modal_dialog(m):
                 elif m['modal_type'] == 'undo_auth':
                     from app.schemas import LeadUpdate
                     # Set authorization_received=False and move status back out of "Confirmed" if needed
-                    update_data = LeadUpdate(authorization_received=False, last_contact_status="Referral Sent")
+                    update_data = LeadUpdate(authorization_received=False, last_contact_status="Initial Referral Sent")
                     if crud_leads.update_lead(db, m['target_id'], update_data, st.session_state.username, st.session_state.get('db_user_id')):
                         msg = "Success! Authorization has been unmarked."
                         success = True
@@ -1942,13 +1942,13 @@ def show_edit_modal_dialog(m):
                     new_care_status = status_group # Hold, Terminated, or Deceased
             
             elif is_referral:
-                status_options = ["Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
-                current_status = lead.get('last_contact_status', 'Referral Sent')
+                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
+                current_status = lead.get('last_contact_status', 'Initial Referral Sent')
                 status_idx = status_options.index(current_status) if current_status in status_options else 0
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
             else:
-                status_options = ["Intro Call", "Follow Up", "No Response", "Referral Sent", "Inactive"]
+                status_options = ["Intro Call", "Follow Up", "No Response", "Initial Referral Sent", "Inactive"]
                 current_status = lead.get('last_contact_status', 'Intro Call')
                 if current_status == "Active": current_status = "Intro Call"
                 status_idx = status_options.index(current_status) if current_status in status_options else 0

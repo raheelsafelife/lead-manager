@@ -365,7 +365,7 @@ def get_referrals_by_ccu(db: Session) -> List[dict]:
 def get_referral_segments_by_ccu(db: Session) -> Dict[str, List[dict]]:
     """
     Returns separate counts for 'Sent' and 'Confirmed' referrals by CCU.
-    Sent = Active client + 'Referral Sent' status
+    Sent = Active client + 'Initial Referral Sent' status
     Confirmed = Active client + 'Care Start' care status
     """
     # 1. Sent Referrals
