@@ -387,9 +387,9 @@ def search_leads(
     # 9. Active/Inactive Filter
     if only_clients:
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Assessment Scheduled"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled"]))
         elif active_inactive_filter == "Inactive":
-            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
     else:
         if active_inactive_filter == "Active":
             query = query.filter(models.Lead.last_contact_status != "Inactive")
@@ -456,6 +456,8 @@ def search_leads(
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
         elif lead_type_filter == "Referral Confirmed":
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
+        elif lead_type_filter in ["Regular", "Interim"]:
+            query = query.filter(models.Lead.referral_type == lead_type_filter)
         
         
     # 11. Order and Pagination
@@ -548,9 +550,9 @@ def count_search_leads(
         
     if only_clients:
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Assessment Scheduled"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled"]))
         elif active_inactive_filter == "Inactive":
-            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
     else:
         if active_inactive_filter == "Active":
             query = query.filter(models.Lead.last_contact_status != "Inactive")
@@ -580,6 +582,8 @@ def count_search_leads(
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == False)
         elif lead_type_filter == "Referral Confirmed":
             query = query.filter(models.Lead.active_client == True, models.Lead.authorization_received == True)
+        elif lead_type_filter in ["Regular", "Interim"]:
+            query = query.filter(models.Lead.referral_type == lead_type_filter)
             
     # 11. Care Status Filter (Mirroring search_leads)
     if care_status_filter:
