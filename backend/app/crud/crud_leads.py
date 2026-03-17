@@ -392,7 +392,7 @@ def search_leads(
     # 9. Active/Inactive Filter
     if only_clients:
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled", "Assessment Done"]))
         elif active_inactive_filter == "Inactive":
             query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
     else:
@@ -567,7 +567,7 @@ def count_search_leads(
         
     if only_clients:
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled"]))
+            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled", "Assessment Done"]))
         elif active_inactive_filter == "Inactive":
             query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
     else:

@@ -597,6 +597,26 @@ GLOBAL_CSS = """
         border-color: var(--safelife-aqua) !important;
     }
     
+    /* Fix Number Input Buttons (+/-) icon colors to be white */
+    [data-testid="stNumberInputStepUp"],
+    [data-testid="stNumberInputStepDown"],
+    .stNumberInput button,
+    .stNumberInput div[role="button"] {
+        color: #FFFFFF !important;
+    }
+    [data-testid="stNumberInputStepUp"] svg,
+    [data-testid="stNumberInputStepDown"] svg,
+    [data-testid="stNumberInputStepUp"] svg path,
+    [data-testid="stNumberInputStepDown"] svg path,
+    .stNumberInput button svg,
+    .stNumberInput button svg path,
+    .stNumberInput div[role="button"] svg,
+    .stNumberInput div[role="button"] svg path {
+        fill: #FFFFFF !important;
+        stroke: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }
+    
     /* Ensure no double borders or inner borders */
     [data-baseweb="base-input"] input,
     [data-baseweb="input"] input {
@@ -1579,6 +1599,9 @@ def get_referral_status_tag(lead):
     # Specific stage tags
     if lead.last_contact_status == "Assessment Scheduled":
         tags.append('<span class="referral-tag referral-assessment">Assessment Scheduled</span>')
+        
+    if lead.last_contact_status == "Assessment Done":
+        tags.append('<span class="referral-tag referral-assessment">Assessment Done</span>')
     
     if lead.authorization_received:
         tags.append('<span class="referral-tag referral-confirmed">Authorized</span>')
@@ -1597,7 +1620,7 @@ def get_status_emoji(status):
     status_map = {
         "Initial Call": "📞", "Intro Call": "🤝", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤",
-        "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️",
+        "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️", "Assessment Done": "📝",
         "Initial Referral Sent": "📤", "Not Approved": "🚫",
         "Services Refused": "🙅"
     }
@@ -1613,6 +1636,9 @@ def get_referral_status_emoji(lead):
     
     if lead.last_contact_status == "Assessment Scheduled":
         tags.append("🟠 Assessment")
+        
+    if lead.last_contact_status == "Assessment Done":
+        tags.append("🟠 Assessment Done")
     
     if lead.authorization_received:
         tags.append("🟢 Confirmed")
@@ -1921,7 +1947,7 @@ def show_edit_modal_dialog(m):
                     initial_group = "Transfer Received"
                 
                 # Main Group selection
-                options = ["Active", "Hold", "Terminated", "Deceased", "Transfer Received"]
+                options = ["Active", "Hold", "Terminated", "Deceased"]
                 status_group = st.radio("Main Status", options, 
                                          index=options.index(initial_group) if initial_group in options else 0,
                                          horizontal=True, key=f"edit_status_group_{m['target_id']}")
@@ -1947,7 +1973,7 @@ def show_edit_modal_dialog(m):
                     new_care_status = status_group # Hold, Terminated, or Deceased
             
             elif is_referral:
-                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused"]
+                status_options = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused"]
                 current_status = lead.get('last_contact_status', 'Initial Referral Sent')
                 status_idx = status_options.index(current_status) if current_status in status_options else 0
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
@@ -1983,7 +2009,7 @@ def show_edit_modal_dialog(m):
             age_key = f"edit_age_{m['target_id']}"
             if age_key not in st.session_state:
                 st.session_state[age_key] = int(lead.get('age') or 0)
-            new_age = st.number_input("Age / Year", min_value=0, max_value=3000, key=age_key)
+            new_age = st.number_input("Age / Year", min_value=0, max_value=3000, step=1, key=age_key)
             new_ssn = st.text_input("SSN", value=str(lead.get('ssn') or ""), key=f"edit_ssn_{m['target_id']}")
             new_medicaid = st.text_input("Medicaid #", value=str(lead.get('medicaid_no') or ""), key=f"edit_medicaid_{m['target_id']}")
             new_e_name = st.text_input("Emergency Contact", value=str(lead.get('e_contact_name') or ""), key=f"edit_ename_{m['target_id']}")

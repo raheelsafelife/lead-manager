@@ -48,7 +48,7 @@ def view_leads():
     # Filters are now initialized in init_session_state() in common.py
     
     # Recycle Bin Toggle (Admin and Users can see their own deleted leads)
-    st.markdown("<h4 style='font-weight: bold; color: #111827;'>Recycle Bin</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
     show_deleted = st.checkbox(
         "Show Deleted Leads",
         value=st.session_state.show_deleted_leads,
@@ -210,7 +210,7 @@ def view_leads():
     # Excel Download Button
     download_all_col1, download_all_col2 = st.columns([4, 1])
     with download_all_col2:
-        if st.button("📥 Download Excel", key="download_leads_excel_btn", use_container_width=True):
+        if st.button(" Download Excel", key="download_leads_excel_btn", use_container_width=True):
             # Fetch all matching leads (limit 2000 to cover all if user wants "all")
             all_filtered_leads = search_leads(
                 db,
@@ -723,9 +723,10 @@ def mark_referral_page():
     
     col_t1, col_t2 = st.columns([1, 1])
     with col_t1:
-        ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
+        st.write("If you switch on 'Mark as Referral', it will be categorized as **Referral Sent** by default.")
+        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused",  "Inactive"])
     with col_t2:
-        initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Not Approved", "Services Refused",  "Inactive"])
+        ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
     
     st.divider()
     

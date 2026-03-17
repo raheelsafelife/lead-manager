@@ -115,7 +115,7 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    f_col1, f_col2, f_col3, f_col4, f_col5, f_spacer = st.columns([1.5, 1.5, 1.2, 1.3, 0.8, 0.7])
+    f_col1, f_col2, f_col_done, f_col3, f_col4, f_col5 = st.columns([1.3, 1.3, 1.3, 1.1, 1.2, 0.8])
     
     with f_col1:
         if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
@@ -128,6 +128,13 @@ def view_referrals():
         if st.button("Assessment Scheduled", key="rs_assess", use_container_width=True,
                     type="primary" if st.session_state.referral_status_filter == "Assessment Scheduled" else "secondary"):
             st.session_state.referral_status_filter = "Assessment Scheduled"
+            st.session_state.refs_page = 0
+            st.rerun()
+
+    with f_col_done:
+        if st.button("Assessment Done", key="rs_done", use_container_width=True,
+                    type="primary" if st.session_state.referral_status_filter == "Assessment Done" else "secondary"):
+            st.session_state.referral_status_filter = "Assessment Done"
             st.session_state.refs_page = 0
             st.rerun()
     
@@ -331,7 +338,7 @@ def view_referrals():
     # Excel Download Button
     download_all_col1, download_all_col2 = st.columns([4, 1])
     with download_all_col2:
-        if st.button("📥 Download Excel", key="download_referrals_excel_btn", use_container_width=True):
+        if st.button(" Download Excel", key="download_referrals_excel_btn", use_container_width=True):
             # Fetch all matching referrals (Match display logic exactly)
             all_filtered_leads = search_leads(
                 db,

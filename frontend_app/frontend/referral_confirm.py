@@ -635,7 +635,7 @@ def referral_confirm():
     # Excel Download Button
     download_all_col1, download_all_col2 = st.columns([4, 1])
     with download_all_col2:
-        if st.button("📥 Download Excel", key="download_confirm_excel_btn", use_container_width=True):
+        if st.button(" Download Excel", key="download_confirm_excel_btn", use_container_width=True):
             # Fetch all matching authorized referrals
             all_filtered_leads = search_leads(
                 db,
