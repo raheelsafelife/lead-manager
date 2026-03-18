@@ -188,7 +188,7 @@ def login():
                 except Exception as e:
                     st.toast(f"Login Error - {str(e)}", icon="❌")
                     st.error(f"**Database connection error: {str(e)}**")
-                    st.info("Check if Railway Volume is correctly mounted at /app/data")
+                    st.info("Please check if the server disk is full or if the database is locked.")
                 finally:
                     if 'db' in locals():
                         db.close()

@@ -24,7 +24,7 @@ def get_logo_path(filename="icon1.png"):
     possible_paths = [
         str(base_path / filename),       # Project Root (Absolute)
         filename,                         # Relative to CWD
-        f"frontend_app/{filename}",       # Railway/Docker relative
+        f"frontend_app/{filename}",       # Docker relative
         f"/app/{filename}"                # Docker Absolute
     ]
     for path in possible_paths:
