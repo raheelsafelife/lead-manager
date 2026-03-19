@@ -37,7 +37,118 @@ def add_lead():
         st.error(f"**{msg}**")
     
     db = SessionLocal()
-    
+
+    # ------------------------------------------------------------------
+    # Persistent duplicate card — rendered OUTSIDE `if save_lead:` so
+    # the action buttons (Go to Lead / Restore) actually fire on click.
+    # ------------------------------------------------------------------
+    _dup_id = st.session_state.get('_dup_lead_id')
+    _del_id = st.session_state.get('_del_lead_id')
+
+    if _dup_id:
+        dup_lead = crud_leads.get_lead(db, _dup_id)
+        if dup_lead:
+            if dup_lead.active_client and dup_lead.authorization_received:
+                lead_state = "🔐 Authorization"
+            elif dup_lead.active_client:
+                lead_state = "📋 Referral"
+            else:
+                lead_state = "👤 Lead"
+
+            st.error(
+                f"**Duplicate Lead Detected** — **{dup_lead.first_name} {dup_lead.last_name}** "
+                f"with phone **{dup_lead.phone}** already exists (ID: #{dup_lead.id})"
+            )
+            with st.container(border=True):
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown(f"**State:** {lead_state}")
+                    st.markdown(f"**Status:** {dup_lead.last_contact_status}")
+                    st.markdown(f"**Created by:** {dup_lead.created_by or 'Unknown'}")
+                    created_str = utc_to_local(
+                        dup_lead.created_at,
+                        st.session_state.get('user_timezone')
+                    ).strftime('%m/%d/%Y %I:%M %p')
+                    st.markdown(f"**Created on:** {created_str}")
+                with col_b:
+                    st.markdown("&nbsp;", unsafe_allow_html=True)
+                    if st.button(
+                        "🔍 Go to Existing Lead",
+                        key="goto_existing_lead_btn",
+                        type="primary",
+                        use_container_width=True
+                    ):
+                        st.session_state.pop('_dup_lead_id', None)
+                        st.session_state['_navigate_to'] = 'View Leads'
+                        st.session_state['search_name_input'] = f"{dup_lead.first_name} {dup_lead.last_name}"
+                        db.close()
+                        st.rerun()
+                    if st.button(
+                        "✏️ Dismiss & Edit Form",
+                        key="dismiss_dup_btn",
+                        use_container_width=True
+                    ):
+                        st.session_state.pop('_dup_lead_id', None)
+                        db.close()
+                        st.rerun()
+            st.info("💡 Please update the existing lead instead of creating a duplicate.")
+        else:
+            # Lead no longer exists — clear stale state
+            st.session_state.pop('_dup_lead_id', None)
+
+    elif _del_id:
+        del_lead = crud_leads.get_lead(db, _del_id, include_deleted=True)
+        if del_lead:
+            deleted_str = utc_to_local(
+                del_lead.deleted_at,
+                st.session_state.get('user_timezone')
+            ).strftime('%m/%d/%Y %I:%M %p') if del_lead.deleted_at else "Unknown date"
+
+            st.warning(
+                f"**Previously Deleted Lead** — **{del_lead.first_name} {del_lead.last_name}** "
+                f"with phone **{del_lead.phone}** was deleted on {deleted_str} "
+                f"by **{del_lead.deleted_by or 'Unknown'}**."
+            )
+            with st.container(border=True):
+                st.markdown("Would you like to **restore the deleted lead** instead of creating a new one?")
+                col_r1, col_r2 = st.columns(2)
+                with col_r1:
+                    if st.button(
+                        "♻️ Restore Deleted Lead",
+                        key="restore_deleted_lead_btn",
+                        type="primary",
+                        use_container_width=True
+                    ):
+                        success = crud_leads.restore_lead(
+                            db,
+                            del_lead.id,
+                            st.session_state.username,
+                            st.session_state.get('db_user_id')
+                        )
+                        if success:
+                            clear_leads_cache()
+                            st.session_state.pop('_del_lead_id', None)
+                            st.session_state['success_msg'] = (
+                                f"Lead '{del_lead.first_name} {del_lead.last_name}' restored successfully!"
+                            )
+                            db.close()
+                            st.rerun()
+                        else:
+                            st.error("Failed to restore lead. Please try again.")
+                with col_r2:
+                    if st.button(
+                        "➕ Create New Anyway",
+                        key="create_anyway_btn",
+                        use_container_width=True
+                    ):
+                        # User explicitly overrides — allow form to proceed
+                        st.session_state.pop('_del_lead_id', None)
+                        st.session_state['_override_deleted_dup'] = True
+                        db.close()
+                        st.rerun()
+        else:
+            st.session_state.pop('_del_lead_id', None)
+
     # Main Form Container
     st.markdown('<div style="padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: white;">', unsafe_allow_html=True)
     
@@ -395,18 +506,31 @@ def add_lead():
                 st.toast("SOC Date Required for Transfer", icon="❌")
                 st.error("**SOC Date Required - SOC Date is required for Transfer source**")
             else:
-                # Check for duplicate lead
+                # ------------------------------------------------------------------
+                # Duplicate check (active leads)
+                # ------------------------------------------------------------------
                 existing_lead = crud_leads.check_duplicate_lead(db, first_name, last_name, phone)
                 if existing_lead:
                     st.toast("Duplicate Lead Detected", icon="❌")
-                    st.error(f"**Duplicate Lead Detected - {first_name} {last_name} with phone {phone} already exists (ID: {existing_lead.id})**")
-                    st.info(f"Created on: {utc_to_local(existing_lead.created_at, st.session_state.get('user_timezone')).strftime('%m/%d/%Y %I:%M %p')}")
-                    st.info(f"Created by: {existing_lead.created_by or 'Unknown'}")
-                    st.info(f"Status: {existing_lead.last_contact_status}")
-                    st.info("Please update the existing lead instead of creating a duplicate.")
+                    # Persist the duplicate lead ID so the card renders outside this block
+                    st.session_state['_dup_lead_id'] = existing_lead.id
+                    st.session_state.pop('_del_lead_id', None)
                     db.close()
-                    return
-                
+                    st.rerun()
+
+                # ------------------------------------------------------------------
+                # Duplicate check (soft-deleted / Recycle Bin leads)
+                # ------------------------------------------------------------------
+                override = st.session_state.pop('_override_deleted_dup', False)
+                if not override:
+                    deleted_lead = crud_leads.check_deleted_duplicate_lead(db, first_name, last_name, phone)
+                    if deleted_lead:
+                        st.toast("Previously Deleted Lead Found", icon="⚠️")
+                        st.session_state['_del_lead_id'] = deleted_lead.id
+                        st.session_state.pop('_dup_lead_id', None)
+                        db.close()
+                        st.rerun()
+
                 try:
                     # Prepare data into a dictionary for the modal
                     lead_dict = {

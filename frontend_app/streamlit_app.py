@@ -90,6 +90,12 @@ def main():
     import importlib
     import app.crud.crud_leads as crud_leads
     importlib.reload(crud_leads)
+
+    # 0.5 PROGRAMMATIC NAVIGATION
+    # Widgets cannot have their session state key set after they render.
+    # Use _navigate_to as an intermediate flag, applied HERE before the sidebar radio renders.
+    if '_navigate_to' in st.session_state:
+        st.session_state['main_navigation'] = st.session_state.pop('_navigate_to')
     
     # Check authentication
     if not st.session_state.authenticated:

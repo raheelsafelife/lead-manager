@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
+import re
 
 import app.models as models
 from app.schemas import LeadCreate, LeadUpdate
@@ -65,14 +66,48 @@ def get_lead(db: Session, lead_id: int, include_deleted: bool = False):
     return query.first()
 
 
+def _normalize_phone(phone: str) -> str:
+    """Strip all non-digit characters from a phone number for comparison"""
+    return re.sub(r'\D', '', phone or '')
+
+
 def check_duplicate_lead(db: Session, first_name: str, last_name: str, phone: str) -> Optional[models.Lead]:
-    """Check if a lead with the same name and phone already exists (excluding deleted)"""
-    return db.query(models.Lead).filter(
-        models.Lead.first_name == first_name,
-        models.Lead.last_name == last_name,
-        models.Lead.phone == phone,
+    """
+    Check if a non-deleted lead with the same name and phone already exists.
+    - Names are compared case-insensitively.
+    - Phone is normalized (digits only) before comparison.
+    Returns the first matching lead, or None.
+    """
+    norm_phone = _normalize_phone(phone)
+    candidates = db.query(models.Lead).filter(
+        models.Lead.first_name.ilike(first_name),
+        models.Lead.last_name.ilike(last_name),
         models.Lead.deleted_at == None
-    ).first()
+    ).all()
+    for lead in candidates:
+        if _normalize_phone(lead.phone) == norm_phone:
+            return lead
+    return None
+
+
+def check_deleted_duplicate_lead(db: Session, first_name: str, last_name: str, phone: str) -> Optional[models.Lead]:
+    """
+    Check if a SOFT-DELETED lead with the same name and phone exists in the recycle bin.
+    Used to offer restoration instead of creating a brand-new record.
+    - Names are compared case-insensitively.
+    - Phone is normalized (digits only) before comparison.
+    Returns the first matching deleted lead, or None.
+    """
+    norm_phone = _normalize_phone(phone)
+    candidates = db.query(models.Lead).filter(
+        models.Lead.first_name.ilike(first_name),
+        models.Lead.last_name.ilike(last_name),
+        models.Lead.deleted_at != None
+    ).all()
+    for lead in candidates:
+        if _normalize_phone(lead.phone) == norm_phone:
+            return lead
+    return None
 
 
 def list_leads(db: Session, skip: int = 0, limit: int = 50, include_deleted: bool = False) -> List[models.Lead]:

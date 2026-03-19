@@ -430,11 +430,11 @@ def referral_confirm():
     # Search and filter
     col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
-        search_name = st.text_input("Search by name")
+        search_name = st.text_input("Search by name", key="conf_search_name_input")
     with col2:
-        filter_staff = st.text_input("Filter by staff")
+        filter_staff = st.text_input("Filter by staff", key="conf_search_staff_input")
     with col3:
-        filter_source = st.text_input("Filter by source")
+        filter_source = st.text_input("Filter by source", key="conf_search_source_input")
     with col_id:
         search_id = st.text_input("Search by ID", key="search_id_input_conf")
     with col4:
