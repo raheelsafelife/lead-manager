@@ -1150,7 +1150,7 @@ def init_session_state():
     if 'show_only_my_referrals' not in st.session_state:
         st.session_state.show_only_my_referrals = True
     if 'referral_active_inactive_filter' not in st.session_state:
-        st.session_state.referral_active_inactive_filter = "All"
+        st.session_state.referral_active_inactive_filter = "Active"
     if 'show_deleted_referrals' not in st.session_state:
         st.session_state.show_deleted_referrals = False
     if 'referral_type_filter' not in st.session_state:
