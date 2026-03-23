@@ -112,5 +112,7 @@ def import_csv(file_path, default_status):
     db.close()
 
 if __name__ == "__main__":
-    import_csv("terminated .csv", "Terminated")
-    import_csv("hold.csv", "Hold")
+    # Get the backend root directory (parent of scripts/)
+    backend_root = Path(__file__).parent.parent
+    import_csv(str(backend_root / "data" / "terminated.csv"), "Terminated")
+    import_csv(str(backend_root / "data" / "hold.csv"), "Hold")
