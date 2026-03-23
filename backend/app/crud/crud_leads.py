@@ -426,10 +426,11 @@ def search_leads(
         
     # 9. Active/Inactive Filter
     if only_clients:
+        inactive_statuses = ["Not Approved", "Services Refused", "Inactive"]
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled", "Assessment Done"]))
+            query = query.filter(~models.Lead.last_contact_status.in_(inactive_statuses))
         elif active_inactive_filter == "Inactive":
-            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
+            query = query.filter(models.Lead.last_contact_status.in_(inactive_statuses))
     else:
         if active_inactive_filter == "Active":
             query = query.filter(models.Lead.last_contact_status != "Inactive")
@@ -601,10 +602,11 @@ def count_search_leads(
         query = query.filter(models.Lead.tag_color == tag_color_filter)
         
     if only_clients:
+        inactive_statuses = ["Not Approved", "Services Refused", "Inactive"]
         if active_inactive_filter == "Active":
-            query = query.filter(models.Lead.last_contact_status.in_(["Initial Referral Sent", "Referral Sent", "Assessment Scheduled", "Assessment Done"]))
+            query = query.filter(~models.Lead.last_contact_status.in_(inactive_statuses))
         elif active_inactive_filter == "Inactive":
-            query = query.filter(models.Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive"]))
+            query = query.filter(models.Lead.last_contact_status.in_(inactive_statuses))
     else:
         if active_inactive_filter == "Active":
             query = query.filter(models.Lead.last_contact_status != "Inactive")
