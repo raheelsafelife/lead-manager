@@ -88,32 +88,8 @@ def dashboard():
     st.divider()
     
     if st.session_state.user_role == "admin":
-        col_adm1, col_adm2 = st.columns([1, 1])
-        with col_adm1:
-            if st.button("View All User Dashboards", width="stretch", type="primary"):
-                st.session_state.show_user_dashboards = True; st.rerun()
-        with col_adm2:
-            with st.expander("🛠️ Admin Utilities"):
-                if st.button("Run CSV Import (Terminated/Hold)", use_container_width=True):
-                    import subprocess
-                    try:
-                        # Find the script path
-                        backend_root = Path(__file__).parent.parent.parent / "backend"
-                        script_path = backend_root / "scripts" / "import_csv_leads.py"
-                        
-                        # Run the script using the current Python interpreter
-                        result = subprocess.run([sys.executable, str(script_path)], capture_output=True, text=True)
-                        
-                        if result.returncode == 0:
-                            st.success("CSV Import Successful!")
-                            st.code(result.stdout)
-                            # Clear cache to see new data
-                            clear_leads_cache()
-                            # st.rerun()  # Let them see the success message first
-                        else:
-                            st.error(f"Import Failed: {result.stderr}")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        if st.button("View All User Dashboards", width="stretch", type="primary"):
+            st.session_state.show_user_dashboards = True; st.rerun()
     
     show_cumulative = (st.session_state.user_role == "admin" or (st.session_state.user_role != "admin" and st.session_state.stats_view_mode == "cumulative"))
     
