@@ -20,7 +20,7 @@ except Exception:
 # Branding handled via Dockerfile patch and page config
 st.set_page_config(
     page_title="Lead Manager",
-    page_icon=LOGO_BASE64,
+    page_icon="./favicon.png?v=8",
     layout="wide",
     initial_sidebar_state="expanded"
 )
