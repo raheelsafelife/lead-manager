@@ -91,7 +91,16 @@ def dashboard():
         if st.button("View All User Dashboards", width="stretch", type="primary"):
             st.session_state.show_user_dashboards = True; st.rerun()
     
-    show_cumulative = (st.session_state.user_role == "admin" or (st.session_state.user_role != "admin" and st.session_state.stats_view_mode == "cumulative"))
+    # Initialize stats_view_mode if not present
+    if 'stats_view_mode' not in st.session_state:
+        st.session_state.stats_view_mode = "individual"
+
+    # Allow all users to select view mode
+    st.session_state.stats_view_mode = st.radio("Stats View Mode", ["individual", "cumulative"], 
+                                                 index=0 if st.session_state.stats_view_mode == 'individual' else 1,
+                                                 horizontal=True)
+    
+    show_cumulative = (st.session_state.user_role == "admin" or st.session_state.stats_view_mode == "cumulative")
     
     # UPDATED: Improved config for maximize/PNG export
     chart_config = {
