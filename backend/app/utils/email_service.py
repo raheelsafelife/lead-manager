@@ -5,7 +5,8 @@ import logging
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables (Check root then current)
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
 load_dotenv()
 
 # Configure logging
@@ -121,19 +122,21 @@ def send_simple_lead_email(lead_info: dict, recipient_email: str) -> bool:
     status = lead_info.get('status', 'N/A')
     created_date = lead_info.get('created_date', 'N/A')
     
-    subject_default = "Lead Reminder: {name}"
+    subject_default = "Follow-up Notification: {name}"
     body_default = """
-Hello,
+Dear Team,
 
-This is an automated reminder for the following lead:
+This is a scheduled follow-up notification regarding the following lead in our management system. Please ensure necessary contact is made to progress this lead through the pipeline.
 
-Name: {name}
-Phone: {phone}
-Source: {source}
-Status: {status}
-Created On: {created_date}
+**Lead Information:**
+- **Name:** {name}
+- **Phone:** {phone}
+- **Source:** {source}
+- **Current Status:** {status}
+- **Created Date:** {created_date}
 
-Please follow up with this lead to ensure they are moving through the pipeline.
+**Next Steps:**
+Please log in to the Lead Manager portal to update the contact history or change the status of this lead.
 
 Best Regards,
 SafeLife Lead Management System
@@ -189,12 +192,12 @@ SafeLife Lead Management System
             </div>
             
             <div style="margin-top: 30px; padding: 15px; background-color: #e8f4f8; border-radius: 5px; border-left: 4px solid #3498db;">
-                <p style="margin: 0; font-size: 14px;">Please follow up with this lead.</p>
+                <p style="margin: 0; font-size: 14px;">Please follow up with this lead to ensure they are moving through the pipeline.</p>
             </div>
             
             <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #856404;">
-                    <strong>Automatic Reminder:</strong> You will receive reminders every 48 hours until this lead becomes inactive or is marked as a referral.
+                    <strong>Reminder Schedule:</strong> This notification is sent every 7 days until the lead is marked as Inactive or converted to a Referral.
                 </p>
             </div>
             
@@ -243,29 +246,28 @@ def send_referral_reminder_email(referral_info: dict, recipient_email: str) -> b
     if payor_suboption:
         payor_display += f" - {payor_suboption}"
     
-    subject_default = "Referral Reminder [{referral_type}]: {name}"
+    subject_default = "Referral Action Required: {name} ({referral_type})"
     body_default = """
-Hello,
+Dear Team,
 
-This is an automated reminder for the following referral:
+This is a scheduled follow-up notification regarding an active referral. Immediate attention may be required to ensure timely service coordination.
 
-Name: {name}
-Phone: {phone}
-DOB: {dob}
-Status: {status}
-Referral Type: {referral_type}
+**Referral Information:**
+- **Name:** {name}
+- **Phone:** {phone}
+- **DOB:** {dob}
+- **Referral Type:** {referral_type}
+- **Current Status:** {status}
+- **Care Status:** {care_status}
+- **Priority:** {priority}
 
-CCU Info:
-Name: {ccu_name}
-Phone: {ccu_phone}
-Fax: {ccu_fax}
-Address: {ccu_address}
+**Payer & Coordination Details:**
+- **Payer:** {payor_display}
+- **CCU Name:** {ccu_name}
+- **CCU Coordinator:** {ccu_coordinator}
 
-Payor Info:
-Name: {payor_name}
-Suboption: {payor_suboption}
-
-Please follow up with this referral as soon as possible.
+**Next Steps:**
+Please coordinate with the CCU and the payer to progress this referral. Ensure all documentation is uploaded and statuses are updated in the Lead Manager.
 
 Best Regards,
 SafeLife Lead Management System
@@ -315,6 +317,14 @@ SafeLife Lead Management System
                     <tr style="background-color: rgba(255,255,255,0.5);">
                         <td style="padding: 8px 0; font-weight: bold;">Current Status:</td>
                         <td style="padding: 8px 0;"><span style="background-color: #3498db; color: white; padding: 5px 10px; border-radius: 5px;">{status}</span></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Care Status:</td>
+                        <td style="padding: 8px 0;"><span style="background-color: #27ae60; color: white; padding: 5px 10px; border-radius: 5px;">{referral_info.get('care_status', 'N/A')}</span></td>
+                    </tr>
+                    <tr style="background-color: rgba(255,255,255,0.5);">
+                        <td style="padding: 8px 0; font-weight: bold;">Priority:</td>
+                        <td style="padding: 8px 0;"><span style="background-color: #f39c12; color: white; padding: 5px 10px; border-radius: 5px;">{referral_info.get('priority', 'Medium')}</span></td>
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; font-weight: bold;">Created By:</td>
@@ -374,7 +384,7 @@ SafeLife Lead Management System
             <div style="margin-top: 20px; padding: 15px; background-color: #f6ffed; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #389e0d;">
                     <strong>Reminder Schedule:</strong><br>
-                    <strong>All Referrals:</strong> Every 6 hours until Care Start
+                    Regular referrals are followed up every 7 days. Interim referrals are followed up every 48 hours.
                 </p>
             </div>
             
@@ -477,8 +487,7 @@ def send_authorization_confirmation_email(auth_info: dict, recipient_email: str)
 
             <div style="margin-top: 20px; padding: 15px; background-color: #fff7e6; border-radius: 5px; text-align: center;">
                 <p style="margin: 0; font-size: 14px; color: #d46b08;">
-                    <strong>Care Start Reminder:</strong><br>
-                    <strong>Care Start Reminder:</strong> Every 6 hours until Care Start
+                    <strong>Care Start Reminder:</strong> This urgent notification is sent every 24 hours until the status is updated to Care Start.
                 </p>
             </div>
 

@@ -13,6 +13,7 @@ services:
   # Backend API (FastAPI)
   api:
     build: .
+    env_file: .env
     depends_on:
       setup:
         condition: service_completed_successfully
@@ -27,6 +28,7 @@ services:
   # Frontend Dashboard (Streamlit)
   dashboard:
     build: .
+    env_file: .env
     depends_on:
       - api
     ports:

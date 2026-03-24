@@ -1,9 +1,10 @@
 """
 Automatic Email Scheduler for Lead Reminders
 Different schedules based on lead type:
-- Interim Referrals: Every 6 hours for 2 days (48 hours)
-- Regular Referrals: Every 7 days until authorization received
-- Non-Referral Leads: Every 48 hours until inactive
+- Interim Referrals: Every 48 hours
+- Regular Referrals: Every 7 days (168 hours)
+- Non-Referral Leads: Every 7 days (168 hours)
+- Authorized Referrals (Care Start): Every 24 hours
 """
 
 from datetime import datetime, timedelta
@@ -41,12 +42,13 @@ def should_send_reminder(lead, last_reminder_time):
         if lead.care_status == "Care Start":
             return False
             
-        # Updated: Every 6 hours for ALL referrals until Care Start
-        # This replaces previous logic of 48h for Interim and 7 days for Regular
-        return hours_since_last >= 6
+        # Interim: 48h, Regular: 1 week (168h)
+        referral_type = lead.referral_type if lead.referral_type else 'Regular'
+        interval_hours = 48 if referral_type == 'Interim' else 168
+        return hours_since_last >= interval_hours
     else:
-        # Non-referral lead: Every 48 hours until inactive
-        return hours_since_last >= 48
+        # Non-referral lead: Every 7 days (1 week)
+        return hours_since_last >= 168
 
 
 def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time):
@@ -72,8 +74,8 @@ def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time
     hours_since_auth = (datetime.utcnow() - auth_received_time).total_seconds() / 3600
 
     # Different schedules based on referral type
-    # Updated: Every 6 hours for ALL authorized referrals until Care Start
-    return hours_since_last >= 6
+    # Updated: Every 24 hours for authorized referrals until Care Start
+    return hours_since_last >= 24
 
 
 def send_lead_reminders():
@@ -154,7 +156,9 @@ def send_lead_reminders():
                                     'ccu_fax': ccu_fax,
                                     'ccu_email': ccu_email,
                                     'ccu_address': ccu_address,
-                                    'ccu_coordinator': ccu_coordinator
+                                    'ccu_coordinator': ccu_coordinator,
+                                    'care_status': lead.care_status if lead.care_status else 'N/A',
+                                    'priority': lead.priority if lead.priority else 'Medium'
                                 }
                                 
                                 # Send referral email
@@ -304,7 +308,9 @@ def send_lead_reminders():
                                 'ccu_address': ccu_address,
                                 'ccu_coordinator': ccu_coordinator,
                                 'auth_received_date': auth_received_time.strftime('%m/%d/%Y'),
-                                'days_since_auth': int((datetime.utcnow() - auth_received_time).total_seconds() / 86400)
+                                'days_since_auth': int((datetime.utcnow() - auth_received_time).total_seconds() / 86400),
+                                'care_status': lead.care_status if lead.care_status else 'N/A',
+                                'priority': lead.priority if lead.priority else 'Medium'
                             }
 
                             # Send care start reminder email
