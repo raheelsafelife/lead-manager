@@ -95,10 +95,14 @@ def dashboard():
     if 'stats_view_mode' not in st.session_state:
         st.session_state.stats_view_mode = "individual"
 
-    # Allow all users to select view mode
-    st.session_state.stats_view_mode = st.radio("Stats View Mode", ["individual", "cumulative"], 
-                                                 index=0 if st.session_state.stats_view_mode == 'individual' else 1,
-                                                 horizontal=True)
+    # Refined requirements: Only regular users see the toggle. Admins are forced to cumulative.
+    if st.session_state.user_role == "admin":
+        st.session_state.stats_view_mode = "cumulative"
+    else:
+        # Allow regular users to select view mode
+        st.session_state.stats_view_mode = st.radio("Stats View Mode", ["individual", "cumulative"], 
+                                                     index=0 if st.session_state.stats_view_mode == 'individual' else 1,
+                                                     horizontal=True)
     
     show_cumulative = (st.session_state.user_role == "admin" or st.session_state.stats_view_mode == "cumulative")
     
