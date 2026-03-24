@@ -17,38 +17,13 @@ except Exception:
     # Fallback if the file is missing or import fails
     LOGO_BASE64 = "2.png.jpeg"
 
+# Branding handled via Dockerfile patch and page config
 st.set_page_config(
     page_title="Lead Manager",
     page_icon=LOGO_BASE64,
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# BRANDING LOCKER: Aggressively force title and favicon to stop Streamlit flash
-st.markdown(f"""
-    <script>
-    (function() {{
-        const title = "Lead Manager";
-        const favicon = "{LOGO_BASE64}";
-        
-        const forceBranding = () => {{
-            if (document.title !== title) document.title = title;
-            let link = document.querySelector("link[rel*='icon']");
-            if (!link) {{
-                link = document.createElement('link');
-                link.rel = 'shortcut icon';
-                document.head.appendChild(link);
-            }}
-            if (link.href !== favicon) link.href = favicon;
-        }};
-
-        // Run immediately and then frequently for the first 3 seconds
-        forceBranding();
-        const interval = setInterval(forceBranding, 50);
-        setTimeout(() => clearInterval(interval), 3000);
-    }})();
-    </script>
-    """, unsafe_allow_html=True)
 
 # 1. PATH CONFIGURATION
 # Add backend to Python path for importing backend modules
