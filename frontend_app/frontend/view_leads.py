@@ -124,16 +124,16 @@ def view_leads():
             st.rerun()
     
     with c_col2:
-        if st.button("Not Interested", key="filter_not_interested", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "Not Interested" else "secondary"):
-            st.session_state.status_filter = "Not Interested"
-            st.session_state.leads_page = 0
-            st.rerun()
-    
-    with c_col3:
         if st.button("No Response", key="filter_nores", use_container_width=True,
                     type="primary" if st.session_state.status_filter == "No Response" else "secondary"):
             st.session_state.status_filter = "No Response"
+            st.session_state.leads_page = 0
+            st.rerun()
+            
+    with c_col3:
+        if st.button("Not Interested", key="filter_not_interested", use_container_width=True,
+                    type="primary" if st.session_state.status_filter == "Not Interested" else "secondary"):
+            st.session_state.status_filter = "Not Interested"
             st.session_state.leads_page = 0
             st.rerun()
     
