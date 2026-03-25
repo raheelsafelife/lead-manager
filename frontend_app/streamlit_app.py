@@ -15,12 +15,12 @@ try:
     from assets_base64 import LOGO_BASE64
 except Exception:
     # Fallback if the file is missing or import fails
-    LOGO_BASE64 = "2.png.jpeg"
+    LOGO_BASE64 = "favicon.svg"
 
 # Branding handled via Dockerfile patch and page config
 st.set_page_config(
     page_title="Lead Manager",
-    page_icon="./favicon.png?v=8",
+    page_icon="./favicon.svg?v=11",
     layout="wide",
     initial_sidebar_state="expanded"
 )

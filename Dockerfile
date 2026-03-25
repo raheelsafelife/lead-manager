@@ -23,9 +23,9 @@ RUN pip3 install --no-cache-dir --default-timeout=100 -r requirements.txt
 COPY . .
 
 # Patch Streamlit Branding (Deep Fix to eliminate flash)
-RUN python3 -c 'import streamlit; import os; p = os.path.join(os.path.dirname(streamlit.__file__), "static", "index.html"); html = open(p).read(); html = html.replace("<title>Streamlit</title>", "<title>Lead Manager</title>"); html = html.replace("favicon.png", "favicon.png?v=10"); script = "<script>const force = () => { if (document.title !== \"Lead Manager\") document.title = \"Lead Manager\"; document.querySelectorAll(\"link[rel*=\\\"icon\\\"]\").forEach(l => { if (!l.href.includes(\"favicon.png?v=10\")) l.href = \"./favicon.png?v=10\"; }); }; force(); const obs = new MutationObserver(force); obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true }); </script>"; html = html.replace("<head>", "<head>" + script) if "MutationObserver" not in html else html; open(p, "w").write(html)' && \
-    cp frontend_app/2.png.jpeg $(python3 -c "import streamlit; import os; print(os.path.dirname(streamlit.__file__))")/static/favicon.png && \
-    cp frontend_app/2.png.jpeg $(python3 -c "import streamlit; import os; print(os.path.dirname(streamlit.__file__))")/static/favicon.ico
+RUN python3 -c 'import streamlit; import os; p = os.path.join(os.path.dirname(streamlit.__file__), "static", "index.html"); html = open(p).read(); html = html.replace("<title>Streamlit</title>", "<title>Lead Manager</title>"); html = html.replace("favicon.png", "favicon.svg?v=11"); script = "<script>const force = () => { if (document.title !== \"Lead Manager\") document.title = \"Lead Manager\"; document.querySelectorAll(\"link[rel*=\\\"icon\\\"]\").forEach(l => { if (!l.href.includes(\"favicon.svg?v=11\")) l.href = \"./favicon.svg?v=11\"; }); }; force(); const obs = new MutationObserver(force); obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true }); </script>"; html = html.replace("<head>", "<head>" + script) if "MutationObserver" not in html else html; open(p, "w").write(html)' && \
+    cp frontend_app/favicon.svg $(python3 -c "import streamlit; import os; print(os.path.dirname(streamlit.__file__))")/static/favicon.svg && \
+    cp frontend_app/favicon.svg $(python3 -c "import streamlit; import os; print(os.path.dirname(streamlit.__file__))")/static/favicon.ico
 
 # Create a data directory for the persistent database and set permissions
 RUN mkdir -p /app/data && chmod -R 777 /app/data
