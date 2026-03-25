@@ -356,8 +356,8 @@ def run_scheduler():
         except Exception as e:
             print(f"[CRITICAL] Error in scheduler loop: {e}")
         
-        # Wait 1 hour before next check
-        time.sleep(3600)
+        # Wait 10 minutes before next check
+        time.sleep(600)
 
 
 def start_scheduler():

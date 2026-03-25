@@ -1480,7 +1480,9 @@ def send_initial_lead_reminders(db, lead_id, username):
                 'ccu_fax': ccu_fax,
                 'ccu_email': ccu_email,
                 'ccu_address': ccu_address,
-                'ccu_coordinator': ccu_coordinator
+                'ccu_coordinator': ccu_coordinator,
+                'care_status': lead.care_status or 'N/A',
+                'priority': lead.priority or 'Medium'
             }
             success = send_referral_reminder_email(referral_info, user.email)
             subject = f"New Referral [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
