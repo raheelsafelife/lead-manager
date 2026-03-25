@@ -89,7 +89,7 @@ def admin_panel():
     db = SessionLocal()
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
         " Pending Users", 
         " Password Resets", 
         " Approved Users", 
@@ -101,7 +101,8 @@ def admin_panel():
         " Admin Reporting",
         " Email Editor",
         " CCU & Provider Mgmt",
-        " 📊 Referral Status"
+        " 📊 Referral Status",
+        " 🛠️ System Debug"
     ])
     
     with tab1:
@@ -732,6 +733,48 @@ def admin_panel():
             referral_reports()
         except Exception as e:
             st.error(f"Error loading Referral Reports: {e}")
+
+    with tab13:
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>🛠️ System Debug & SMTP Test</h4>", unsafe_allow_html=True)
+        
+        st.write("### SMTP Configuration Status")
+        import os
+        sender = os.getenv("SENDER_EMAIL")
+        password = os.getenv("SENDER_PASSWORD")
+        server = os.getenv("SMTP_SERVER")
+        port = os.getenv("SMTP_PORT")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Sender Email:** `{sender if sender else 'NOT SET'}`")
+            st.write(f"**SMTP Server:** `{server if server else 'NOT SET'}`")
+        with col2:
+            st.write(f"**Password Set:** `{'✅ YES' if password else '❌ NO'}`")
+            st.write(f"**SMTP Port:** `{port if port else 'NOT SET'}`")
+            
+        st.divider()
+        st.write("### Send Test Email")
+        test_recipient = st.text_input("Test Recipient Email", value=st.session_state.get('user_email', ''))
+        
+        if st.button("🚀 Send Test Email Now", type="primary"):
+            if not test_recipient:
+                st.error("Please enter a recipient email.")
+            else:
+                from app.utils.email_service import send_email
+                with st.spinner("Attempting to send..."):
+                    success = send_email(
+                        to_email=test_recipient,
+                        subject="Lead Manager System: SMTP Test Email",
+                        body="This is a test email from the Lead Manager System to verify your SMTP configuration is working correctly.",
+                        html_body="<h3>Lead Manager System</h3><p>This is a <b>test email</b> to verify your SMTP configuration is working correctly.</p>"
+                    )
+                    
+                if success:
+                    st.success(f"✅ Test email sent successfully to {test_recipient}!")
+                    st.info("If you don't see it, check your Spam folder or the 'Sent' folder of your sender email.")
+                else:
+                    st.error("❌ Failed to send test email.")
+                    st.warning("Please check the server logs for the detailed error: `docker compose logs -f dashboard`")
 
     db.close()
 
