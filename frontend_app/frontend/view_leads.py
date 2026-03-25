@@ -114,19 +114,19 @@ def view_leads():
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
-    c_col1, c_col2, c_col3, c_col4, c_spacer = st.columns([1.2, 1.2, 1.4, 1, 1])
+    c_col1, c_col2, c_col3, c_col4, c_spacer = st.columns([1.2, 1.4, 1.4, 1, 1])
     
     with c_col1:
-        if st.button("Intro Call", key="filter_intro", use_container_width=True, 
-                    type="primary" if st.session_state.status_filter == "Intro Call" else "secondary"):
-            st.session_state.status_filter = "Intro Call"
+        if st.button("Initial Call", key="filter_initial_call", use_container_width=True,
+                    type="primary" if st.session_state.status_filter == "Initial Call" else "secondary"):
+            st.session_state.status_filter = "Initial Call"
             st.session_state.leads_page = 0
             st.rerun()
     
     with c_col2:
-        if st.button("Follow Up", key="filter_followup", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "Follow Up" else "secondary"):
-            st.session_state.status_filter = "Follow Up"
+        if st.button("Not Interested", key="filter_not_interested", use_container_width=True,
+                    type="primary" if st.session_state.status_filter == "Not Interested" else "secondary"):
+            st.session_state.status_filter = "Not Interested"
             st.session_state.leads_page = 0
             st.rerun()
     
