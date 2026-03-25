@@ -24,16 +24,20 @@ STATUS_MAPPING = {
 
 def find_db():
     """Locate the database file using the same priority as db.py"""
-    # Priority 1: Docker persistent volume
+    # Priority 1: Docker persistent volume (if run inside container)
     if os.path.exists("/app/data/leads.db"):
         return "/app/data/leads.db"
-    # Priority 2: DATABASE_URL env var (sqlite only)
+    # Priority 2: Host machine Docker volume mount (if run outside container on AWS)
+    host_docker_vol = Path(__file__).parent.parent.parent / "data" / "leads.db"
+    if host_docker_vol.exists():
+        return str(host_docker_vol)
+    # Priority 3: DATABASE_URL env var (sqlite only)
     env_url = os.getenv("DATABASE_URL", "")
     if env_url.startswith("sqlite:///"):
         path = env_url.replace("sqlite:///", "")
         if os.path.exists(path):
             return path
-    # Priority 3: Local leads.db next to the backend folder
+    # Priority 4: Local leads.db next to the backend folder (local dev fallback)
     local = Path(__file__).parent.parent / "leads.db"
     if local.exists():
         return str(local)
