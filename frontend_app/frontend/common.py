@@ -1436,6 +1436,8 @@ def send_initial_lead_reminders(db, lead_id, username):
     target_username = lead.created_by or username
     user = crud_users.get_user_by_username(db, target_username)
     if not user or not user.email:
+        st.error(f"**Email skipped:** Assigned user '{target_username}' has no email address in the database.")
+        st.info("Please update the user's profile with a valid email address.")
         return False
 
     success = False

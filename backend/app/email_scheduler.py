@@ -1,11 +1,10 @@
-"""
-Automatic Email Scheduler for Lead Reminders
-Different schedules based on lead type:
-- Interim Referrals: Every 48 hours
-- Regular Referrals: Every 7 days (168 hours)
-- Non-Referral Leads: Every 7 days (168 hours)
-- Authorized Referrals (Care Start): Every 24 hours
-"""
+import os
+from dotenv import load_dotenv
+
+# Load environment variables (Check root then current)
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
+load_dotenv(dotenv_path)
+load_dotenv()
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session

@@ -61,7 +61,12 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
         
         if not all([smtp_server, smtp_port, sender_email, sender_password]):
             logger.error(f"Missing SMTP configuration. Server: {smtp_server}, Port: {smtp_port}, User: {sender_email}")
+            print(f"[ERROR] Missing SMTP configuration. Server: {smtp_server}, Port: {smtp_port}, User: {sender_email}")
             return False
+        
+        # Log sending attempt (with masked password)
+        logger.info(f"Attempting to send email to {to_email} via {smtp_server}:{smtp_port} as {sender_email}")
+        print(f"[DEBUG] Sending email to {to_email} via {sender_email}")
         
         # Create message
         msg = MIMEMultipart("alternative")
@@ -93,6 +98,7 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
                 server.sendmail(sender_email, recipients, msg.as_string())
             
         logger.info(f"Email sent successfully to {to_email} (BCC: {ADMIN_EMAIL})")
+        print(f"[SUCCESS] Email sent successfully to {to_email}")
         return True
         
     except Exception as e:
