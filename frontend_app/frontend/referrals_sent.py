@@ -354,7 +354,7 @@ def view_referrals():
                 exclude_clients=False,
                 only_clients=True,
                 auth_received_filter=False, # Match display logic
-                lead_type_filter=st.session_state.referral_type_filter,
+                referral_category_filter=st.session_state.referral_type_filter,
                 skip=0,
                 limit=2000, 
                 lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
