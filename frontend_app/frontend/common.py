@@ -2568,6 +2568,10 @@ def export_leads_to_excel(leads):
             "Emergency Contact": lead.e_contact_name if lead.e_contact_name else "N/A",
             "Relation": (lead.e_contact_relation or getattr(lead, 'relation_to_client', None)) or "N/A",
             "EC Phone": lead.e_contact_phone if lead.e_contact_phone else "N/A",
+            "Call Status": lead.priority if lead.priority else "Not Called",
+            "Contact Status": lead.last_contact_status or "N/A",
+            "Referral": "Yes" if lead.active_client else "No",
+            "Authorization": "Received" if lead.authorization_received else "Pending",
             "CCU Information": ccu_info,
             "Payor": payor_name,
             "Start of Care": soc_str
