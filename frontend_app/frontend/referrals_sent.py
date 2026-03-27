@@ -94,6 +94,7 @@ def view_referrals():
         if st.button("Active", key="ref_active_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "Active" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Active"
+            st.session_state.referral_status_filter = "All"
             st.session_state.refs_page = 0
             st.rerun()
     
@@ -101,6 +102,7 @@ def view_referrals():
         if st.button("Inactive", key="ref_inactive_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.referral_active_inactive_filter = "Inactive"
+            st.session_state.referral_status_filter = "All"
             st.session_state.refs_page = 0
             st.rerun()
     
@@ -108,6 +110,7 @@ def view_referrals():
         if st.button("All", key="ref_all_active_filter", use_container_width=True,
                     type="primary" if st.session_state.referral_active_inactive_filter == "All" else "secondary"):
             st.session_state.referral_active_inactive_filter = "All"
+            st.session_state.referral_status_filter = "All"
             st.session_state.refs_page = 0
             st.rerun()
     
@@ -115,49 +118,63 @@ def view_referrals():
     
     # Referral Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Referral Status</h4>", unsafe_allow_html=True)
-    f_col1, f_col2, f_col_done, f_col3, f_col4, f_col5 = st.columns([1.3, 1.3, 1.3, 1.1, 1.2, 0.8])
     
-    with f_col1:
-        if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
-                    type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
-            st.session_state.referral_status_filter = "Initial Referral Sent"
-            st.session_state.refs_page = 0
-            st.rerun()
-    
-    with f_col2:
-        if st.button("Assessment Scheduled", key="rs_assess", use_container_width=True,
-                    type="primary" if st.session_state.referral_status_filter == "Assessment Scheduled" else "secondary"):
-            st.session_state.referral_status_filter = "Assessment Scheduled"
-            st.session_state.refs_page = 0
-            st.rerun()
-
-    with f_col_done:
-        if st.button("Assessment Done", key="rs_done", use_container_width=True,
-                    type="primary" if st.session_state.referral_status_filter == "Assessment Done" else "secondary"):
-            st.session_state.referral_status_filter = "Assessment Done"
-            st.session_state.refs_page = 0
-            st.rerun()
-    
-    with f_col3:
-        if st.button("Not Approved", key="rs_notapp", use_container_width=True,
-                    type="primary" if st.session_state.referral_status_filter == "Not Approved" else "secondary"):
-            st.session_state.referral_status_filter = "Not Approved"
-            st.session_state.refs_page = 0
-            st.rerun()
-            
-    with f_col4:
-        if st.button("Services Refused", key="rs_refused", use_container_width=True,
-                    type="primary" if st.session_state.referral_status_filter == "Services Refused" else "secondary"):
-            st.session_state.referral_status_filter = "Services Refused"
-            st.session_state.refs_page = 0
-            st.rerun()
-
-    with f_col5:
-        if st.button("All", key="rs_all", use_container_width=True,
-                    type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
-            st.session_state.referral_status_filter = "All"
-            st.session_state.refs_page = 0
-            st.rerun()
+    if st.session_state.referral_active_inactive_filter == "Active":
+        f_col1, f_col2, f_col_done, f_col_all = st.columns(4)
+        with f_col1:
+            if st.button("All Active", key="rs_active_all", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
+                st.session_state.referral_status_filter = "All"
+                st.session_state.refs_page = 0
+                st.rerun()
+        with f_col2:
+            if st.button("Initial Referral Sent", key="rs_sent", use_container_width=True, 
+                        type="primary" if st.session_state.referral_status_filter == "Initial Referral Sent" else "secondary"):
+                st.session_state.referral_status_filter = "Initial Referral Sent"
+                st.session_state.refs_page = 0
+                st.rerun()
+        with f_col_done:
+            if st.button("Assessment Scheduled", key="rs_assess", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "Assessment Scheduled" else "secondary"):
+                st.session_state.referral_status_filter = "Assessment Scheduled"
+                st.session_state.refs_page = 0
+                st.rerun()
+        with f_col_all:
+            if st.button("Assessment Done", key="rs_done", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "Assessment Done" else "secondary"):
+                st.session_state.referral_status_filter = "Assessment Done"
+                st.session_state.refs_page = 0
+                st.rerun()
+                
+    elif st.session_state.referral_active_inactive_filter == "Inactive":
+        f_col1, f_col2, f_col3, _4 = st.columns(4)
+        with f_col1:
+            if st.button("All Inactive", key="rs_inactive_all", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
+                st.session_state.referral_status_filter = "All"
+                st.session_state.refs_page = 0
+                st.rerun()
+        with f_col2:
+            if st.button("Not Approved", key="rs_notapp", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "Not Approved" else "secondary"):
+                st.session_state.referral_status_filter = "Not Approved"
+                st.session_state.refs_page = 0
+                st.rerun()
+                
+        with f_col3:
+            if st.button("Services Refused", key="rs_refused", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "Services Refused" else "secondary"):
+                st.session_state.referral_status_filter = "Services Refused"
+                st.session_state.refs_page = 0
+                st.rerun()
+    else:
+        f_col1, _f = st.columns([1, 4])
+        with f_col1:
+            if st.button("All Statuses", key="rs_all", use_container_width=True,
+                        type="primary" if st.session_state.referral_status_filter == "All" else "secondary"):
+                st.session_state.referral_status_filter = "All"
+                st.session_state.refs_page = 0
+                st.rerun()
     
     st.divider()
     

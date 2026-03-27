@@ -93,6 +93,7 @@ def view_leads():
         if st.button("Active", key="active_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "Active" else "secondary"):
             st.session_state.active_inactive_filter = "Active"
+            st.session_state.status_filter = "All"
             st.session_state.leads_page = 0
             st.rerun()
     
@@ -100,6 +101,7 @@ def view_leads():
         if st.button("Inactive", key="inactive_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "Inactive" else "secondary"):
             st.session_state.active_inactive_filter = "Inactive"
+            st.session_state.status_filter = "All"
             st.session_state.leads_page = 0
             st.rerun()
     
@@ -107,6 +109,7 @@ def view_leads():
         if st.button("All", key="all_active_filter", use_container_width=True,
                     type="primary" if st.session_state.active_inactive_filter == "All" else "secondary"):
             st.session_state.active_inactive_filter = "All"
+            st.session_state.status_filter = "All"
             st.session_state.leads_page = 0
             st.rerun()
     
@@ -114,35 +117,49 @@ def view_leads():
     
     # Contact Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Contact Status</h4>", unsafe_allow_html=True)
-    c_col1, c_col2, c_col3, c_col4, c_spacer = st.columns([1.2, 1.4, 1.4, 1, 1])
     
-    with c_col1:
-        if st.button("Initial Call", key="filter_initial_call", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "Initial Call" else "secondary"):
-            st.session_state.status_filter = "Initial Call"
-            st.session_state.leads_page = 0
-            st.rerun()
-    
-    with c_col2:
-        if st.button("No Response", key="filter_nores", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "No Response" else "secondary"):
-            st.session_state.status_filter = "No Response"
-            st.session_state.leads_page = 0
-            st.rerun()
-            
-    with c_col3:
-        if st.button("Not Interested", key="filter_not_interested", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "Not Interested" else "secondary"):
-            st.session_state.status_filter = "Not Interested"
-            st.session_state.leads_page = 0
-            st.rerun()
-    
-    with c_col4:
-        if st.button("All Status", key="filter_all_status", use_container_width=True,
-                    type="primary" if st.session_state.status_filter == "All" else "secondary"):
-            st.session_state.status_filter = "All"
-            st.session_state.leads_page = 0
-            st.rerun()
+    if st.session_state.active_inactive_filter == "Active":
+        c_col1, c_col2, c_col3 = st.columns(3)
+        with c_col1:
+            if st.button("All Active", key="filter_active_all", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "All" else "secondary"):
+                st.session_state.status_filter = "All"
+                st.session_state.leads_page = 0
+                st.rerun()
+        with c_col2:
+            if st.button("Initial Call", key="filter_initial_call", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "Initial Call" else "secondary"):
+                st.session_state.status_filter = "Initial Call"
+                st.session_state.leads_page = 0
+                st.rerun()
+        with c_col3:
+            if st.button("No Response", key="filter_nores", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "No Response" else "secondary"):
+                st.session_state.status_filter = "No Response"
+                st.session_state.leads_page = 0
+                st.rerun()
+    elif st.session_state.active_inactive_filter == "Inactive":
+        c_col1, c_col2 = st.columns(2)
+        with c_col1:
+            if st.button("All Inactive", key="filter_inactive_all", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "All" else "secondary"):
+                st.session_state.status_filter = "All"
+                st.session_state.leads_page = 0
+                st.rerun()
+        with c_col2:
+            if st.button("Not Interested", key="filter_not_interested", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "Not Interested" else "secondary"):
+                st.session_state.status_filter = "Not Interested"
+                st.session_state.leads_page = 0
+                st.rerun()
+    else:
+        c_col1, _c = st.columns([1, 4])
+        with c_col1:
+            if st.button("All Statuses", key="filter_all_status", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "All" else "secondary"):
+                st.session_state.status_filter = "All"
+                st.session_state.leads_page = 0
+                st.rerun()
     
     # Call Status Filter Buttons
     st.markdown("<h4 style='font-weight: bold; color: #111827;'>Filter by Call Status</h4>", unsafe_allow_html=True)

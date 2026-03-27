@@ -507,41 +507,33 @@ def referral_confirm():
     
     # --- STATUS FILTER BUTTONS ---
     if not filter_deleted:
-        col_all_main, col_active, col_hold, col_term, col_deceased, col_transfer = st.columns([1, 1, 1, 1, 1, 1])
+        col_all_main, col_active, col_inactive, col_transfer = st.columns([1, 1, 1, 1])
         
         with col_all_main:
             if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
                 st.session_state.confirm_status_filter = "All"
+                st.session_state.confirm_care_filter = "All"
                 st.session_state.conf_page = 0
                 st.rerun()
 
         with col_active:
             if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
                 st.session_state.confirm_status_filter = "Active"
+                st.session_state.confirm_care_filter = "All"
                 st.session_state.conf_page = 0
                 st.rerun()
         
-        with col_hold:
-            if st.button("Hold", key="filter_hold_confirm", type="primary" if st.session_state.confirm_status_filter == "Hold" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Hold"
-                st.session_state.conf_page = 0
-                st.rerun()
-        
-        with col_term:
-            if st.button("Terminated", key="filter_terminated_confirm", type="primary" if st.session_state.confirm_status_filter == "Terminated" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Terminated"
-                st.session_state.conf_page = 0
-                st.rerun()
-
-        with col_deceased:
-            if st.button("Deceased", key="filter_deceased_confirm", type="primary" if st.session_state.confirm_status_filter == "Deceased" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Deceased"
+        with col_inactive:
+            if st.button("Inactive", key="filter_inactive_confirm", type="primary" if st.session_state.confirm_status_filter == "Inactive" else "secondary", use_container_width=True):
+                st.session_state.confirm_status_filter = "Inactive"
+                st.session_state.confirm_care_filter = "All"
                 st.session_state.conf_page = 0
                 st.rerun()
 
         with col_transfer:
             if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
                 st.session_state.confirm_status_filter = "Transfer"
+                st.session_state.confirm_care_filter = "All"
                 st.session_state.conf_page = 0
                 st.rerun()
                 
@@ -565,6 +557,35 @@ def referral_confirm():
             with col_not_start:
                 if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
                     st.session_state.confirm_care_filter = "Not Start"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+        # Sub-filter for Inactive
+        elif st.session_state.confirm_status_filter == "Inactive":
+            st.write("Filter by Inactive Status:")
+            col_all, col_hold, col_term, col_dec, col_spacer_sub = st.columns([1, 1, 1, 1, 2])
+            
+            with col_all:
+                if st.button("All", key="filter_inactive_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+            with col_hold:
+                if st.button("Hold", key="filter_inactive_hold", type="primary" if st.session_state.confirm_care_filter == "Hold" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "Hold"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+            with col_term:
+                if st.button("Terminated", key="filter_inactive_term", type="primary" if st.session_state.confirm_care_filter == "Terminated" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "Terminated"
+                    st.session_state.conf_page = 0
+                    st.rerun()
+                    
+            with col_dec:
+                if st.button("Deceased", key="filter_inactive_dec", type="primary" if st.session_state.confirm_care_filter == "Deceased" else "secondary", use_container_width=True):
+                    st.session_state.confirm_care_filter = "Deceased"
                     st.session_state.conf_page = 0
                     st.rerun()
     

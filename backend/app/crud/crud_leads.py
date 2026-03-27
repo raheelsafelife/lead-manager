@@ -483,7 +483,12 @@ def search_leads(
                 models.Lead.care_status.ilike("%Transfer%"),
                 and_(models.Lead.source == "Transfer", models.Lead.care_status != "Care Start")
             ))
-        elif care_status_filter in ["Hold", "Terminated"]:
+        elif care_status_filter == "Inactive":
+            query = query.filter(models.Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
+            # Apply sub-filter if Inactive
+            if care_sub_status_filter and care_sub_status_filter != "All":
+                query = query.filter(models.Lead.care_status == care_sub_status_filter)
+        elif care_status_filter in ["Hold", "Terminated", "Deceased"]:
             query = query.filter(models.Lead.care_status == care_status_filter)
         elif care_status_filter != "All":
             query = query.filter(models.Lead.care_status == care_status_filter)
@@ -669,6 +674,11 @@ def count_search_leads(
                 models.Lead.source == "Transfer",
                 models.Lead.care_status != "Care Start"
             )
+        elif care_status_filter == "Inactive":
+            query = query.filter(models.Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
+            # Apply sub-filter if Inactive
+            if care_sub_status_filter and care_sub_status_filter != "All":
+                query = query.filter(models.Lead.care_status == care_sub_status_filter)
         elif care_status_filter in ["Hold", "Terminated", "Deceased"]:
             query = query.filter(models.Lead.care_status == care_status_filter)
         elif care_status_filter != "All":
