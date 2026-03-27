@@ -274,8 +274,7 @@ def display_referral_confirm(lead, db, highlight=False):
                 s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
                 with s_col1:
                     if st.button("Care Start", key=f"care_start_{lead.id}", type="primary" if lead.care_status == "Care Start" else "secondary", use_container_width=True):
-                        from datetime import date
-                        update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=date.today()), st.session_state.username, st.session_state.get('db_user_id'))
+                        update_lead(db, lead.id, LeadUpdate(care_status="Care Start", soc_date=getattr(lead, 'soc_date', None)), st.session_state.username, st.session_state.get('db_user_id'))
                         st.rerun()
                 with s_col2:
                     if st.button("Care Not Start", key=f"not_start_{lead.id}", type="primary" if lead.care_status == "Not Start" else "secondary", use_container_width=True):

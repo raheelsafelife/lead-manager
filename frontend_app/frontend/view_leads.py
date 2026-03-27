@@ -905,7 +905,6 @@ def mark_referral_page():
             if initial_status == "Care Start":
                 update_dict["care_status"] = "Care Start"
                 update_dict["authorization_received"] = True
-                update_dict["soc_date"] = date.today()
             elif initial_status == "Not Start":
                 update_dict["care_status"] = "Not Start"
                 update_dict["authorization_received"] = True
