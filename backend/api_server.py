@@ -282,6 +282,12 @@ async def get_top_report_stats(dimension: str = "ccu", limit: int = 5):
         db.close()
 
 
+@app.get("/api/reports/ccu/stats")
+async def legacy_get_ccu_stats(limit: int = 5):
+    """Legacy endpoint for backward compatibility."""
+    return await get_top_report_stats(dimension="ccu", limit=limit)
+
+
 @app.get("/api/reports/top/export")
 async def export_top_report(dimension: str = "ccu", limit: int = 5, format: str = "excel"):
     """
@@ -316,6 +322,12 @@ async def export_top_report(dimension: str = "ccu", limit: int = 5, format: str 
         raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
     finally:
         db.close()
+
+
+@app.get("/api/reports/ccu/export")
+async def legacy_export_ccu_report(limit: int = 5, format: str = "excel"):
+    """Legacy endpoint for backward compatibility."""
+    return await export_top_report(dimension="ccu", limit=limit, format=format)
 
 
 @app.get("/health")
