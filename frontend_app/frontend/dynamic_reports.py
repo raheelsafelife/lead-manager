@@ -154,16 +154,16 @@ def dynamic_reports():
     ):
         with st.spinner("Generating report..."):
             try:
-                backend_api_url = os.environ.get("BACKEND_API_URL", "http://localhost:8000")
-                api_url = f"{backend_api_url}/api/reports/top/export"
+                from app.services.generic_report import generate_dimension_report_excel, generate_dimension_report_word
+                
+                # Regenerate Session to ensure it's fresh for the long-running task
+                with SessionLocal() as db_session:
+                    if fmt_param == "excel":
+                        file_bytes = generate_dimension_report_excel(db_session, dimension=dim_param, limit=n_choice)
+                    else:
+                        file_bytes = generate_dimension_report_word(db_session, dimension=dim_param, limit=n_choice)
 
-                response = requests.get(
-                    api_url,
-                    params={"dimension": dim_param, "limit": n_choice, "format": fmt_param},
-                    timeout=120,
-                )
-
-                if response.status_code == 200:
+                if file_bytes:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"top_{n_choice}_{dim_param}_report_{timestamp}.{ext}"
 
@@ -176,21 +176,22 @@ def dynamic_reports():
                     st.success("✅ Report generated successfully!")
                     st.download_button(
                         label=f"⬇️ Download {fmt_choice} Report",
-                        data=response.content,
+                        data=file_bytes,
                         file_name=filename,
                         mime=mime,
                         type="primary",
                         use_container_width=True,
                         key="dyn_report_download_btn",
                     )
-
                 else:
-                    st.error(f"❌ Error generating report: HTTP {response.status_code}")
+                    st.error("❌ Failed to generate report data.")
 
-            except requests.exceptions.ConnectionError:
-                st.error("❌ Cannot connect to API server on port 8000.")
+            except ImportError as ie:
+                st.error("❌ Missing dependencies on server. Please ensure 'xlsxwriter' and 'python-docx' are installed.")
+                st.code(str(ie))
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
+
 
     st.divider()
 
