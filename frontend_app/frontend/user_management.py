@@ -89,7 +89,7 @@ def admin_panel():
     db = SessionLocal()
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs([
         " Pending Users", 
         " Password Resets", 
         " Approved Users", 
@@ -102,7 +102,8 @@ def admin_panel():
         " Email Editor",
         " CCU & Provider Mgmt",
         " 📊 Referral Status",
-        " 🛠️ System Debug"
+        " 🛠️ System Debug",
+        " 📊 Dynamic Reports"
     ])
     
     with tab1:
@@ -775,6 +776,13 @@ def admin_panel():
                 else:
                     st.error("❌ Failed to send test email.")
                     st.warning("Please check the server logs for the detailed error: `docker compose logs -f dashboard`")
+
+    with tab14:
+        try:
+            from frontend.dynamic_reports import dynamic_reports
+            dynamic_reports()
+        except Exception as e:
+            st.error(f"Error loading Dynamic Report: {e}")
 
     db.close()
 

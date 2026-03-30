@@ -265,6 +265,59 @@ async def get_referral_stats():
         db.close()
 
 
+@app.get("/api/reports/top/stats")
+async def get_top_report_stats(dimension: str = "ccu", limit: int = 5):
+    """
+    Get top N leaderboard statistics for a dimension (ccu, source, status, staff, mco, payor).
+    """
+    from app.services.generic_report import get_dimension_report_stats
+
+    db = SessionLocal()
+    try:
+        stats = get_dimension_report_stats(db, dimension=dimension, limit=limit)
+        return {"success": True, "statistics": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching report stats: {str(e)}")
+    finally:
+        db.close()
+
+
+@app.get("/api/reports/top/export")
+async def export_top_report(dimension: str = "ccu", limit: int = 5, format: str = "excel"):
+    """
+    Generate and download a Top N report for a dimension.
+    format: 'excel' (.xlsx) or 'word' (.docx)
+    """
+    from fastapi.responses import Response
+    from app.services.generic_report import generate_dimension_report_excel, generate_dimension_report_word
+
+    db = SessionLocal()
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        if format.lower() == "word":
+            file_bytes = generate_dimension_report_word(db, dimension=dimension, limit=limit)
+            filename = f"top_{limit}_{dimension}_report_{timestamp}.docx"
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:  # default excel
+            file_bytes = generate_dimension_report_excel(db, dimension=dimension, limit=limit)
+            filename = f"top_{limit}_{dimension}_report_{timestamp}.xlsx"
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+        return Response(
+            content=file_bytes,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating report: {str(e)}")
+    finally:
+        db.close()
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
