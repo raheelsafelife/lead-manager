@@ -1,7 +1,0 @@
-SMTP_SERVER=smtp.safelifehomehealth.com
-SMTP_PORT=465
-SENDER_EMAIL=ccp-leads@safelifehomehealth.com
-SENDER_PASSWORD=Safelife@60148!!
-# FastAPI Service Configuration (for SafeLife CCP Form Integration)
-LEAD_MANAGER_API_KEY=safelife-ccp-2024-secret-key
-LEAD_MANAGER_API_URL=http://localhost:8000/api/external-lead
