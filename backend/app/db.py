@@ -89,6 +89,13 @@ def auto_upgrade_db(eng):
                         logger.info("Auto-added 'call_status_updated_at' column to leads table")
                     except Exception as e:
                         pass
+
+                if "caregiver_type" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE leads ADD COLUMN caregiver_type VARCHAR(50)"))
+                        logger.info("Auto-added 'caregiver_type' column to leads table")
+                    except Exception as e:
+                        logger.error(f"Failed to add caregiver_type: {e}")
     except Exception as e:
         logger.error(f"DB Auto-upgrade failed: {e}")
 

@@ -33,7 +33,8 @@ def display_referral_confirm(lead, db, highlight=False):
     # Layout: Expander
     from frontend.common import get_tag_color_dot
     tag_dot = get_tag_color_dot(lead.tag_color)
-    expander_title = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name} - {lead.staff_name}"
+    # Remove staff_name from main line as per request; will move to CSS ::after
+    expander_title = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
     
     with st.expander(expander_title, expanded=highlight):
         # Hidden marker to anchor our CSS styles firmly to THIS specific row
@@ -60,6 +61,41 @@ def display_referral_confirm(lead, db, highlight=False):
             /* Make the body transparent to blend with the card background */
             div[data-testid="stExpander"]:has(#auth-marker-{lead.id}) div[data-testid="stExpanderDetails"] {{
                 background: transparent !important;
+            }}
+            
+            /* Staff Name directly below the ID/Name line */
+            div[data-testid="stExpander"]:has(#auth-marker-{lead.id}) summary {{
+                position: relative;
+                padding-top: 10px !important;
+                padding-bottom: 22px !important;
+            }}
+            div[data-testid="stExpander"]:has(#auth-marker-{lead.id}) summary::after {{
+                content: "{lead.staff_name if lead.staff_name else ''}";
+                position: absolute;
+                left: 32px;
+                bottom: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #6B7280;
+                max-width: 250px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }}
+            
+            /* Caregiver Type Tag with Aqua Shadow */
+            div[data-testid="stExpander"]:has(#auth-marker-{lead.id}) summary p::after {{
+                content: "{lead.caregiver_type if (lead.caregiver_type and lead.caregiver_type != 'None') else ''}";
+                display: {"inline-block" if (lead.caregiver_type and lead.caregiver_type != 'None') else "none"};
+                background-color: #00BCD4;
+                color: white;
+                margin-left: 12px;
+                padding: 1px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 700;
+                box-shadow: 0 0 12px rgba(0, 188, 212, 0.7);
+                vertical-align: middle;
             }}
             </style>
         """, unsafe_allow_html=True)
@@ -405,9 +441,12 @@ def referral_confirm():
         db,
         exclude_clients=False,
         auth_received_filter=True,
-        only_clients=False,  # Allow Terminated/Deceased (active_client=False) leads to show
+        only_clients=True, # Focus on active clients for count
         care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+        ccu_filter=st.session_state.confirm_ccu_filter,
+        agency_filter=st.session_state.confirm_payor_filter,
         include_deleted=filter_deleted
     )
     
@@ -500,6 +539,22 @@ def referral_confirm():
     
     if selected_ct != st.session_state.confirm_tag_color_filter:
         st.session_state.confirm_tag_color_filter = selected_ct
+        st.session_state.conf_page = 0
+        st.rerun()
+
+    # Caregiver Type Filter
+    st.write("**Filter by Caregiver Type:**")
+    from frontend.common import CAREGIVER_TYPES
+    ct_filter_options = ["All"] + CAREGIVER_TYPES
+    selected_ct_filter = st.selectbox(
+        "Select Caregiver Type",
+        options=ct_filter_options,
+        index=ct_filter_options.index(st.session_state.confirm_caregiver_type_filter) if st.session_state.confirm_caregiver_type_filter in ct_filter_options else 0,
+        key="confirm_caregiver_type_filter_select",
+        label_visibility="visible"
+    )
+    if selected_ct_filter != st.session_state.confirm_caregiver_type_filter:
+        st.session_state.confirm_caregiver_type_filter = selected_ct_filter
         st.session_state.conf_page = 0
         st.rerun()
 
@@ -604,15 +659,15 @@ def referral_confirm():
         search_query=search_name if search_name else None,
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
-        status_filter=None, # Care status filtered below/via custom logic
-        priority_filter=None, # Removed call logic from this page
+        status_filter=None, 
+        priority_filter=None, 
         active_inactive_filter=None,
         owner_id=None,
         only_my_leads=False,
         include_deleted=filter_deleted,
-        exclude_clients=False, # We want active clients
-        auth_received_filter=auth_val, # SQL FILTERING
-        only_clients=False,        # Show Terminated/Deceased as well
+        exclude_clients=False,
+        auth_received_filter=auth_val,
+        only_clients=False,
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
@@ -620,17 +675,14 @@ def referral_confirm():
         care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         tag_color_filter=st.session_state.confirm_tag_color_filter,
+        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+        ccu_filter=st.session_state.confirm_ccu_filter,
+        agency_filter=st.session_state.confirm_payor_filter,
         sort_by=st.session_state.confirmations_sort_by
     )
     
-    # Post-filter (Now handled at SQL level via search_leads)
+    # Post-filter (Now handled at SQL level)
     pass
-        
-    if st.session_state.confirm_payor_filter != "All":
-        leads = [l for l in leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
-    
-    if st.session_state.confirm_ccu_filter != "All":
-        leads = [l for l in leads if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
 
     total_leads = count_search_leads(
         db,
@@ -638,13 +690,16 @@ def referral_confirm():
         staff_filter=filter_staff if filter_staff else None,
         source_filter=filter_source if filter_source else None,
         exclude_clients=False,
-        only_clients=False, # Show all authorized leads
+        only_clients=False,
         auth_received_filter=True,
         include_deleted=filter_deleted,
         care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
         lead_id_filter=lead_id_filter,
         tag_color_filter=st.session_state.confirm_tag_color_filter,
+        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+        ccu_filter=st.session_state.confirm_ccu_filter,
+        agency_filter=st.session_state.confirm_payor_filter,
         lead_type_filter=st.session_state.confirm_lead_type_filter
     )
     
@@ -670,7 +725,7 @@ def referral_confirm():
                 include_deleted=filter_deleted,
                 exclude_clients=False, 
                 auth_received_filter=True, 
-                only_clients=False,  # Allow all authorized leads        
+                only_clients=False,
                 skip=0,
                 limit=2000,
                 lead_id_filter=lead_id_filter,
@@ -678,14 +733,14 @@ def referral_confirm():
                 care_status_filter=st.session_state.confirm_status_filter,
                 care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
                 tag_color_filter=st.session_state.confirm_tag_color_filter,
+                caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+                ccu_filter=st.session_state.confirm_ccu_filter,
+                agency_filter=st.session_state.confirm_payor_filter,
                 sort_by=st.session_state.confirmations_sort_by
             )
             
-            # Post-filter for Payor/CCU as they are in-memory (to maintain current page logic)
-            if st.session_state.confirm_payor_filter != "All":
-                all_filtered_leads = [l for l in all_filtered_leads if l.agency and l.agency.name == st.session_state.confirm_payor_filter]
-            if st.session_state.confirm_ccu_filter != "All":
-                all_filtered_leads = [l for l in all_filtered_leads if l.ccu and l.ccu.name == st.session_state.confirm_ccu_filter]
+            # Post-filter (Now handled at SQL level)
+            pass
 
             if all_filtered_leads:
                 excel_data = export_leads_to_excel(all_filtered_leads)

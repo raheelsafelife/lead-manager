@@ -339,6 +339,9 @@ def search_leads(
     care_status_filter: Optional[str] = None,
     care_sub_status_filter: Optional[str] = None,
     tag_color_filter: Optional[str] = None,
+    caregiver_type_filter: Optional[str] = None,
+    ccu_filter: Optional[str] = None,
+    agency_filter: Optional[str] = None,
     sort_by: str = "Newest Added"
 ):
     """
@@ -366,6 +369,17 @@ def search_leads(
         query = query.filter(models.Lead.deleted_at != None)
     else:
         query = query.filter(models.Lead.deleted_at == None)
+        
+    # 1.5 Lead Type Shorthands
+    if lead_type_filter == "Referral Sent":
+        only_clients = True
+        auth_received_filter = False
+    elif lead_type_filter == "Referral Confirmed": # Authorizations Received
+        only_clients = True
+        auth_received_filter = True
+    elif lead_type_filter == "Lead":
+        only_clients = False
+        exclude_clients = True
         
     # 2. Client State
     if only_clients:
@@ -412,7 +426,9 @@ def search_leads(
         else:
             query = query.filter(models.Lead.last_contact_status == status_filter)
         
-    # 8. Priority Filter
+    # 7.5 Referral Category Filter (Regular/Interim)
+    if referral_category_filter and referral_category_filter != "All":
+        query = query.filter(models.Lead.referral_type == referral_category_filter)
     if priority_filter and priority_filter != "All":
         if priority_filter == "Not Called":
             from sqlalchemy import or_
@@ -424,6 +440,21 @@ def search_leads(
     if tag_color_filter and tag_color_filter != "All":
         query = query.filter(models.Lead.tag_color == tag_color_filter)
         
+    # 8.6 Caregiver Type Filter
+    if caregiver_type_filter and caregiver_type_filter != "All":
+        if caregiver_type_filter == "None":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.caregiver_type == None, models.Lead.caregiver_type == "", models.Lead.caregiver_type == "None"))
+        else:
+            query = query.filter(models.Lead.caregiver_type == caregiver_type_filter)
+            
+    # 8.7 Agency / CCU Filter
+    if agency_filter and agency_filter != "All":
+        query = query.join(models.Agency, isouter=True).filter(models.Agency.name == agency_filter)
+        
+    if ccu_filter and ccu_filter != "All":
+        query = query.join(models.CCU, isouter=True).filter(models.CCU.name == ccu_filter)
+            
     # 9. Active/Inactive Filter
     if only_clients:
         inactive_statuses = ["Not Approved", "Services Refused", "Inactive", "Not Interested"]
@@ -549,7 +580,10 @@ def count_search_leads(
     referral_category_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
     care_sub_status_filter: Optional[str] = None,
-    tag_color_filter: Optional[str] = None
+    tag_color_filter: Optional[str] = None,
+    caregiver_type_filter: Optional[str] = None,
+    ccu_filter: Optional[str] = None,
+    agency_filter: Optional[str] = None
 ) -> int:
     """Returns the total count of leads matching the search criteria (for pagination)"""
     from sqlalchemy import func
@@ -559,6 +593,17 @@ def count_search_leads(
         query = query.filter(models.Lead.deleted_at != None)
     else:
         query = query.filter(models.Lead.deleted_at == None)
+        
+    # 1.5 Lead Type Shorthands
+    if lead_type_filter == "Referral Sent":
+        only_clients = True
+        auth_received_filter = False
+    elif lead_type_filter == "Referral Confirmed": # Authorizations Received
+        only_clients = True
+        auth_received_filter = True
+    elif lead_type_filter == "Lead":
+        only_clients = False
+        exclude_clients = True
         
     if only_clients:
         query = query.filter(models.Lead.active_client == True)
@@ -596,6 +641,10 @@ def count_search_leads(
         else:
             query = query.filter(models.Lead.last_contact_status == status_filter)
         
+    # 7.5 Referral Category Filter (Regular/Interim)
+    if referral_category_filter and referral_category_filter != "All":
+        query = query.filter(models.Lead.referral_type == referral_category_filter)
+        
     if priority_filter and priority_filter != "All":
         if priority_filter == "Not Called":
             from sqlalchemy import or_
@@ -606,6 +655,21 @@ def count_search_leads(
     if tag_color_filter and tag_color_filter != "All":
         query = query.filter(models.Lead.tag_color == tag_color_filter)
         
+    # 8.6 Caregiver Type Filter
+    if caregiver_type_filter and caregiver_type_filter != "All":
+        if caregiver_type_filter == "None":
+            from sqlalchemy import or_
+            query = query.filter(or_(models.Lead.caregiver_type == None, models.Lead.caregiver_type == "", models.Lead.caregiver_type == "None"))
+        else:
+            query = query.filter(models.Lead.caregiver_type == caregiver_type_filter)
+            
+    # 8.7 Agency / CCU Filter
+    if agency_filter and agency_filter != "All":
+        query = query.join(models.Agency, isouter=True).filter(models.Agency.name == agency_filter)
+        
+    if ccu_filter and ccu_filter != "All":
+        query = query.join(models.CCU, isouter=True).filter(models.CCU.name == ccu_filter)
+            
     if only_clients:
         inactive_statuses = ["Not Approved", "Services Refused", "Inactive", "Not Interested"]
         if active_inactive_filter == "Active":

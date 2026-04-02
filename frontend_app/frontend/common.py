@@ -49,6 +49,9 @@ def clear_session_token():
         del st.query_params["token"]
 
 
+# Caregiver Type Constants
+CAREGIVER_TYPES = ["None", "FHCA", "PHCA", "HCA"]
+
 # Global CSS styles (SafeLife UI theme)
 GLOBAL_CSS = """
 <style>
@@ -1204,6 +1207,16 @@ def init_session_state():
     if 'confirm_show_deleted' not in st.session_state:
         st.session_state.confirm_show_deleted = False
 
+    # New Caregiver Type Filters
+    if 'referral_caregiver_type_filter' not in st.session_state:
+        st.session_state.referral_caregiver_type_filter = "All"
+    if 'confirm_caregiver_type_filter' not in st.session_state:
+        st.session_state.confirm_caregiver_type_filter = "All"
+    if 'referral_ccu_filter' not in st.session_state:
+        st.session_state.referral_ccu_filter = "All"
+    if 'confirm_ccu_filter' not in st.session_state:
+        st.session_state.confirm_ccu_filter = "All"
+
     
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
@@ -1954,6 +1967,11 @@ def show_edit_modal_dialog(m):
             new_state = st.text_input("State", value=str(lead.get('state') or "IL"), max_chars=2, key=f"edit_state_{m['target_id']}")
             new_zip = st.text_input("Zip Code", value=str(lead.get('zip_code') or ""), key=f"edit_zip_{m['target_id']}")
             
+            # Caregiver Type
+            current_caregiver = lead.get('caregiver_type', 'None')
+            if current_caregiver not in CAREGIVER_TYPES: current_caregiver = "None"
+            new_caregiver_type = st.selectbox("Caregiver Type", CAREGIVER_TYPES, index=CAREGIVER_TYPES.index(current_caregiver), key=f"edit_caregiver_{m['target_id']}")
+            
         with col2:
             is_auth_received_page = (st.session_state.get('main_navigation') == "Authorizations")
             
@@ -2144,6 +2162,7 @@ def show_edit_modal_dialog(m):
                         "agency_id": new_agency_id, "ccu_id": new_ccu_id, "send_reminders": new_send_reminders,
                         "care_status": new_care_status,
                         "custom_user_id": new_custom_user_id,
+                        "caregiver_type": new_caregiver_type,
                         "email": new_email,
                         "ssn": new_ssn
                     }
@@ -2578,6 +2597,7 @@ def export_leads_to_excel(leads):
             "Authorization": "Received" if lead.authorization_received else "Pending",
             "CCU Information": ccu_info,
             "Payor": payor_name,
+            "Caregiver Type": lead.caregiver_type or "None",
             "Start of Care": soc_str
         }
         data.append(row)

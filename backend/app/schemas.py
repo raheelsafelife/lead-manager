@@ -112,6 +112,7 @@ class LeadBase(BaseModel):
     ssn: Optional[str] = None
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
+    caregiver_type: Optional[str] = None
     owner_id: Optional[int] = None
     send_reminders: bool = True
     relation_to_client: Optional[str] = None
@@ -159,6 +160,7 @@ class LeadUpdate(BaseModel):
     ssn: Optional[str] = None
     email: Optional[str] = None
     custom_user_id: Optional[str] = None
+    caregiver_type: Optional[str] = None
     owner_id: Optional[int] = None
     send_reminders: Optional[bool] = None
     call_status_updated_by: Optional[str] = None

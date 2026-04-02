@@ -248,6 +248,22 @@ def view_referrals():
                     type="primary" if st.session_state.referral_call_status_filter == "Called" else "secondary"):
             st.session_state.referral_call_status_filter = "Called"
             st.rerun()
+
+    # Caregiver Type Filter
+    st.write("**Filter by Caregiver Type:**")
+    from frontend.common import CAREGIVER_TYPES
+    ct_options = ["All"] + CAREGIVER_TYPES
+    selected_ct = st.selectbox(
+        "Select Caregiver Type",
+        options=ct_options,
+        index=ct_options.index(st.session_state.referral_caregiver_type_filter) if st.session_state.referral_caregiver_type_filter in ct_options else 0,
+        key="referral_caregiver_type_filter_select",
+        label_visibility="visible"
+    )
+    if selected_ct != st.session_state.referral_caregiver_type_filter:
+        st.session_state.referral_caregiver_type_filter = selected_ct
+        st.session_state.refs_page = 0
+        st.rerun()
     with cs_col4:
         if st.button("All", key="rcs_all", use_container_width=True,
                     type="primary" if st.session_state.referral_call_status_filter == "All" else "secondary"):
@@ -269,6 +285,17 @@ def view_referrals():
     if selected_ct != st.session_state.referral_tag_color_filter:
         st.session_state.referral_tag_color_filter = selected_ct
         st.rerun()
+    
+    # CCU Filter
+    st.write("**Filter by CCU:**")
+    ccus = crud_ccus.get_all_ccus(db)
+    if ccus:
+        ccu_names = ["All"] + [c.name for c in ccus]
+        selected_ccu = st.selectbox("Select CCU", ccu_names, index=ccu_names.index(st.session_state.referral_ccu_filter) if st.session_state.referral_ccu_filter in ccu_names else 0, key="referral_ccu_filter_select")
+        if selected_ccu != st.session_state.referral_ccu_filter:
+            st.session_state.referral_ccu_filter = selected_ccu
+            st.session_state.refs_page = 0
+            st.rerun()
     
     # Payor Filter
     st.write("**Filter by Payor:**")
@@ -302,8 +329,6 @@ def view_referrals():
         lead_id_filter = int(search_id.strip())
 
     # Strict Separation: ONLY show leads WITHOUT authorization on this page
-    auth_val = False
-
     leads = search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -311,24 +336,24 @@ def view_referrals():
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.referral_status_filter,
         priority_filter=st.session_state.referral_call_status_filter,
-        active_inactive_filter=st.session_state.referral_active_inactive_filter,
-        owner_id=owner_id,
+        active_inactive_filter="Active",
+        owner_id=st.session_state.db_user_id,
         only_my_leads=only_my_referrals,
-        include_deleted=st.session_state.show_deleted_referrals,
-        exclude_clients=False,
-        only_clients=True,
-        auth_received_filter=auth_val,
+        include_deleted=False,
+        lead_type_filter="Referral Sent",
+        auth_received_filter=False,
         skip=skip,
         limit=limit,
         lead_id_filter=lead_id_filter,
         referral_category_filter=st.session_state.referral_type_filter,
         tag_color_filter=st.session_state.referral_tag_color_filter,
+        caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
+        ccu_filter=st.session_state.referral_ccu_filter,
+        agency_filter=st.session_state.payor_filter,
         sort_by=st.session_state.referrals_sort_by
     )
     
-    # Post-process for referrals sent (Now handled at SQL level)
-    # leads = [l for l in leads if l.active_client == True]
-    
+    # Get total count for pagination
     total_leads = count_search_leads(
         db,
         search_query=search_name if search_name else None,
@@ -336,16 +361,18 @@ def view_referrals():
         source_filter=filter_source if filter_source else None,
         status_filter=st.session_state.referral_status_filter,
         priority_filter=st.session_state.referral_call_status_filter,
-        active_inactive_filter=st.session_state.referral_active_inactive_filter,
-        owner_id=owner_id,
+        active_inactive_filter="Active",
+        owner_id=st.session_state.db_user_id,
         only_my_leads=only_my_referrals,
-        include_deleted=st.session_state.show_deleted_referrals,
-        exclude_clients=False,
-        only_clients=True,
-        auth_received_filter=auth_val,
+        include_deleted=False,
+        lead_type_filter="Referral Sent",
+        auth_received_filter=False,
         lead_id_filter=lead_id_filter,
         referral_category_filter=st.session_state.referral_type_filter,
-        tag_color_filter=st.session_state.referral_tag_color_filter
+        tag_color_filter=st.session_state.referral_tag_color_filter,
+        caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
+        ccu_filter=st.session_state.referral_ccu_filter,
+        agency_filter=st.session_state.payor_filter
     )
     
     # UI Metadata
@@ -364,18 +391,20 @@ def view_referrals():
                 source_filter=filter_source if filter_source else None,
                 status_filter=st.session_state.referral_status_filter,
                 priority_filter=st.session_state.referral_call_status_filter,
-                active_inactive_filter=st.session_state.referral_active_inactive_filter,
+                active_inactive_filter="Active",
                 owner_id=owner_id,
                 only_my_leads=only_my_referrals,
-                include_deleted=st.session_state.show_deleted_referrals,
-                exclude_clients=False,
-                only_clients=True,
-                auth_received_filter=False, # Match display logic
-                referral_category_filter=st.session_state.referral_type_filter,
+                include_deleted=False,
+                lead_type_filter="Referral Sent",
+                auth_received_filter=False,
                 skip=0,
-                limit=2000, 
-                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+                limit=2000,
+                lead_id_filter=lead_id_filter,
+                referral_category_filter=st.session_state.referral_type_filter,
                 tag_color_filter=st.session_state.referral_tag_color_filter,
+                caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
+                ccu_filter=st.session_state.referral_ccu_filter,
+                agency_filter=st.session_state.payor_filter,
                 sort_by=st.session_state.referrals_sort_by
             )
             if all_filtered_leads:
@@ -417,10 +446,8 @@ def view_referrals():
             
             with exp_col:
                 tag_dot = get_tag_color_dot(lead.tag_color)
-                # Remove cs_emoji from here as it's now in the dropdown
+                # Remove staff_name from main line as per request; will move to CSS ::after
                 header_text = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
-                if lead.staff_name:
-                    header_text += f" - {lead.staff_name}"
                 
                 with st.expander(header_text):
                     # Tag Color Picker
@@ -712,6 +739,41 @@ def view_referrals():
                         font-size: 18px !important;
                         font-weight: 600 !important;
                         color: #0b2a35 !important;
+                    }}
+                    
+                    /* Staff Name directly below the ID/Name line */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] summary {{
+                        position: relative;
+                        padding-top: 10px !important;
+                        padding-bottom: 22px !important;
+                    }}
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] summary::after {{
+                        content: "{lead.staff_name if lead.staff_name else ''}";
+                        position: absolute;
+                        left: 32px;
+                        bottom: 6px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #6B7280;
+                        max-width: 250px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }}
+                    
+                    /* Caregiver Type Tag with Aqua Shadow */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-ref-{lead.id}) div[data-testid="stExpander"] summary p::after {{
+                        content: "{lead.caregiver_type if (lead.caregiver_type and lead.caregiver_type != 'None') else ''}";
+                        display: {"inline-block" if (lead.caregiver_type and lead.caregiver_type != 'None') else "none"};
+                        background-color: #00BCD4;
+                        color: white;
+                        margin-left: 12px;
+                        padding: 1px 10px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        box-shadow: 0 0 12px rgba(0, 188, 212, 0.7);
+                        vertical-align: middle;
                     }}
                     </style>
                 """, unsafe_allow_html=True)

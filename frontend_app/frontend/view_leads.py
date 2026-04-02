@@ -355,10 +355,8 @@ def view_leads():
             
             with exp_col:
                 tag_dot = get_tag_color_dot(lead.tag_color)
-                # Remove cs_emoji from here as it's now in the dropdown
+                # Remove staff_name from main line as per request; will move to CSS ::after
                 header_label = f"{tag_dot} ID: {lead.id} | {lead.first_name} {lead.last_name}"
-                if lead.staff_name:
-                    header_label += f" - {lead.staff_name}"
 
 
                 with st.expander(header_label):
@@ -631,6 +629,41 @@ def view_leads():
                         font-weight: 600 !important;
                         color: #0b2a35 !important;
                     }}
+                    
+                    /* Staff Name directly below the ID/Name line */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-lead-{lead.id}) div[data-testid="stExpander"] summary {{
+                        position: relative;
+                        padding-top: 10px !important;
+                        padding-bottom: 22px !important;
+                    }}
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-lead-{lead.id}) div[data-testid="stExpander"] summary::after {{
+                        content: "{lead.staff_name if lead.staff_name else ''}";
+                        position: absolute;
+                        left: 32px;
+                        bottom: 6px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #6B7280;
+                        max-width: 250px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }}
+                    
+                    /* Caregiver Type Tag with Aqua Shadow */
+                    div[data-testid="stHorizontalBlock"]:has(#fused-marker-lead-{lead.id}) div[data-testid="stExpander"] summary p::after {{
+                        content: "{lead.caregiver_type if (lead.caregiver_type and lead.caregiver_type != 'None') else ''}";
+                        display: {"inline-block" if (lead.caregiver_type and lead.caregiver_type != 'None') else "none"};
+                        background-color: #00BCD4;
+                        color: white;
+                        margin-left: 12px;
+                        padding: 1px 10px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        box-shadow: 0 0 12px rgba(0, 188, 212, 0.7);
+                        vertical-align: middle;
+                    }}
                     </style>
                 """, unsafe_allow_html=True)
                 
@@ -744,6 +777,10 @@ def mark_referral_page():
         initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused",  "Inactive"])
     with col_t2:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
+        
+        # Caregiver Type
+        from frontend.common import CAREGIVER_TYPES
+        selected_caregiver = st.selectbox("**Caregiver Type:**", CAREGIVER_TYPES, index=0)
     
     st.divider()
     
@@ -914,6 +951,7 @@ def mark_referral_page():
                 "referral_type": ref_type,
                 "agency_id": final_agency_id,
                 "ccu_id": selected_ccu_id,
+                "caregiver_type": selected_caregiver,
                 "send_reminders": send_notif,
                 "last_contact_status": initial_status
             }
