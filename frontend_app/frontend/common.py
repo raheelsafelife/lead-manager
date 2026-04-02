@@ -1650,7 +1650,7 @@ def get_referral_status_tag(lead):
 def get_status_emoji(status):
     """Maps status strings to simple emojis for headers"""
     status_map = {
-        "Initial Referral Sent": "📞", "Initial Call": "📞", "Intro Call": "📞", "Follow Up": "📨",
+        "Initial Call": "📞", "Intro Call": "📞", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤", "Not Interested": "🚫",
         "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️", "Assessment Done": "📝",
         "Initial Referral Sent": "📤", "Not Approved": "🚫",

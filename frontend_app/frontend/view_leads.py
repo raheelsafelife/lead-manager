@@ -773,7 +773,7 @@ def mark_referral_page():
     
     col_t1, col_t2 = st.columns([1, 1])
     with col_t1:
-        st.write("If you switch on 'Mark as Referral', it will be categorized as **Initial Referral Sent** by default.")
+        st.write("If you switch on 'Mark as Referral', it will be categorized as **Referral Sent** by default.")
         initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused",  "Inactive"])
     with col_t2:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
