@@ -127,9 +127,9 @@ def view_leads():
                 st.session_state.leads_page = 0
                 st.rerun()
         with c_col2:
-            if st.button("Initial Referral Sent", key="filter_initial_call", use_container_width=True,
-                        type="primary" if st.session_state.status_filter == "Initial Referral Sent" else "secondary"):
-                st.session_state.status_filter = "Initial Referral Sent"
+            if st.button("Initial Call", key="filter_initial_call", use_container_width=True,
+                        type="primary" if st.session_state.status_filter == "Initial Call" else "secondary"):
+                st.session_state.status_filter = "Initial Call"
                 st.session_state.leads_page = 0
                 st.rerun()
         with c_col3:
