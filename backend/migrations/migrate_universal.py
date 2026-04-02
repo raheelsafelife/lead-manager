@@ -121,6 +121,9 @@ def migrate():
 
             # Tag Color
             ('tag_color', 'VARCHAR(50)'),
+
+            # Referral Sent Date
+            ('referral_sent_date', 'DATE'),
         ]
         
         for col_name, col_type in lead_updates:
