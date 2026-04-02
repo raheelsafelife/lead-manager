@@ -36,16 +36,18 @@ def get_logo_path(filename="icon1.png"):
 
 
 # Token-based session management (Secure Cookies + JWT)
-@st.cache_resource
 def get_cookie_manager():
-    """Initialize the cookie manager as a cached resource"""
+    """Initialize the cookie manager (no caching to avoid CachedWidgetWarning)"""
     return stc.CookieManager()
 
 def get_session_token():
     """Get the session token from browser cookies"""
     cookie_manager = get_cookie_manager()
     # CookieManager may return None on the very first run of a session
-    token = cookie_manager.get(cookie="jwt_token")
+    try:
+        token = cookie_manager.get(cookie="jwt_token")
+    except Exception:
+        token = None
     
     # Fallback to query params for legacy support during transition
     if not token and "token" in st.query_params:
@@ -71,9 +73,17 @@ def set_session_token(token: str):
         del st.query_params["token"]
 
 def clear_session_token():
-    """Remove the session token from browser cookies"""
+    """Remove the session token from browser cookies with error safety"""
     cookie_manager = get_cookie_manager()
-    cookie_manager.delete("jwt_token", key="delete_jwt_cookie")
+    try:
+        # Only attempt delete if it actually exists in the cookie manager's internal state
+        # to avoid KeyError in extra-streamlit-components
+        cookies = cookie_manager.get_all()
+        if cookies and "jwt_token" in cookies:
+            cookie_manager.delete("jwt_token", key="delete_jwt_cookie")
+    except Exception:
+        pass # Error in deletion shouldn't crash the app
+    
     if "token" in st.query_params:
         del st.query_params["token"]
 
