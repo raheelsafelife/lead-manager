@@ -491,6 +491,8 @@ def view_referrals():
 
                     with col2:
                         st.write(f"**Status:** {lead.last_contact_status}")
+                        rs_date_str = lead.referral_sent_date.strftime('%m/%d/%Y') if lead.referral_sent_date else 'N/A'
+                        st.info(f"**Referral Sent Date: {rs_date_str}**")
                         st.success(f"**Referral: Yes ({lead.referral_type or 'Regular'})**")
                         if lead.agency:
                             with st.container():

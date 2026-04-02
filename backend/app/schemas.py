@@ -94,6 +94,7 @@ class LeadBase(BaseModel):
     priority: Optional[str] = "Not Called"
     tag_color: Optional[str] = None  # color tag
     soc_date: Optional[date] = None
+    referral_sent_date: Optional[date] = None
     phone: str
     street: Optional[str] = None
     city: Optional[str] = None
@@ -143,6 +144,7 @@ class LeadUpdate(BaseModel):
     care_status: Optional[str] = None
     priority: Optional[str] = None
     soc_date: Optional[date] = None
+    referral_sent_date: Optional[date] = None
     phone: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None

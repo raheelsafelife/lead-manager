@@ -775,6 +775,10 @@ def mark_referral_page():
     with col_t1:
         st.write("If you switch on 'Mark as Referral', it will be categorized as **Referral Sent** by default.")
         initial_status = st.selectbox("**Initial Status:**", ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused",  "Inactive"])
+        
+        # Referral Sent Date
+        from datetime import date
+        referral_sent_date = st.date_input("**Referral Sent Date:**", value=date.today(), format="MM/DD/YYYY", key="mark_ref_sent_date_input")
     with col_t2:
         ref_type = st.radio("**Referral Type:**", ["Regular", "Interim"], horizontal=True)
         
@@ -953,7 +957,8 @@ def mark_referral_page():
                 "ccu_id": selected_ccu_id,
                 "caregiver_type": selected_caregiver,
                 "send_reminders": send_notif,
-                "last_contact_status": initial_status
+                "last_contact_status": initial_status,
+                "referral_sent_date": referral_sent_date
             }
             
             # Care Status Synchronization

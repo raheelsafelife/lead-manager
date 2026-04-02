@@ -88,6 +88,7 @@ class Lead(Base):
     call_status_updated_at = Column(DateTime, nullable=True)
     tag_color = Column(String(30), nullable=True, default=None)  # Color tag: Red, Orange, Yellow, etc.
     soc_date = Column(Date, nullable=True)
+    referral_sent_date = Column(Date, nullable=True)
 
     # contact info
     phone = Column(String(50), nullable=False)

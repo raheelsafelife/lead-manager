@@ -1940,6 +1940,7 @@ def show_edit_modal_dialog(m):
             new_soc_date = lead.get('soc_date')
             new_other_source = lead.get('other_source_type')
             new_word_of_mouth = lead.get('word_of_mouth_type')
+            new_referral_sent_date = lead.get('referral_sent_date')
             
             if new_source == "Event":
                 events = crud_events.get_all_events(db)
@@ -2019,6 +2020,13 @@ def show_edit_modal_dialog(m):
                 status_idx = status_options.index(current_status) if current_status in status_options else 0
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
+                
+                # Referral Sent Date
+                rs_val = lead.get('referral_sent_date')
+                if isinstance(rs_val, str) and rs_val:
+                    try: rs_val = datetime.strptime(rs_val, '%Y-%m-%d').date()
+                    except: rs_val = None
+                new_referral_sent_date = st.date_input("Referral Sent Date", value=rs_val, key=f"edit_ref_sent_{m['target_id']}", format="MM/DD/YYYY")
             else:
                 status_options = ["Initial Call", "Not Interested", "No Response", "Initial Referral Sent"]
                 current_status = lead.get('last_contact_status', 'Initial Call')
@@ -2164,7 +2172,8 @@ def show_edit_modal_dialog(m):
                         "custom_user_id": new_custom_user_id,
                         "caregiver_type": new_caregiver_type,
                         "email": new_email,
-                        "ssn": new_ssn
+                        "ssn": new_ssn,
+                        "referral_sent_date": new_referral_sent_date
                     }
                     
                     if is_referral and new_status == "Not Approved":
@@ -2598,6 +2607,7 @@ def export_leads_to_excel(leads):
             "CCU Information": ccu_info,
             "Payor": payor_name,
             "Caregiver Type": lead.caregiver_type or "None",
+            "Referral Sent Date": lead.referral_sent_date.strftime('%m/%d/%Y') if (hasattr(lead, 'referral_sent_date') and lead.referral_sent_date) else "N/A",
             "Start of Care": soc_str
         }
         data.append(row)
