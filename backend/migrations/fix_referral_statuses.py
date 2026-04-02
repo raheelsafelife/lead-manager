@@ -10,6 +10,12 @@ from pathlib import Path
 current_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(current_dir))
 
+# SENSITIVE: If running on AWS (not in Docker), point to the data/ folder
+if not os.path.exists("/app/data") and os.path.exists(current_dir.parent / "data" / "leads.db"):
+    db_path = str(current_dir.parent / "data" / "leads.db")
+    os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
+    print(f"Detected production database at: {db_path}")
+
 from app.db import SessionLocal
 from app import models
 
