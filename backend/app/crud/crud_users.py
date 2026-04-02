@@ -3,33 +3,19 @@ from passlib.context import CryptContext
 from typing import Optional
 import bcrypt
 
+from ..utils import security
 import app.models as models
 from ..schemas import UserCreate
 from ..utils.activity_logger import log_activity
 
-# Use PBKDF2 as primary scheme for stability on Python 3.14/Windows
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-
 
 # -------- Password Helpers --------
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return security.get_password_hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Check if this is a legacy bcrypt hash (starts with $2b$)
-    if hashed_password and hashed_password.startswith("$2b$"):
-        try:
-            # This bypasses the buggy passlib bcrypt handler
-            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception:
-            return False
-    
-    # Otherwise use standard passlib (PBKDF2)
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception:
-        return False
+    return security.verify_password(plain_password, hashed_password)
 
 
 # -------- CRUD Operations --------

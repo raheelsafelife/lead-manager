@@ -12,7 +12,8 @@ import streamlit as st
 from app.db import SessionLocal
 from app.crud import crud_users, crud_activity_logs
 from app.schemas import UserCreate
-from frontend.common import get_logo_path
+from app.utils import security
+from frontend.common import get_logo_path, set_session_token
 
 
 def signup():
@@ -161,10 +162,14 @@ def login():
                         st.session_state.db_user_id = user.id
                         st.session_state.employee_id = user.user_id
                         
-                        # Create secure session token in database
-                        from frontend.common import set_session_token
-                        from app.crud import crud_session_tokens
-                        token = crud_session_tokens.create_session_token(db, user.id, days_valid=7)
+                        # Create secure JWT access token
+                        token_data = {
+                            "sub": user.username,
+                            "user_id": user.id,
+                            "role": user.role,
+                            "employee_id": user.user_id
+                        }
+                        token = security.create_access_token(data=token_data)
                         set_session_token(token)
                         
                         crud_activity_logs.create_activity_log(

@@ -13,3 +13,4 @@ extra-streamlit-components
 python-docx
 openpyxl
 xlsxwriter
+python-jose[cryptography]

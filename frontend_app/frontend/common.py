@@ -12,10 +12,12 @@ import streamlit as st
 import pandas as pd
 from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
-from app.crud import crud_session_tokens # crud_leads moved to local import
+from app.utils import security # New JWT utility
+import extra_streamlit_components as stc
 from streamlit.components.v1 import html
 import os
 import io
+from datetime import datetime, timedelta
 
 def get_logo_path(filename="icon1.png"):
     """Find the specified logo file in multiple possible locations"""
@@ -33,20 +35,66 @@ def get_logo_path(filename="icon1.png"):
     return filename # Fallback
 
 
-# Token-based session management (secure, database-backed)
+# Token-based session management (Secure Cookies + JWT)
+@st.cache_resource
+def get_cookie_manager():
+    """Initialize the cookie manager as a cached resource"""
+    return stc.CookieManager()
+
 def get_session_token():
-    """Get the session token from URL query params"""
-    query_params = st.query_params
-    return query_params.get("token", None)
+    """Get the session token from browser cookies"""
+    cookie_manager = get_cookie_manager()
+    # CookieManager may return None on the very first run of a session
+    token = cookie_manager.get(cookie="jwt_token")
+    
+    # Fallback to query params for legacy support during transition
+    if not token and "token" in st.query_params:
+        token = st.query_params.get("token")
+        # Migrate to cookie automatically
+        if token:
+            set_session_token(token)
+            
+    return token
 
 def set_session_token(token: str):
-    """Store the session token in URL query params for persistence"""
-    st.query_params["token"] = token
-
-def clear_session_token():
-    """Remove the session token from URL query params"""
+    """Store the session token in browser cookies"""
+    cookie_manager = get_cookie_manager()
+    # Set cookie to expire in 7 days
+    cookie_manager.set(
+        "jwt_token", 
+        token, 
+        expires_at=datetime.now() + timedelta(days=7),
+        key="set_jwt_cookie"
+    )
+    # Also remove from query params if it exists to clean up the URL
     if "token" in st.query_params:
         del st.query_params["token"]
+
+def clear_session_token():
+    """Remove the session token from browser cookies"""
+    cookie_manager = get_cookie_manager()
+    cookie_manager.delete("jwt_token", key="delete_jwt_cookie")
+    if "token" in st.query_params:
+        del st.query_params["token"]
+
+def is_authenticated():
+    """Check if the current user is authenticated via JWT"""
+    token = get_session_token()
+    if not token:
+        return False
+    
+    # Decode and validate JWT locally
+    payload = security.decode_access_token(token)
+    if payload:
+        # Store user info in session state for easy access
+        if "username" not in st.session_state:
+            st.session_state.username = payload.get("sub")
+            st.session_state.user_role = payload.get("role")
+            st.session_state.db_user_id = payload.get("user_id")
+            st.session_state.authenticated = True
+        return True
+    
+    return False
 
 
 # Caregiver Type Constants
@@ -1226,25 +1274,21 @@ def init_session_state():
         if 'authenticated' not in st.session_state:
             st.session_state.authenticated = False
 
-        # Secure Token-Based Session Check
+        # Secure JWT-Based Session Check
         if not st.session_state.authenticated:
-            token = get_session_token()
+            payload = is_authenticated()
             
-            if token:
-                # Validate token against database
-                user = crud_session_tokens.validate_token(db, token)
-                
-                if user:
-                    # Token is valid - auto-login
-                    st.session_state.authenticated = True
-                    st.session_state.username = user.username
-                    st.session_state.user_role = user.role
-                    st.session_state.db_user_id = user.id
-                    st.session_state.employee_id = user.user_id
-                    st.rerun()
-                else:
-                    # Token is invalid or expired - clear it
-                    clear_session_token()
+            if payload:
+                # JWT is valid - auto-login using payload data
+                st.session_state.authenticated = True
+                st.session_state.username = payload.get("sub")
+                st.session_state.user_role = payload.get("role")
+                st.session_state.db_user_id = payload.get("user_id")
+                st.session_state.employee_id = payload.get("employee_id")
+                st.rerun()
+            else:
+                # Token is invalid or expired
+                clear_session_token()
     finally:
         db.close()
     
