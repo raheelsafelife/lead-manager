@@ -35,47 +35,52 @@ def get_logo_path(filename="icon1.png"):
     return filename # Fallback
 
 
-# Token-based session management (Secure Cookies + JWT)
 def get_cookie_manager():
-    """Initialize the cookie manager (no caching to avoid CachedWidgetWarning)"""
-    return stc.CookieManager()
+    """Get or initialize the cookie manager from session state to avoid duplicate keys"""
+    if "cookie_manager" not in st.session_state:
+        # Use a fixed key to ensure Streamlit tracks this as a single component
+        st.session_state.cookie_manager = stc.CookieManager(key="main_cookie_manager")
+    return st.session_state.cookie_manager
 
 def get_session_token():
     """Get the session token from browser cookies"""
-    cookie_manager = get_cookie_manager()
-    # CookieManager may return None on the very first run of a session
     try:
+        cookie_manager = get_cookie_manager()
+        # CookieManager may return None on the very first run of a session
         token = cookie_manager.get(cookie="jwt_token")
+        
+        # Fallback to query params for legacy support during transition
+        if not token and "token" in st.query_params:
+            token = st.query_params.get("token")
+            # Migrate to cookie automatically
+            if token:
+                set_session_token(token)
+                
+        return token
     except Exception:
-        token = None
-    
-    # Fallback to query params for legacy support during transition
-    if not token and "token" in st.query_params:
-        token = st.query_params.get("token")
-        # Migrate to cookie automatically
-        if token:
-            set_session_token(token)
-            
-    return token
+        return None
 
 def set_session_token(token: str):
     """Store the session token in browser cookies"""
-    cookie_manager = get_cookie_manager()
-    # Set cookie to expire in 7 days
-    cookie_manager.set(
-        "jwt_token", 
-        token, 
-        expires_at=datetime.now() + timedelta(days=7),
-        key="set_jwt_cookie"
-    )
-    # Also remove from query params if it exists to clean up the URL
-    if "token" in st.query_params:
-        del st.query_params["token"]
+    try:
+        cookie_manager = get_cookie_manager()
+        # Set cookie to expire in 7 days
+        cookie_manager.set(
+            "jwt_token", 
+            token, 
+            expires_at=datetime.now() + timedelta(days=7),
+            key="set_jwt_cookie"
+        )
+        # Also remove from query params if it exists to clean up the URL
+        if "token" in st.query_params:
+            del st.query_params["token"]
+    except Exception:
+        pass
 
 def clear_session_token():
     """Remove the session token from browser cookies with error safety"""
-    cookie_manager = get_cookie_manager()
     try:
+        cookie_manager = get_cookie_manager()
         # Only attempt delete if it actually exists in the cookie manager's internal state
         # to avoid KeyError in extra-streamlit-components
         cookies = cookie_manager.get_all()
@@ -89,20 +94,23 @@ def clear_session_token():
 
 def is_authenticated():
     """Check if the current user is authenticated via JWT"""
-    token = get_session_token()
-    if not token:
-        return False
-    
-    # Decode and validate JWT locally
-    payload = security.decode_access_token(token)
-    if payload:
-        # Store user info in session state for easy access
-        if "username" not in st.session_state:
-            st.session_state.username = payload.get("sub")
-            st.session_state.user_role = payload.get("role")
-            st.session_state.db_user_id = payload.get("user_id")
-            st.session_state.authenticated = True
-        return True
+    try:
+        token = get_session_token()
+        if not token:
+            return False
+        
+        # Decode and validate JWT locally
+        payload = security.decode_access_token(token)
+        if payload:
+            # Store user info in session state for easy access
+            if "username" not in st.session_state:
+                st.session_state.username = payload.get("sub")
+                st.session_state.user_role = payload.get("role")
+                st.session_state.db_user_id = payload.get("user_id")
+                st.session_state.authenticated = True
+            return True
+    except Exception:
+        pass
     
     return False
 
