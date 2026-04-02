@@ -10,7 +10,11 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "f2f9c7c55bdbe69ea5ac0da9b29fb2c26555a7
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Support multiple common schemes to avoid "hash could not be identified" errors for legacy accounts
+pwd_context = CryptContext(
+    schemes=["bcrypt", "pbkdf2_sha256", "sha256_crypt", "plaintext"], 
+    deprecated="auto"
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
