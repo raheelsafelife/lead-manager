@@ -443,7 +443,7 @@ def add_lead():
             # For Transfer, default to Care Start. For CCU, default to Initial Referral Sent.
              default_idx = 3 if source == "Transfer" else 0
         else:
-             status_options = ["Initial Call", "Not Interested", "No Response"]
+             status_options = ["Initial Referral Sent", "Not Interested", "No Response"]
              default_idx = 0
              
         last_contact_status = st.selectbox("Contact Status", status_options, index=default_idx, key="status_select", label_visibility="collapsed")

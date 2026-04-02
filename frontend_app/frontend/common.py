@@ -1650,7 +1650,7 @@ def get_referral_status_tag(lead):
 def get_status_emoji(status):
     """Maps status strings to simple emojis for headers"""
     status_map = {
-        "Initial Call": "📞", "Intro Call": "📞", "Follow Up": "📨",
+        "Initial Referral Sent": "📞", "Initial Call": "📞", "Intro Call": "📞", "Follow Up": "📨",
         "Awaiting CCU": "🏢", "No Response": "🔇", "Inactive": "💤", "Not Interested": "🚫",
         "Care Start": "✅", "Not Start": "❌", "Assessment Scheduled": "🗓️", "Assessment Done": "📝",
         "Initial Referral Sent": "📤", "Not Approved": "🚫",
@@ -2020,9 +2020,9 @@ def show_edit_modal_dialog(m):
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
             else:
-                status_options = ["Initial Call", "Not Interested", "No Response", "Initial Referral Sent"]
-                current_status = lead.get('last_contact_status', 'Initial Call')
-                if current_status in ["Active", "Intro Call", "Follow Up"]: current_status = "Initial Call"
+                status_options = ["Initial Referral Sent", "Not Interested", "No Response"]
+                current_status = lead.get('last_contact_status', 'Initial Referral Sent')
+                if current_status in ["Initial Call", "Active", "Intro Call", "Follow Up"]: current_status = "Initial Referral Sent"
                 status_idx = status_options.index(current_status) if current_status in status_options else 0
                 new_status = st.selectbox("Status", status_options, index=status_idx, key=f"edit_status_{m['target_id']}")
                 new_care_status = lead.get('care_status')
