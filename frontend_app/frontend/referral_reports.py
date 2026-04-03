@@ -1,7 +1,7 @@
 """
 Referral Reports Page
 
-Generate a comprehensive **Professional Word Report** of all referrals from the AWS database.
+Generate a comprehensive **Professional Word Report** of all referrals from the Lead Manager database.
     
     ### Report Features:
     
@@ -33,7 +33,7 @@ def referral_reports():
     st.markdown('<div class="main-header">📊 Referral Reports</div>', unsafe_allow_html=True)
     
     st.markdown("""
-    Generate a comprehensive **Professional Word Report** of all referrals from the AWS database.
+    Generate a comprehensive **Professional Word Report** of all referrals from the Lead Manager database.
     
     ### Report Contents:
     
@@ -164,7 +164,7 @@ def referral_reports():
             
             ### Data Source
             
-            All data is extracted directly from the AWS database in real-time.
+            All data is extracted directly from the Lead Manager database in real-time.
             The report reflects the current state of all referrals at the time of generation.
             
             ### Privacy & Security

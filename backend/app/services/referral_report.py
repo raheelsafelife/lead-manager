@@ -89,7 +89,7 @@ def generate_referral_report_docx(db: Session) -> bytes:
     section.right_margin = Inches(0.5)
     
     # Title
-    title = doc.add_heading('AWS Referral Report', 0)
+    title = doc.add_heading('Lead Manager Referral Report', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     doc.add_paragraph(f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}').alignment = WD_ALIGN_PARAGRAPH.CENTER
