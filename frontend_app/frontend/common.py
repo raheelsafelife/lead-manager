@@ -2011,11 +2011,13 @@ def show_edit_modal_dialog(m):
                 e_idx = event_list.index(curr_event) if curr_event in event_list else 0
                 new_event_name = st.selectbox("Select Event", event_list, index=e_idx, key=f"edit_event_{m['target_id']}")
             elif new_source == "Transfer" or is_referral:
-                soc_val = lead.get('soc_date')
-                if isinstance(soc_val, str) and soc_val:
-                    try: soc_val = datetime.strptime(soc_val, '%Y-%m-%d').date()
-                    except: soc_val = None
-                new_soc_date = st.date_input("SOC Date", value=soc_val, key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
+                is_referrals_sent_page = (st.session_state.get('main_navigation') == "Referrals Sent")
+                if not is_referrals_sent_page:
+                    soc_val = lead.get('soc_date')
+                    if isinstance(soc_val, str) and soc_val:
+                        try: soc_val = datetime.strptime(soc_val, '%Y-%m-%d').date()
+                        except: soc_val = None
+                    new_soc_date = st.date_input("SOC Date", value=soc_val, key=f"edit_soc_{m['target_id']}", format="MM/DD/YYYY")
             elif new_source == "Other":
                 new_other_source = st.text_input("Specify Source", value=str(lead.get('other_source_type') or ""), key=f"edit_other_src_{m['target_id']}")
             elif new_source == "Word of Mouth":
