@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.models import Lead, CCU, Agency, MCO, LeadComment
 from app.services import report_engine
@@ -125,8 +125,8 @@ def get_top_entities_with_leads(db: Session, dimension: str = "ccu", limit: int 
         .filter(
             Lead.deleted_at == None,
             col != None,
-            ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-            ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+            or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+            or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
         )
         .group_by(col)
         .order_by(func.count(Lead.id).desc())
@@ -147,8 +147,8 @@ def get_top_entities_with_leads(db: Session, dimension: str = "ccu", limit: int 
             .filter(
                 col == val,
                 Lead.deleted_at == None,
-                ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-                ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+                or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+                or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
             )
             .order_by(Lead.created_at.desc())
             .all()

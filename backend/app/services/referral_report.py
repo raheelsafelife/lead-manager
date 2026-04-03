@@ -14,6 +14,7 @@ import io
 from datetime import datetime
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from app.models import Lead, CCU, Agency, MCO, LeadComment
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -33,8 +34,8 @@ def get_referrals_sent(db: Session) -> List[Lead]:
     ).filter(
         Lead.active_client == True,
         Lead.deleted_at == None,
-        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+        or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+        or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
     ).order_by(Lead.created_at.desc()).all()
 
 
@@ -49,8 +50,8 @@ def get_referrals_confirmed(db: Session) -> List[Lead]:
         Lead.active_client == True,
         Lead.authorization_received == True,
         Lead.deleted_at == None,
-        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+        or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+        or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
     ).order_by(Lead.created_at.desc()).all()
 
 
@@ -246,14 +247,14 @@ def get_report_statistics(db: Session) -> Dict[str, int]:
     sent_count = db.query(Lead).filter(
         Lead.active_client == True, 
         Lead.deleted_at == None,
-        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+        or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+        or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
     ).count()
     confirmed_count = db.query(Lead).filter(
         Lead.active_client == True, 
         Lead.authorization_received == True, 
         Lead.deleted_at == None,
-        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
-        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+        or_(Lead.last_contact_status == None, ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"])),
+        or_(Lead.care_status == None, ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"]))
     ).count()
     return {'sent': sent_count, 'confirmed': confirmed_count, 'total': sent_count}
