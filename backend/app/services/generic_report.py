@@ -119,13 +119,14 @@ def get_top_entities_with_leads(db: Session, dimension: str = "ccu", limit: int 
     limit = _clamp_limit(limit)
     col = _get_dimension_column(dimension)
 
-    # Group leads by dimension column, count active referrals
+    # Group leads by dimension column, count all active records
     top_entries = (
         db.query(col, func.count(Lead.id).label("cnt"))
         .filter(
-            Lead.active_client == True,
             Lead.deleted_at == None,
             col != None,
+            ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+            ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
         )
         .group_by(col)
         .order_by(func.count(Lead.id).desc())
@@ -145,8 +146,9 @@ def get_top_entities_with_leads(db: Session, dimension: str = "ccu", limit: int 
             )
             .filter(
                 col == val,
-                Lead.active_client == True,
                 Lead.deleted_at == None,
+                ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+                ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
             )
             .order_by(Lead.created_at.desc())
             .all()

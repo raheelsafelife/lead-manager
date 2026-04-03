@@ -24,7 +24,7 @@ from docx.oxml import OxmlElement
 
 
 def get_referrals_sent(db: Session) -> List[Lead]:
-    """Get all sent referrals"""
+    """Get all sent referrals (active only)"""
     return db.query(Lead).options(
         joinedload(Lead.agency),
         joinedload(Lead.ccu),
@@ -32,12 +32,14 @@ def get_referrals_sent(db: Session) -> List[Lead]:
         joinedload(Lead.lead_comments)
     ).filter(
         Lead.active_client == True,
-        Lead.deleted_at == None
+        Lead.deleted_at == None,
+        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
     ).order_by(Lead.created_at.desc()).all()
 
 
 def get_referrals_confirmed(db: Session) -> List[Lead]:
-    """Get all confirmed referrals"""
+    """Get all confirmed referrals (active only)"""
     return db.query(Lead).options(
         joinedload(Lead.agency),
         joinedload(Lead.ccu),
@@ -46,21 +48,9 @@ def get_referrals_confirmed(db: Session) -> List[Lead]:
     ).filter(
         Lead.active_client == True,
         Lead.authorization_received == True,
-        Lead.deleted_at == None
-    ).order_by(Lead.created_at.desc()).all()
-
-
-def get_referrals_rejected(db: Session) -> List[Lead]:
-    """Get all rejected referrals"""
-    return db.query(Lead).options(
-        joinedload(Lead.agency),
-        joinedload(Lead.ccu),
-        joinedload(Lead.mco),
-        joinedload(Lead.lead_comments)
-    ).filter(
-        Lead.active_client == True,
-        Lead.last_contact_status == "Not Approved",
-        Lead.deleted_at == None
+        Lead.deleted_at == None,
+        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
     ).order_by(Lead.created_at.desc()).all()
 
 
@@ -223,23 +213,20 @@ def generate_referral_report_docx(db: Session) -> bytes:
     # Data
     sent = get_referrals_sent(db)
     confirmed = get_referrals_confirmed(db)
-    rejected = get_referrals_rejected(db)
     
     # Sections
     add_table_section(doc, 'REFERRALS SENT', sent, (0, 102, 204))     # Blue
     add_table_section(doc, 'REFERRALS CONFIRMED', confirmed, (0, 153, 51)) # Green
-    add_table_section(doc, 'REFERRALS REJECTED', rejected, (204, 0, 0))   # Red
     
     # Summary Sheet at the end
     doc.add_heading('Summary', level=1)
-    table = doc.add_table(rows=4, cols=2)
+    table = doc.add_table(rows=3, cols=2)
     table.style = 'Light Grid Accent 1'
     
     data = [
         ('Referrals Sent', len(sent)),
         ('Referrals Confirmed', len(confirmed)),
-        ('Referrals Rejected', len(rejected)),
-        ('Total Records', len(sent) + len(confirmed) + len(rejected))
+        ('Total Records', len(sent) + len(confirmed))
     ]
     
     for i, (label, value) in enumerate(data):
@@ -256,7 +243,17 @@ def generate_referral_report_docx(db: Session) -> bytes:
 
 
 def get_report_statistics(db: Session) -> Dict[str, int]:
-    sent_count = db.query(Lead).filter(Lead.active_client == True, Lead.deleted_at == None).count()
-    confirmed_count = db.query(Lead).filter(Lead.active_client == True, Lead.authorization_received == True, Lead.deleted_at == None).count()
-    rejected_count = db.query(Lead).filter(Lead.active_client == True, Lead.last_contact_status == "Not Approved", Lead.deleted_at == None).count()
-    return {'sent': sent_count, 'confirmed': confirmed_count, 'rejected': rejected_count, 'total': sent_count}
+    sent_count = db.query(Lead).filter(
+        Lead.active_client == True, 
+        Lead.deleted_at == None,
+        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+    ).count()
+    confirmed_count = db.query(Lead).filter(
+        Lead.active_client == True, 
+        Lead.authorization_received == True, 
+        Lead.deleted_at == None,
+        ~Lead.last_contact_status.in_(["Not Approved", "Services Refused", "Inactive", "Not Interested"]),
+        ~Lead.care_status.in_(["Hold", "Terminated", "Deceased"])
+    ).count()
+    return {'sent': sent_count, 'confirmed': confirmed_count, 'total': sent_count}

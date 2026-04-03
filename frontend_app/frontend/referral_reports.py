@@ -9,7 +9,7 @@ Generate a comprehensive **Professional Word Report** of all referrals from the 
     
     1. **Landscape Orientation** - Optimized for wide data visibility
     2. **Grouped Information** - Columns like Contact Info, Address, and CCU details are intelligently grouped to save space
-    3. **Three Sections** - Sent, Confirmed, and Rejected referrals in color-coded sections
+    3. **Two Sections** - Sent and Confirmed referrals in color-coded sections
     4. **All 40 Data Points Included** - All CCU and client details are preserved
 """
 
@@ -40,7 +40,6 @@ def referral_reports():
     1. **Summary** - Detailed overview with statistics
     2. **Referrals Sent** - Blue themed section
     3. **Referrals Confirmed** - Green themed section
-    4. **Referrals Rejected** - Red themed section
     
     ### Data Included (40 Columns):
     
@@ -67,7 +66,7 @@ def referral_reports():
         # Display statistics in columns
         st.markdown("### 📈 Current Statistics")
         
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             st.metric("Referrals Sent", stats['sent'], help="Referrals sent but not yet authorized")
@@ -76,10 +75,7 @@ def referral_reports():
             st.metric("Referrals Confirmed", stats['confirmed'], help="Referrals with authorization received")
         
         with col3:
-            st.metric("Referrals Rejected", stats['rejected'], help="Referrals marked as Not Approved")
-        
-        with col4:
-            st.metric("Total Records", stats['total'], help="Total referrals in report")
+            st.metric("Total Records", stats['total'], help="Total active referrals in report")
         
         st.divider()
         
@@ -155,11 +151,11 @@ def referral_reports():
             
             - **Landscape Layout**: Ensures all columns fit and are readable
             - **Merged Columns**: Logical grouping of First/Last Name, Addresses, and CCU Contacts
-            - **Color-Coded Headers**: Blue (Sent), Green (Confirmed), Red (Rejected)
+            - **Color-Coded Headers**: Blue (Sent) and Green (Confirmed)
             - **Summary Table**: Statistics included at the end of the document
             
             The document has:
-            - Color-coded headers (Blue for Sent, Green for Confirmed, Red for Rejected)
+            - Color-coded headers (Blue for Sent and Green for Confirmed)
             - Optimized column widths for readability
             - Frozen header row for easy scrolling
             - Professional formatting
