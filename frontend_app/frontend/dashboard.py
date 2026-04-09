@@ -476,7 +476,7 @@ def view_all_user_dashboards():
                     fig.update_layout(height=150, margin=dict(t=30, b=0, l=0, r=0), showlegend=False); st.plotly_chart(fig, use_container_width=True, key=f"source_chart_{u.id}")
                     render_download_csv(user_leads, f"{u.username}_leads.csv")
             with col2:
-                refs = len(user_leads[user_leads['active_client'] == True])
+                refs = int((user_leads['active_client'] == True).sum()) if not user_leads.empty and 'active_client' in user_leads.columns else 0
                 st.markdown(f"**Referrals:** {refs}")
                 if not user_leads.empty:
                     st_data = user_leads['last_contact_status'].value_counts().reset_index()
