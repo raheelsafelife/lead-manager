@@ -11,8 +11,10 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 # Support multiple common schemes to avoid "hash could not be identified" errors for legacy accounts
+# We use pbkdf2_sha256 as the primary scheme for new hashes because it has no length limits
+# and avoids the compatibility issues between passlib and newer bcrypt versions.
 pwd_context = CryptContext(
-    schemes=["bcrypt", "pbkdf2_sha256", "sha256_crypt", "plaintext"], 
+    schemes=["pbkdf2_sha256", "bcrypt", "sha256_crypt", "plaintext"], 
     deprecated="auto"
 )
 
