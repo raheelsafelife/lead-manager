@@ -41,20 +41,17 @@ def get_cookie_manager():
     return stc.CookieManager(key="main_cookie_manager")
 
 def get_session_token():
-    """Get the session token from browser cookies"""
+    """Get the session token from browser cookies (Native Header or Component Fallback)"""
     try:
+        # 1. Native Streamlit 1.55+ Method (Reads directly from HTTP request headers)
+        # This is 100% reliable on AWS/HTTPS and bypasses iframe security
+        token = st.context.cookies.get("jwt_token")
+        if token:
+            return token
+            
+        # 2. Fallback to CookieManager component (Mostly for local development)
         cookie_manager = get_cookie_manager()
-        # CookieManager may return None on the very first run of a session
-        token = cookie_manager.get(cookie="jwt_token")
-        
-        # Fallback to query params for legacy support during transition
-        if not token and "token" in st.query_params:
-            token = st.query_params.get("token")
-            # Migrate to cookie automatically
-            if token:
-                set_session_token(token)
-                
-        return token
+        return cookie_manager.get(cookie="jwt_token")
     except Exception:
         return None
 
@@ -1301,41 +1298,12 @@ def init_session_state():
         if 'authenticated' not in st.session_state:
             st.session_state.authenticated = False
 
-        # --- NATIVE JS BOUNCE (ROBUST PERSISTENCE FIX) ---
-        # 1. Check for recovery token in query params (Bounce Handoff)
-        recovery_token = st.query_params.get("recovery_token")
-        if recovery_token and not st.session_state.authenticated:
-            # Validate and apply recovery token
-            payload = security.decode_access_token(recovery_token)
-            if payload:
-                st.session_state.username = payload.get("sub")
-                st.session_state.user_role = payload.get("role")
-                st.session_state.db_user_id = payload.get("user_id")
-                st.session_state.employee_id = payload.get("employee_id")
-                st.session_state.authenticated = True
-                st.session_state.cookie_sync_done = True
-                
-                # Critical: Clear the token from the URL immediately for security/cleanliness
-                st.query_params.clear()
-                st.rerun()
-
-        # 2. If not authenticated and we haven't finished sync yet, try to recover from cookies
-        if not st.session_state.authenticated and not st.session_state.cookie_sync_done:
-            # First, check if cookies are already available via the slow component (cached check)
+        # --- NATIVE HEADER PERSISTENCE (ROBUST FIX) ---
+        if not st.session_state.authenticated:
+            # Check if we can authenticate via cookies (now super robust via st.context.cookies)
             if is_authenticated():
-                st.session_state.cookie_sync_done = True
+                st.session_state.authenticated = True
                 st.rerun()
-            
-            # If still nothing, trigger the JS Recovery Bounce (Retry limit to avoid loops)
-            if st.session_state.cookie_retry_count < 1:
-                st.session_state.cookie_retry_count += 1
-                inject_cookie_recovery_script()
-                with st.spinner("Synchronizing session..."):
-                    import time
-                    time.sleep(0.5) # Give JS a moment to execute the redirect
-            else:
-                # Exhausted recovery attempts
-                st.session_state.cookie_sync_done = True
     finally:
         db.close()
     
@@ -1358,27 +1326,6 @@ def inject_custom_css():
     """Inject global CSS styles and time fix JS"""
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
     inject_time_fix_script()
-
-def inject_cookie_recovery_script():
-    """Inject a small script to recover the session token from cookies if available"""
-    # Use st.components.v1.html to execute the script in the context of the main page
-    from streamlit.components.v1 import html
-    html("""
-        <script>
-        (function() {
-            function getCookie(name) {
-                let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-                if (match) return match[2];
-                return null;
-            }
-            let token = getCookie('jwt_token');
-            if (token && !window.location.search.includes('recovery_token=')) {
-                // Token found in cookies but not in URL -> trigger bounce handoff
-                window.location.search = '?recovery_token=' + token;
-            }
-        })();
-        </script>
-    """, height=0)
 
 
 def inject_time_fix_script():
