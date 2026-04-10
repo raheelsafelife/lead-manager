@@ -18,13 +18,25 @@ pwd_context = CryptContext(
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed one"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a plain password against a hashed one.
+
+    Applies the same 72-byte truncation used in get_password_hash so that
+    comparison is always consistent with how the hash was created.
+    """
+    truncated = plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+    return pwd_context.verify(truncated, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password for secure storage"""
-    return pwd_context.hash(password)
+    """Hash a password for secure storage.
+
+    bcrypt has a hard 72-byte limit.  We truncate to 72 bytes (after UTF-8
+    encoding) before hashing so the behaviour is explicit and consistent,
+    avoiding the 'password cannot be longer than 72 bytes' error raised by
+    newer versions of passlib/bcrypt.
+    """
+    truncated = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+    return pwd_context.hash(truncated)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
