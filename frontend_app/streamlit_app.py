@@ -64,7 +64,11 @@ def main():
     # This ensures backend changes are picked up locally WITHOUT the AWS crash bug
     import importlib
     import app.crud.crud_leads as crud_leads
+    import app.crud.crud_users as crud_users
+    import app.utils.security as security
     importlib.reload(crud_leads)
+    importlib.reload(crud_users)
+    importlib.reload(security)
 
     # 0.5 PROGRAMMATIC NAVIGATION
     # Widgets cannot have their session state key set after they render.
