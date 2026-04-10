@@ -41,51 +41,106 @@ def get_cookie_manager():
     return stc.CookieManager(key="main_cookie_manager")
 
 def get_session_token():
-    """Get the session token from browser cookies (Native Header or Component Fallback)"""
+    """Get the session token from browser cookies."""
+    # Method 1: st.context.cookies — reads directly from HTTP request headers (Streamlit 1.37+)
+    # This is reliable on HTTPS/AWS and completely bypasses the iframe CookieManager
     try:
-        # 1. Native Streamlit 1.55+ Method (Reads directly from HTTP request headers)
-        # This is 100% reliable on AWS/HTTPS and bypasses iframe security
         token = st.context.cookies.get("jwt_token")
         if token:
             return token
-            
-        # 2. Fallback to CookieManager component (Mostly for local development)
-        cookie_manager = get_cookie_manager()
-        return cookie_manager.get(cookie="jwt_token")
     except Exception:
-        return None
+        pass  # Older Streamlit without st.context — fall through to Method 2
 
-def set_session_token(token: str):
-    """Store the session token in browser cookies"""
+    # Method 2: CookieManager (extra-streamlit-components) — fallback for older Streamlit
     try:
         cookie_manager = get_cookie_manager()
-        # Set cookie to expire in 7 days
-        cookie_manager.set(
-            "jwt_token", 
-            token, 
-            expires_at=datetime.now() + timedelta(days=7),
-            key="set_jwt_cookie"
-        )
-        # Also remove from query params if it exists to clean up the URL
-        if "token" in st.query_params:
-            del st.query_params["token"]
+        token = cookie_manager.get(cookie="jwt_token")
+        if token:
+            return token
     except Exception:
         pass
 
-def clear_session_token():
-    """Remove the session token from browser cookies with error safety"""
+    return None
+
+def set_session_token(token: str):
+    """Store the session token in browser cookies.
+    
+    Uses a queued JS injection pattern:
+    - Stores the token in session_state so inject_pending_cookie() can
+      inject it as a <script> on the NEXT render (after st.rerun()).
+    - Also tries extra-streamlit-components as a secondary method.
+    """
+    # Queue for reliable JS injection on the next render
+    st.session_state["_cookie_pending"] = token
+    # Also try immediate set via CookieManager (works on localhost)
     try:
         cookie_manager = get_cookie_manager()
-        # Only attempt delete if it actually exists in the cookie manager's internal state
-        # to avoid KeyError in extra-streamlit-components
+        cookie_manager.set(
+            "jwt_token",
+            token,
+            expires_at=datetime.now() + timedelta(days=7),
+            key="set_jwt_cookie"
+        )
+    except Exception:
+        pass
+    if "token" in st.query_params:
+        del st.query_params["token"]
+
+def clear_session_token():
+    """Remove the session token from browser cookies."""
+    # Queue cookie deletion via JS on the next render
+    st.session_state["_cookie_pending"] = "CLEAR"
+    # Also try via CookieManager
+    try:
+        cookie_manager = get_cookie_manager()
         cookies = cookie_manager.get_all()
         if cookies and "jwt_token" in cookies:
             cookie_manager.delete("jwt_token", key="delete_jwt_cookie")
     except Exception:
-        pass # Error in deletion shouldn't crash the app
-    
+        pass
     if "token" in st.query_params:
         del st.query_params["token"]
+
+def inject_pending_cookie():
+    """Inject any pending cookie set/clear operation as JavaScript.
+    
+    Must be called at the START of every page render (in init_session_state).
+    This is the mechanism that makes cookie persistence work reliably on AWS/HTTPS:
+    - set_session_token() stores the token in _cookie_pending
+    - st.rerun() fires, starting a fresh render
+    - inject_pending_cookie() runs early in that fresh render
+    - It renders a 0-height iframe with JS that sets document.cookie on the parent page
+    - The cookie is now in the browser before the user can trigger a refresh
+    """
+    if "_cookie_pending" not in st.session_state:
+        return
+    pending = st.session_state["_cookie_pending"]
+    del st.session_state["_cookie_pending"]
+    try:
+        from streamlit.components.v1 import html as _st_html
+        import json as _json
+        if pending == "CLEAR":
+            script = """<script>
+(function() {
+    var c = 'jwt_token=; max-age=0; path=/; SameSite=Lax';
+    document.cookie = c;
+    try { window.parent.document.cookie = c; } catch(e) {}
+})();
+</script>"""
+        else:
+            max_age = 7 * 24 * 3600  # 7 days in seconds
+            safe_token = _json.dumps(pending)
+            script = f"""<script>
+(function() {{
+    var token = {safe_token};
+    var c = 'jwt_token=' + encodeURIComponent(token) + '; max-age={max_age}; path=/; SameSite=Lax';
+    document.cookie = c;
+    try {{ window.parent.document.cookie = c; }} catch(e) {{}}
+}})();
+</script>"""
+        _st_html(script, height=0)
+    except Exception:
+        pass
 
 def is_authenticated():
     """Check if the current user is authenticated via JWT"""
@@ -1177,6 +1232,7 @@ def get_stats_cached(func_name, *args, **kwargs):
 def init_session_state():
     """Initialize all session state variables with secure token-based persistence"""
     db = SessionLocal()
+    inject_pending_cookie()  # Must be first — injects cookie JS after login/logout reruns
     
     # --- PAGE FILTER STATE (PERSISTENCE FIX) ---
     if 'main_navigation' not in st.session_state:
