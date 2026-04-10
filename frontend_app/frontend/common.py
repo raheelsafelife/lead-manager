@@ -1236,7 +1236,9 @@ def init_session_state():
     
     # --- PAGE FILTER STATE (PERSISTENCE FIX) ---
     if 'main_navigation' not in st.session_state:
-        st.session_state.main_navigation = "Dashboard"
+        # Restore the page from the URL on refresh (persists naturally across hard refreshes)
+        saved_page = st.query_params.get('p')
+        st.session_state.main_navigation = saved_page if saved_page else "Dashboard"
     if 'username' not in st.session_state:
         st.session_state.username = None
     if 'user_role' not in st.session_state:

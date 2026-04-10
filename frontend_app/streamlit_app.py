@@ -75,7 +75,9 @@ def main():
     # Widgets cannot have their session state key set after they render.
     # Use _navigate_to as an intermediate flag, applied HERE before the sidebar radio renders.
     if '_navigate_to' in st.session_state:
-        st.session_state['main_navigation'] = st.session_state.pop('_navigate_to')
+        new_page = st.session_state.pop('_navigate_to')
+        st.session_state['main_navigation'] = new_page
+        st.query_params['p'] = new_page
     
     # Check authentication
     if not st.session_state.authenticated:
@@ -114,6 +116,8 @@ def main():
 
             def handle_nav_change():
                 """Callback when main navigation changes"""
+                # Persist current page in URL so refresh restores the same page
+                st.query_params['p'] = st.session_state.main_navigation
                 # Clear any sub-page state when navigating to a new main page
                 st.session_state.current_page = None
                 
