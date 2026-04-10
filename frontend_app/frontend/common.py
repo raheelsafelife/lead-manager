@@ -36,11 +36,9 @@ def get_logo_path(filename="icon1.png"):
 
 
 def get_cookie_manager():
-    """Get or initialize the cookie manager from session state to avoid duplicate keys"""
-    if "cookie_manager" not in st.session_state:
-        # Use a fixed key to ensure Streamlit tracks this as a single component
-        st.session_state.cookie_manager = stc.CookieManager(key="main_cookie_manager")
-    return st.session_state.cookie_manager
+    """Get the cookie manager. Always call this to ensure the component is rendered in the DOM."""
+    # We use a fixed key so Streamlit tracks it correctly across reruns
+    return stc.CookieManager(key="main_cookie_manager")
 
 def get_session_token():
     """Get the session token from browser cookies"""
@@ -95,22 +93,27 @@ def clear_session_token():
 def is_authenticated():
     """Check if the current user is authenticated via JWT"""
     try:
+        # 1. Check if we already have it in session state (Fastest)
+        if st.session_state.get("authenticated"):
+            return True
+
+        # 2. Check cookies
         token = get_session_token()
         if not token:
             return False
         
-        # Decode and validate JWT locally
+        # 3. Decode and validate JWT locally
         payload = security.decode_access_token(token)
         if payload:
             # Store user info in session state for easy access
-            if "username" not in st.session_state:
-                st.session_state.username = payload.get("sub")
-                st.session_state.user_role = payload.get("role")
-                st.session_state.db_user_id = payload.get("user_id")
-                st.session_state.authenticated = True
+            st.session_state.username = payload.get("sub")
+            st.session_state.user_role = payload.get("role")
+            st.session_state.db_user_id = payload.get("user_id")
+            st.session_state.employee_id = payload.get("employee_id")
+            st.session_state.authenticated = True
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[AUTH DEBUG] is_authenticated error: {e}")
     
     return False
 
@@ -1287,26 +1290,52 @@ def init_session_state():
     # Timezone Detection - Force Central Time as requested
     st.session_state.user_timezone = "America/Chicago"
 
+    # --- COOKIE SYNC / WARM-UP (PERSISTENCE FIX) ---
+    if 'cookie_sync_done' not in st.session_state:
+        st.session_state.cookie_sync_done = False
+    if 'cookie_retry_count' not in st.session_state:
+        st.session_state.cookie_retry_count = 0
+
     try:
         # Initialize basic auth state if missing
         if 'authenticated' not in st.session_state:
             st.session_state.authenticated = False
 
-        # Secure JWT-Based Session Check
-        if not st.session_state.authenticated:
-            payload = is_authenticated()
-            
+        # --- NATIVE JS BOUNCE (ROBUST PERSISTENCE FIX) ---
+        # 1. Check for recovery token in query params (Bounce Handoff)
+        recovery_token = st.query_params.get("recovery_token")
+        if recovery_token and not st.session_state.authenticated:
+            # Validate and apply recovery token
+            payload = security.decode_access_token(recovery_token)
             if payload:
-                # JWT is valid - auto-login using payload data
-                st.session_state.authenticated = True
                 st.session_state.username = payload.get("sub")
                 st.session_state.user_role = payload.get("role")
                 st.session_state.db_user_id = payload.get("user_id")
                 st.session_state.employee_id = payload.get("employee_id")
+                st.session_state.authenticated = True
+                st.session_state.cookie_sync_done = True
+                
+                # Critical: Clear the token from the URL immediately for security/cleanliness
+                st.query_params.clear()
                 st.rerun()
+
+        # 2. If not authenticated and we haven't finished sync yet, try to recover from cookies
+        if not st.session_state.authenticated and not st.session_state.cookie_sync_done:
+            # First, check if cookies are already available via the slow component (cached check)
+            if is_authenticated():
+                st.session_state.cookie_sync_done = True
+                st.rerun()
+            
+            # If still nothing, trigger the JS Recovery Bounce (Retry limit to avoid loops)
+            if st.session_state.cookie_retry_count < 1:
+                st.session_state.cookie_retry_count += 1
+                inject_cookie_recovery_script()
+                with st.spinner("Synchronizing session..."):
+                    import time
+                    time.sleep(0.5) # Give JS a moment to execute the redirect
             else:
-                # Token is invalid or expired
-                clear_session_token()
+                # Exhausted recovery attempts
+                st.session_state.cookie_sync_done = True
     finally:
         db.close()
     
@@ -1329,6 +1358,27 @@ def inject_custom_css():
     """Inject global CSS styles and time fix JS"""
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
     inject_time_fix_script()
+
+def inject_cookie_recovery_script():
+    """Inject a small script to recover the session token from cookies if available"""
+    # Use st.components.v1.html to execute the script in the context of the main page
+    from streamlit.components.v1 import html
+    html("""
+        <script>
+        (function() {
+            function getCookie(name) {
+                let match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                if (match) return match[2];
+                return null;
+            }
+            let token = getCookie('jwt_token');
+            if (token && !window.location.search.includes('recovery_token=')) {
+                // Token found in cookies but not in URL -> trigger bounce handoff
+                window.location.search = '?recovery_token=' + token;
+            }
+        })();
+        </script>
+    """, height=0)
 
 
 def inject_time_fix_script():

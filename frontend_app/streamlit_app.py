@@ -57,7 +57,8 @@ def main():
     # Inject custom CSS/JS immediately
     inject_custom_css()
     
-    # Initialize session state (includes token validation)
+    # 1. Initialize session state (includes token validation and robust warm-up)
+    # This handles the cookie-sync retry loop internally to ensure cookies are populated.
     init_session_state()
     
     # 0. TARGETED RELOADING (SAFELY)
