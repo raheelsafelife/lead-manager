@@ -90,6 +90,10 @@ def clear_session_token():
     """Remove the session token from browser cookies."""
     # Queue cookie deletion via JS on the next render
     st.session_state["_cookie_pending"] = "CLEAR"
+    # CRITICAL: Block cookie-based re-auth for the next render.
+    # Without this, st.context.cookies still sees the old cookie in the current
+    # HTTP request headers, causing is_authenticated() to re-login the user immediately.
+    st.session_state["_skip_cookie_auth"] = True
     # Also try via CookieManager
     try:
         cookie_manager = get_cookie_manager()
@@ -98,6 +102,9 @@ def clear_session_token():
             cookie_manager.delete("jwt_token", key="delete_jwt_cookie")
     except Exception:
         pass
+    # Clear navigation page param too
+    if "p" in st.query_params:
+        del st.query_params["p"]
     if "token" in st.query_params:
         del st.query_params["token"]
 
@@ -1358,8 +1365,13 @@ def init_session_state():
 
         # --- NATIVE HEADER PERSISTENCE (ROBUST FIX) ---
         if not st.session_state.authenticated:
-            # Check if we can authenticate via cookies (now super robust via st.context.cookies)
-            if is_authenticated():
+            # If _skip_cookie_auth is set, the user JUST logged out.
+            # st.context.cookies still sees the old JWT in this request's headers,
+            # so we must skip cookie-based auth for this one render to avoid
+            # immediately re-logging in the user before the clear JS can run.
+            if st.session_state.pop("_skip_cookie_auth", False):
+                pass  # Skip auth — JS will clear cookie, next refresh will be clean
+            elif is_authenticated():
                 st.session_state.authenticated = True
                 st.rerun()
     finally:
