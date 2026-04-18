@@ -96,8 +96,25 @@ def auto_upgrade_db(eng):
                         logger.info("Auto-added 'caregiver_type' column to leads table")
                     except Exception as e:
                         logger.error(f"Failed to add caregiver_type: {e}")
+                        
+        if "users" in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns("users")]
+            with eng.begin() as conn:
+                if "profile_pic" not in columns:
+                    try:
+                        conn.execute(text("ALTER TABLE users ADD COLUMN profile_pic TEXT"))
+                        logger.info("Auto-added 'profile_pic' column to users table")
+                    except Exception as e:
+                        logger.error(f"Failed to add profile_pic: {e}")
     except Exception as e:
         logger.error(f"DB Auto-upgrade failed: {e}")
 
+
 # Run upgrades automatically
-auto_upgrade_db(engine)
+def init_db(eng):
+    # Ensure all tables defined in models are created
+    from app.models import Base
+    Base.metadata.create_all(bind=eng)
+    auto_upgrade_db(eng)
+
+init_db(engine)

@@ -208,6 +208,26 @@ def view_leads():
     
     st.divider()
     
+    # --- HANDLE GLOBAL SEARCH FROM TOP BAR ---
+    # 1. Handle traditional search terms (names)
+    global_term = st.session_state.pop('global_search_term', None)
+    if global_term:
+        st.session_state['search_name_input'] = global_term
+    
+    # 2. Handle specific Target IDs (from Search Suggestions or Notifications)
+    target_id = st.query_params.get('target_id')
+    if target_id:
+        # Pre-populate the ID search box so the list filters automatically
+        st.session_state['search_id_input'] = str(target_id)
+        # Ensure we show both active/inactive to find the lead
+        st.session_state.active_inactive_filter = "All"
+        # Reset pagination to show the match
+        st.session_state.leads_page = 0
+        
+        # CLEAR IT so it doesn't get stuck indefinitely and block future searches
+        st.query_params.clear()
+        st.query_params['p'] = "View Leads"
+    
     # Search and filter
     col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
@@ -218,11 +238,13 @@ def view_leads():
         filter_source = st.text_input("Filter by source", key="search_source_input")
     with col_id:
         search_id = st.text_input("Search by ID", key="search_id_input")
+        
     with col4:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Search", key="search_leads_btn", use_container_width=True):
             st.session_state.leads_page = 0
             st.rerun()
+
 
     # Excel Download Button
     download_all_col1, download_all_col2 = st.columns([4, 1])
@@ -243,8 +265,8 @@ def view_leads():
                 lead_type_filter="Lead",
                 auth_received_filter=False,
                 skip=0,
-                limit=2000, 
-                lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+                limit=2000,
+                lead_id_search=search_id.strip() if search_id and search_id.strip() else None,
                 tag_color_filter=st.session_state.tag_color_filter,
                 sort_by=st.session_state.leads_sort_by
             )
@@ -283,9 +305,9 @@ def view_leads():
         only_my_leads = True
     
     # SQL-level search and count
-    lead_id_filter = None
-    if search_id and search_id.strip().isdigit():
-        lead_id_filter = int(search_id.strip())
+    # For partial ID search: pass the raw string so CRUD can do CAST+ILIKE
+    # For exact URL navigation (target_id), lead_id_filter handles exact == match
+    lead_id_search = search_id.strip() if search_id and search_id.strip() else None
 
     leads = search_leads(
         db,
@@ -302,7 +324,7 @@ def view_leads():
         auth_received_filter=False,
         skip=skip,
         limit=limit,
-        lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+        lead_id_search=lead_id_search,
         tag_color_filter=st.session_state.tag_color_filter,
         sort_by=st.session_state.leads_sort_by
     )
@@ -321,7 +343,7 @@ def view_leads():
         include_deleted=st.session_state.show_deleted_leads,
         lead_type_filter="Lead",
         auth_received_filter=False,
-        lead_id_filter=int(search_id) if search_id.strip().isdigit() else None,
+        lead_id_search=lead_id_search,
         tag_color_filter=st.session_state.tag_color_filter
     )
     
@@ -336,7 +358,6 @@ def view_leads():
     
     st.write(f"**Showing {len(leads)} leads of {total_leads} total ({filter_info})**")
     
-    # Display leads
     if leads:
         for lead in leads:
             from frontend.common import get_tag_color_dot, render_tag_color_picker
@@ -693,7 +714,13 @@ def view_leads():
                     st.rerun()
 
     else:
-        st.info("No leads found")
+        if search_name or search_id:
+            st.info(
+                "💡 No exact match found. "
+                "Try a shorter search term, different spelling, or check the ID."
+            )
+        else:
+            st.info("No leads found")
     
     # --- PAGINATION UI CONTROLS ---
     render_pagination(total_leads, "leads")

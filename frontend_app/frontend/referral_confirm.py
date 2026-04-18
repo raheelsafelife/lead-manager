@@ -459,11 +459,29 @@ def referral_confirm():
     
     st.divider()
 
-    # Define filters early to avoid UnboundLocalError in Download logic
-    lead_id_filter = None
-    if search_id := st.session_state.get("search_id_input_conf"):
-        if search_id.strip().isdigit():
-            lead_id_filter = int(search_id.strip())
+    # Define lead_id_search early to avoid UnboundLocalError in Download logic
+    # Use raw string for partial ILIKE matching instead of exact integer equality
+    lead_id_search = None
+    if _sid := st.session_state.get("search_id_input_conf"):
+        if _sid.strip():
+            lead_id_search = _sid.strip()
+
+    # --- HANDLE GLOBAL SEARCH FROM TOP BAR ---
+    # 1. Handle traditional search terms (names)
+    global_term = st.session_state.pop('global_search_term', None)
+    if global_term:
+        st.session_state['conf_search_name_input'] = global_term
+    
+    # 2. Handle specific Target IDs (from Search Suggestions)
+    target_id = st.query_params.get('target_id')
+    if target_id:
+        st.session_state['search_id_input_conf'] = str(target_id)
+        # Ensure we show both active/inactive to find the lead
+        st.session_state.confirm_status_filter = "All"
+        st.session_state.confirm_care_filter = "All"
+        st.session_state.conf_page = 0
+        st.query_params.clear()
+        st.query_params['p'] = "Authorizations"
 
     # Search and filter
     col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
@@ -670,7 +688,7 @@ def referral_confirm():
         only_clients=False,
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter,
+        lead_id_search=lead_id_search,
         lead_type_filter=st.session_state.confirm_lead_type_filter,
         care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
@@ -695,7 +713,7 @@ def referral_confirm():
         include_deleted=filter_deleted,
         care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
         care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-        lead_id_filter=lead_id_filter,
+        lead_id_search=lead_id_search,
         tag_color_filter=st.session_state.confirm_tag_color_filter,
         caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
         ccu_filter=st.session_state.confirm_ccu_filter,
@@ -728,7 +746,7 @@ def referral_confirm():
                 only_clients=False,
                 skip=0,
                 limit=2000,
-                lead_id_filter=lead_id_filter,
+                lead_id_search=lead_id_search,
                 lead_type_filter=st.session_state.confirm_lead_type_filter,
                 care_status_filter=st.session_state.confirm_status_filter,
                 care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
@@ -758,8 +776,14 @@ def referral_confirm():
     st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
     
     if not leads:
-        st.info("**No clients match the selected filter.**")
-        st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
+        if search_name or lead_id_search:
+            st.info(
+                "💡 No exact match found. "
+                "Try a shorter search term, different spelling, or check the ID."
+            )
+        else:
+            st.info("**No clients match the selected filter.**")
+            st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
         db.close()
         return
     

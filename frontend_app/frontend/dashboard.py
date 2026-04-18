@@ -79,18 +79,6 @@ def dashboard():
     if 'error_msg' in st.session_state:
         msg = st.session_state.pop('error_msg'); st.toast(msg, icon="❌"); st.error(f"**{msg}**")
 
-    st.markdown(f"Welcome, **{st.session_state.username}**!")
-    
-    if st.button("Logout", key="logout"):
-        from frontend.common import clear_session_token
-        clear_session_token()  # queues cookie clear JS + sets _skip_cookie_auth
-        # Wipe all session state so next login starts fresh
-        keys_to_keep = {"_cookie_pending", "_skip_cookie_auth"}
-        for k in list(st.session_state.keys()):
-            if k not in keys_to_keep:
-                del st.session_state[k]
-        st.rerun()
-    
     st.divider()
     
     if st.session_state.user_role == "admin":

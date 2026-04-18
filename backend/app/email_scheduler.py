@@ -9,7 +9,7 @@ load_dotenv()
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app.crud import crud_leads, crud_users, crud_email_reminders
+from app.crud import crud_leads, crud_users, crud_email_reminders, crud_notifications
 from app.crud.crud_email_reminders import create_care_start_reminder, get_care_start_reminders_by_lead
 from app.utils.email_service import send_simple_lead_email, send_referral_reminder_email
 import time
@@ -192,6 +192,27 @@ def send_lead_reminders():
                                 error_message=None if success else "Email service error"
                             )
                             
+                            # CREATE IN-APP NOTIFICATION
+                            try:
+                                notification_title = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+                                if lead.active_client:
+                                    description = f"Referral Sent: Please follow-up with this referral. ({referral_info['referral_type']})"
+                                    entity_type = "referral"
+                                else:
+                                    description = "Lead: Please follow-up with this lead."
+                                    entity_type = "lead"
+                                
+                                crud_notifications.create_notification(
+                                    db=db,
+                                    user_id=user.id,
+                                    title=notification_title,
+                                    description=description,
+                                    entity_id=lead.id,
+                                    entity_type=entity_type
+                                )
+                            except Exception as notif_e:
+                                print(f"[ERROR] Failed to create in-app notification: {notif_e}")
+                            
                             if success:
                                 if lead.active_client:
                                     reminder_type = f"[{referral_info['referral_type']}]"
@@ -327,6 +348,22 @@ def send_lead_reminders():
                                 status=status,
                                 error_message=None if success else "Email service error"
                             )
+
+                            # CREATE IN-APP NOTIFICATION (CARE START)
+                            try:
+                                notification_title = f"ID: {lead.id} | {lead.first_name} {lead.last_name}"
+                                description = f"Referral Sent: Please follow-up with this referral. ({care_start_info['days_since_auth']} days since Authorization)"
+                                
+                                crud_notifications.create_notification(
+                                    db=db,
+                                    user_id=user.id,
+                                    title=notification_title,
+                                    description=description,
+                                    entity_id=lead.id,
+                                    entity_type="referral"
+                                )
+                            except Exception as notif_e:
+                                print(f"[ERROR] Failed to create care start notification: {notif_e}")
 
                             if success:
                                 print(f"[SUCCESS] Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")

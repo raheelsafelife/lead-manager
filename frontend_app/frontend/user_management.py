@@ -1,6 +1,3 @@
-"""
-User Management page: Admin panel, password updates, historian
-"""
 import sys
 from pathlib import Path
 
@@ -12,15 +9,200 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import json
+import base64
 from app.db import SessionLocal
 from app import services_stats
 from app.crud import crud_users, crud_leads, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus, crud_mcos, crud_agency_suboptions, crud_events
 from sqlalchemy import func
+from app.models import User
 from app.schemas import UserCreate, LeadCreate, LeadUpdate
 from app.utils.activity_logger import format_time_ago, get_action_icon, get_action_label, format_changes, utc_to_local
 from app.utils.email_service import send_referral_reminder, send_lead_reminder_email
 from frontend.common import prepare_lead_data_for_email, render_time, render_confirmation_modal, open_modal, close_modal
 
+def user_profile_page():
+    """Personalized User Profile page with security settings"""
+    st.markdown('<div class="main-header"> User Profile & Security</div>', unsafe_allow_html=True)
+    
+    db = SessionLocal()
+    try:
+        user = crud_users.get_user_by_username(db, st.session_state.username)
+        if not user:
+            st.error("User not found.")
+            return
+
+        # Profile Picture & Info Card
+        with st.container():
+            col_pic, col_info = st.columns([1, 2])
+            
+            with col_pic:
+                # Profile Picture Display
+                from sqlalchemy import text
+                has_pic = db.execute(text("SELECT profile_pic FROM users WHERE username = :u"), {"u": user.username}).scalar()
+                
+                if has_pic:
+                    st.markdown(f'''
+                        <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+                            <img src="{has_pic}" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #3CA5AA;">
+                        </div>
+                    ''', unsafe_allow_html=True)
+                else:
+                    # Default Avatar SVG
+                    st.markdown('''
+                        <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+                            <div style="width: 150px; height: 150px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; border: 3px solid #3CA5AA;">
+                                <svg width="80" height="80" viewBox="0 0 24 24" fill="#64748b" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    ''', unsafe_allow_html=True)
+                
+                # Image Uploader
+                if "profile_pic_uploader_key" not in st.session_state:
+                    st.session_state.profile_pic_uploader_key = 0
+                    
+                uploaded_file = st.file_uploader("Change Picture", type=["png", "jpg", "jpeg"], label_visibility="collapsed", key=f"pic_upload_{st.session_state.profile_pic_uploader_key}")
+                
+                if uploaded_file:
+                    bytes_data = uploaded_file.getvalue()
+                    base64_img = f"data:image/{uploaded_file.type.split('/')[-1]};base64,{base64.b64encode(bytes_data).decode()}"
+                    
+                    if st.button("Save New Picture", type="primary"):
+                        crud_users.update_user_credentials(db, user.id, new_profile_pic=base64_img)
+                        # Increment key to instantly clear the uploader widget box
+                        st.session_state.profile_pic_uploader_key += 1
+                        st.toast("Profile picture updated!", icon="📸")
+                        st.rerun()
+
+            with col_info:
+                # Edit Toggle Header
+                col_h1, col_h2 = st.columns([4, 1])
+                with col_h1:
+                    st.markdown('<h4 style="margin-top: 0; margin-bottom: 10px; color: #1e293b;">Account Details</h4>', unsafe_allow_html=True)
+                with col_h2:
+                    is_editing = st.session_state.get('edit_acc_mode', False)
+                    if st.button("Cancel ✕" if is_editing else "Edit ✎", key="toggle_edit_acc"):
+                        st.session_state.edit_acc_mode = not is_editing
+                        st.rerun()
+
+                if st.session_state.get('edit_acc_mode', False):
+                    with st.container(border=True):
+                        with st.form("edit_acc_form"):
+                            new_u = st.text_input("Username", value=user.username)
+                            new_eid = st.text_input("Employee ID", value=user.user_id or '')
+                            new_e = st.text_input("Email Address", value=user.email)
+                            
+                            if st.form_submit_button("Save Changes", type="primary"):
+                                n_usr = new_u.strip() if new_u.strip() and new_u.strip() != user.username else None
+                                n_eid = new_eid.strip() if new_eid.strip() != (user.user_id or '') else None
+                                n_eml = new_e.strip() if new_e.strip() and new_e.strip() != user.email else None
+                                
+                                if not n_usr and not n_eid and not n_eml:
+                                    st.info("No changes made.")
+                                else:
+                                    try:
+                                        crud_users.update_user_credentials(
+                                            db, 
+                                            user_id=user.id, 
+                                            new_username=n_usr,
+                                            new_user_id=n_eid,
+                                            new_email=n_eml,
+                                            performer_username=st.session_state.username,
+                                            performer_id=st.session_state.db_user_id
+                                        )
+                                        if n_usr: st.session_state.username = n_usr
+                                        if n_eid: st.session_state.user_id = n_eid
+                                        if n_eml: st.session_state.user_email = n_eml
+                                        
+                                        # Clear dashboard caches to reflect name/ID changes immediately
+                                        from frontend.common import clear_stats_cache, clear_leads_cache
+                                        clear_stats_cache()
+                                        clear_leads_cache()
+                                        
+                                        # Critically Important: Re-mint the authentication token!
+                                        # If we change the username, the old cookie becomes invalid.
+                                        if n_usr or n_eid:
+                                            from app.utils.security import create_access_token
+                                            from frontend.common import set_session_token
+                                            import datetime
+                                            
+                                            new_token = create_access_token(
+                                                data={
+                                                    "sub": st.session_state.username,
+                                                    "user_id": st.session_state.get('db_user_id'),
+                                                    "role": st.session_state.get('user_role', 'user'),
+                                                    "employee_id": st.session_state.get('user_id')
+                                                }
+                                            )
+                                            set_session_token(new_token)
+                                            
+                                        st.session_state.edit_acc_mode = False
+                                        if n_eml: st.session_state.user_email = n_eml
+                                        st.session_state.edit_acc_mode = False
+                                        st.toast("Identity updated successfully!", icon="✅")
+                                        st.rerun()
+                                    except ValueError as e:
+                                        st.error(f"Update Failed: {str(e)}")
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+                else:
+                    st.markdown(f"""
+                        <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                            <div style="margin-bottom: 15px;">
+                                <span style="font-weight: 700; color: #64748b; font-size: 0.85rem; display: block; text-transform: uppercase;">Username</span>
+                                <span style="font-size: 1.1rem; color: #000000; font-weight: 600;">{user.username}</span>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <span style="font-weight: 700; color: #64748b; font-size: 0.85rem; display: block; text-transform: uppercase;">Employee ID</span>
+                                <span style="font-size: 1.1rem; color: #000000; font-weight: 600;">{user.user_id or 'N/A'}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <span style="font-weight: 700; color: #64748b; font-size: 0.85rem; display: block; text-transform: uppercase;">Email Address</span>
+                                <span style="font-size: 1.1rem; color: #000000; font-weight: 600;">{user.email}</span>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+        st.divider()
+
+        # Security Section
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 🔒 Change Password")
+            with st.form("profile_password_form", clear_on_submit=True):
+                curr_pwd = st.text_input("Current Password", type="password")
+                new_pwd = st.text_input("New Password (min 6 characters)", type="password")
+                conf_pwd = st.text_input("Confirm New Password", type="password")
+                
+                if st.form_submit_button("Update Password", type="primary", use_container_width=True):
+                    if not all([curr_pwd, new_pwd, conf_pwd]):
+                        st.error("Please fill in all fields.")
+                    elif new_pwd != conf_pwd:
+                        st.error("New passwords do not match.")
+                    elif len(new_pwd) < 6:
+                        st.error("Password must be at least 6 characters.")
+                    else:
+                        auth_user = crud_users.authenticate_user(db, user.username, curr_pwd)
+                        if not auth_user or auth_user == "pending":
+                            st.error("Current password is incorrect.")
+                        else:
+                            crud_users.update_user_credentials(db, user.id, new_password=new_pwd)
+                            st.toast("Password updated successfully!", icon="✅")
+                            st.success("Successfully updated your password!")
+
+        with col2:
+            st.markdown("#### 🛠️ Account Recovery")
+            st.info("If you've forgotten your current password or need a complete reset, you can request an administrative reset.")
+            
+            if st.button("Request Account Reset", type="secondary", use_container_width=True):
+                crud_users.request_password_reset(db, user.username)
+                st.toast("Reset request sent!", icon="📩")
+                st.success("Your reset request has been sent to the administrators.")
+
+    finally:
+        db.close()
 
 def update_password():
     """Password update page for logged-in users"""

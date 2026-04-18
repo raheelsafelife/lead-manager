@@ -21,6 +21,13 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
     lead.created_by = lead_in.staff_name
     lead.updated_by = lead_in.staff_name
     
+    # Auto-populate Employee ID based on staff_name
+    if lead_in.staff_name:
+        from app.crud.crud_users import get_user_by_username
+        user_prof = get_user_by_username(db, lead_in.staff_name)
+        if user_prof and user_prof.user_id:
+            lead.custom_user_id = user_prof.user_id
+    
     db.add(lead)
     db.commit()
     db.refresh(lead)
@@ -39,6 +46,22 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
         new_value=lead_in.dict(),
         keywords=f"lead,create,{lead.source.lower()}"
     )
+
+    # Send notification to assigned staff
+    if lead.staff_name:
+        from app.crud.crud_users import get_user_by_username
+        from app.crud.crud_notifications import create_notification
+        
+        assignee = get_user_by_username(db, lead.staff_name)
+        if assignee:
+            create_notification(
+                db=db,
+                user_id=assignee.id,
+                title="New Lead Assigned",
+                description=f"You have been assigned a new lead: {lead.first_name} {lead.last_name}",
+                entity_id=lead.id,
+                entity_type="Lead"
+            )
     
     return lead
 
@@ -171,6 +194,32 @@ def update_lead(
         action_type = "LEAD_UPDATED"
         keywords = ["lead", "update"]
         
+        # Independent check for staff assignment changes
+        if "staff_name" in new_values:
+            from app.crud.crud_users import get_user_by_username
+            from app.crud.crud_notifications import create_notification
+            
+            new_staff = new_values["staff_name"]
+            user_prof = get_user_by_username(db, new_staff)
+            
+            # Auto-populate Employee ID if found
+            if user_prof:
+                if user_prof.user_id:
+                    lead.custom_user_id = user_prof.user_id
+                    new_values["custom_user_id"] = user_prof.user_id
+                
+                # Notification logic
+                create_notification(
+                    db=db,
+                    user_id=user_prof.id,
+                    title="Lead Assigned to You",
+                    description=f"Lead '{lead.first_name} {lead.last_name}' has been assigned to you by {username}",
+                    entity_id=lead.id,
+                    entity_type="Lead"
+                )
+            action_type = "LEAD_ASSIGNED"
+            keywords.append("assignment")
+
         # Independent check for referral changes
         if "active_client" in new_values:
             if new_values["active_client"]:
@@ -334,6 +383,7 @@ def search_leads(
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
+    lead_id_search: Optional[str] = None,  # Partial ID text search (ILIKE)
     lead_type_filter: Optional[str] = None, # "Lead", "Initial Referral Sent", "Referral Confirmed"
     referral_category_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
@@ -397,18 +447,59 @@ def search_leads(
             query = query.filter(models.Lead.owner_id == owner_id)
         # fallback to staff name if needed is handled via schema usually
         
-    # 3.5 Lead ID Filter
+    # 3.5 Lead ID Filter — exact match for URL-navigation (e.g. from suggestion clicks)
     if lead_id_filter:
         query = query.filter(models.Lead.id == lead_id_filter)
-        
-    # 4. Search Query (Name)
+
+    # 3.6 Partial ID Search — ILIKE on CAST(id, text) for search boxes
+    # Only applied when no exact id filter is present so they don't conflict
+    elif lead_id_search and lead_id_search.strip():
+        from sqlalchemy import cast, String as SAString
+        query = query.filter(
+            cast(models.Lead.id, SAString).ilike(f"%{lead_id_search.strip()}%")
+        )
+
+    # 4. Smart Multi-Token Name Search
+    # ─────────────────────────────────────────────────────────────────────────
+    # Tokenize the raw query so that multi-word input like "Robert Raheel"
+    # is split into ["robert", "raheel"] and BOTH tokens must be found
+    # somewhere in the record (AND logic).  Single-word input continues to
+    # work exactly as before (one token → standard partial ILIKE).
+    # Fields searched per token: first_name, last_name, concatenated full
+    # name (forward and reversed), phone, email, medicaid_no, custom_user_id.
+    # ─────────────────────────────────────────────────────────────────────────
     if search_query:
-        search_query = f"%{search_query}%"
-        from sqlalchemy import or_
-        query = query.filter(or_(
-            models.Lead.first_name.ilike(search_query),
-            models.Lead.last_name.ilike(search_query)
-        ))
+        from sqlalchemy import or_, and_, func, cast, String as SAString
+        # Normalize: trim, lowercase, collapse multiple spaces
+        normalized = re.sub(r'\s+', ' ', search_query.strip()).lower()
+        tokens = [t for t in normalized.split() if t]  # drop empty strings
+
+        if tokens:
+            # Build a lower-cased full-name expression (first last) and its reverse
+            full_name_expr = func.lower(
+                models.Lead.first_name + ' ' + models.Lead.last_name
+            )
+            full_name_rev_expr = func.lower(
+                models.Lead.last_name + ' ' + models.Lead.first_name
+            )
+
+            token_conditions = []
+            for token in tokens:
+                tok_pat = f"%{token}%"
+                # Each token must appear in at least ONE of these fields
+                token_conditions.append(or_(
+                    models.Lead.first_name.ilike(tok_pat),
+                    models.Lead.last_name.ilike(tok_pat),
+                    full_name_expr.ilike(tok_pat),
+                    full_name_rev_expr.ilike(tok_pat),
+                    models.Lead.phone.ilike(tok_pat),
+                    models.Lead.email.ilike(tok_pat),
+                    models.Lead.medicaid_no.ilike(tok_pat),
+                    models.Lead.custom_user_id.ilike(tok_pat),
+                ))
+
+            # ALL token conditions must hold (AND across tokens)
+            query = query.filter(and_(*token_conditions))
         
     # 5. Staff Filter
     if staff_filter:
@@ -576,6 +667,7 @@ def count_search_leads(
     city_filter: Optional[str] = None,
     zip_filter: Optional[str] = None,
     lead_id_filter: Optional[int] = None,
+    lead_id_search: Optional[str] = None,  # Partial ID text search (ILIKE)
     lead_type_filter: Optional[str] = None,
     referral_category_filter: Optional[str] = None,
     care_status_filter: Optional[str] = None,
@@ -616,17 +708,46 @@ def count_search_leads(
     if only_my_leads and owner_id:
         query = query.filter(models.Lead.owner_id == owner_id)
         
+    # Exact ID filter (URL navigation)
     if lead_id_filter:
         query = query.filter(models.Lead.id == lead_id_filter)
-        
-        
+
+    # Partial ID search (ILIKE on cast)
+    elif lead_id_search and lead_id_search.strip():
+        from sqlalchemy import cast, String as SAString
+        query = query.filter(
+            cast(models.Lead.id, SAString).ilike(f"%{lead_id_search.strip()}%")
+        )
+
+    # Smart multi-token name / field search (mirrors search_leads)
     if search_query:
-        search_query = f"%{search_query}%"
-        from sqlalchemy import or_
-        query = query.filter(or_(
-            models.Lead.first_name.ilike(search_query),
-            models.Lead.last_name.ilike(search_query)
-        ))
+        from sqlalchemy import or_, and_, func, cast, String as SAString
+        normalized = re.sub(r'\s+', ' ', search_query.strip()).lower()
+        tokens = [t for t in normalized.split() if t]
+
+        if tokens:
+            full_name_expr = func.lower(
+                models.Lead.first_name + ' ' + models.Lead.last_name
+            )
+            full_name_rev_expr = func.lower(
+                models.Lead.last_name + ' ' + models.Lead.first_name
+            )
+
+            token_conditions = []
+            for token in tokens:
+                tok_pat = f"%{token}%"
+                token_conditions.append(or_(
+                    models.Lead.first_name.ilike(tok_pat),
+                    models.Lead.last_name.ilike(tok_pat),
+                    full_name_expr.ilike(tok_pat),
+                    full_name_rev_expr.ilike(tok_pat),
+                    models.Lead.phone.ilike(tok_pat),
+                    models.Lead.email.ilike(tok_pat),
+                    models.Lead.medicaid_no.ilike(tok_pat),
+                    models.Lead.custom_user_id.ilike(tok_pat),
+                ))
+
+            query = query.filter(and_(*token_conditions))
         
     if staff_filter:
         query = query.filter(models.Lead.staff_name.ilike(f"%{staff_filter}%"))

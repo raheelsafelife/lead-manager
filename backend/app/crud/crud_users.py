@@ -79,7 +79,10 @@ def update_user_credentials(
     db: Session,
     user_id: int,
     new_username: str = None,
+    new_user_id: str = None,
     new_password: str = None,
+    new_email: str = None,
+    new_profile_pic: str = None,
     performer_username: str = None,
     performer_id: int = None
 ):
@@ -102,15 +105,49 @@ def update_user_credentials(
             raise ValueError(f"Username '{new_username}' is already taken")
         
         # Sync all related tables with the new username
+        old_username = user.username
         _sync_username_changes(db, old_username, new_username)
         
         user.username = new_username
         changes["username"] = {"old": old_username, "new": new_username}
+        
+    # Update employee ID (user_id) if provided
+    if new_user_id is not None:
+        existing_id = get_user_by_user_id(db, new_user_id)
+        if existing_id and existing_id.id != user_id:
+            raise ValueError(f"Employee ID '{new_user_id}' is already registered to another user")
+            
+        old_user_id = user.user_id
+        # Sync cascading changes for Employee ID
+        _sync_user_id_changes(db, old_user_id, new_user_id)
+        
+        user.user_id = new_user_id
+        changes["user_id"] = {"old": old_user_id, "new": new_user_id}
+        
+    # Update email if provided
+    if new_email is not None:
+        existing_email_user = get_user_by_email(db, new_email)
+        if existing_email_user and existing_email_user.id != user_id:
+            raise ValueError(f"Email '{new_email}' is already registered to another user")
+            
+        old_email = user.email
+        user.email = new_email
+        changes["email"] = {"old": old_email, "new": new_email}
     
     # Update password if provided
     if new_password is not None:
         user.hashed_password = hash_password(new_password)
         changes["password"] = {"old": "***", "new": "***"}
+    
+    # Update profile picture if provided
+    if new_profile_pic is not None:
+        from sqlalchemy import text
+        try:
+            db.execute(text("UPDATE users SET profile_pic = :pic WHERE id = :uid"), {"pic": new_profile_pic, "uid": user_id})
+            setattr(user, "profile_pic", new_profile_pic)
+            changes["profile_pic"] = {"old": "previous", "new": "updated"}
+        except Exception as e:
+            print(f"Error saving profile picture: {e}")
     
     db.commit()
     db.refresh(user)
@@ -487,3 +524,16 @@ def _sync_username_changes(db: Session, old_username: str, new_username: str):
     db.query(models.EmailReminder).filter(models.EmailReminder.sent_by == old_username).update({models.EmailReminder.sent_by: new_username}, synchronize_session=False)
 
     db.flush() # Ensure changes are staged within the current transaction
+
+
+def _sync_user_id_changes(db: Session, old_user_id: str, new_user_id: str):
+    """
+    Internal helper to cascade Employee ID (user_id string) changes.
+    """
+    if not old_user_id or not new_user_id or old_user_id == new_user_id:
+        return
+
+    # Update Leads (custom_user_id)
+    db.query(models.Lead).filter(models.Lead.custom_user_id == old_user_id).update({models.Lead.custom_user_id: new_user_id}, synchronize_session=False)
+
+    db.flush()

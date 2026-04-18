@@ -178,6 +178,23 @@ def view_referrals():
     
     st.divider()
     
+    # --- HANDLE GLOBAL SEARCH FROM TOP BAR ---
+    # 1. Handle traditional search terms (names)
+    global_term = st.session_state.pop('global_search_term', None)
+    if global_term:
+        st.session_state['ref_search_name_input'] = global_term
+    
+    # 2. Handle specific Target IDs (from Search Suggestions)
+    target_id = st.query_params.get('target_id')
+    if target_id:
+        st.session_state['search_id_input_ref'] = str(target_id)
+        # Ensure we show both active/inactive to find the lead
+        st.session_state.referral_active_inactive_filter = "All"
+        st.session_state.referral_status_filter = "All"
+        st.session_state.refs_page = 0
+        st.query_params.clear()
+        st.query_params['p'] = "Referrals Sent"
+    
     # Search and filter
     col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
     with col1:
@@ -324,9 +341,8 @@ def view_referrals():
         only_my_referrals = True
     
     # SQL-level search and count
-    lead_id_filter = None
-    if search_id and search_id.strip().isdigit():
-        lead_id_filter = int(search_id.strip())
+    # Use raw string for partial ID ILIKE matching (e.g. "3" returns all IDs containing 3)
+    lead_id_search = search_id.strip() if search_id and search_id.strip() else None
 
     # Strict Separation: ONLY show leads WITHOUT authorization on this page
     leads = search_leads(
@@ -344,7 +360,7 @@ def view_referrals():
         auth_received_filter=False,
         skip=skip,
         limit=limit,
-        lead_id_filter=lead_id_filter,
+        lead_id_search=lead_id_search,
         referral_category_filter=st.session_state.referral_type_filter,
         tag_color_filter=st.session_state.referral_tag_color_filter,
         caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
@@ -367,7 +383,7 @@ def view_referrals():
         include_deleted=False,
         lead_type_filter="Referral Sent",
         auth_received_filter=False,
-        lead_id_filter=lead_id_filter,
+        lead_id_search=lead_id_search,
         referral_category_filter=st.session_state.referral_type_filter,
         tag_color_filter=st.session_state.referral_tag_color_filter,
         caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
@@ -803,7 +819,13 @@ def view_referrals():
                     clear_leads_cache()
                     st.rerun()
     else:
-        st.info("No referrals found")
+        if search_name or search_id:
+            st.info(
+                "💡 No exact match found. "
+                "Try a shorter search term, different spelling, or check the ID."
+            )
+        else:
+            st.info("No referrals found")
     
     # --- PAGINATION UI CONTROLS ---
     render_pagination(total_leads, "refs")

@@ -40,7 +40,7 @@ from frontend.referrals_sent import view_referrals
 from frontend.referral_confirm import referral_confirm
 from frontend.referral_reports import referral_reports
 from frontend.activity_logs import view_activity_logs
-from frontend.user_management import admin_panel, update_password, render_historian
+from frontend.user_management import admin_panel, update_password, render_historian, user_profile_page
 from app.crud import crud_users, crud_activity_logs, crud_agencies, crud_email_reminders, crud_ccus
 from app.db import SessionLocal
 from app.email_scheduler import start_scheduler
@@ -61,19 +61,29 @@ def main():
     # This handles the cookie-sync retry loop internally to ensure cookies are populated.
     init_session_state()
     
+    # 2. Render Top Bar (Relocated Notifications, User Info, Search)
+    from frontend.common import render_top_bar
+    render_top_bar()
+    
     # 0. TARGETED RELOADING (SAFELY)
     # This ensures backend changes are picked up locally WITHOUT the AWS crash bug
     import importlib
     import app.crud.crud_leads as crud_leads
     import app.crud.crud_users as crud_users
+    import app.crud.crud_notifications as crud_notifications
     import app.utils.security as security
     importlib.reload(crud_leads)
     importlib.reload(crud_users)
+    importlib.reload(crud_notifications)
     importlib.reload(security)
 
     # 0.5 PROGRAMMATIC NAVIGATION
-    # Widgets cannot have their session state key set after they render.
-    # Use _navigate_to as an intermediate flag, applied HERE before the sidebar radio renders.
+    # Sync URL query params with session state at the very start of main()
+    # This allows links like ?p=View+Leads to actually switch the page
+    url_p = st.query_params.get('p')
+    if url_p and url_p != st.session_state.get('main_navigation'):
+        st.session_state['main_navigation'] = url_p
+        
     if '_navigate_to' in st.session_state:
         new_page = st.session_state.pop('_navigate_to')
         st.session_state['main_navigation'] = new_page
@@ -102,11 +112,7 @@ def main():
             # Base pages
             pages = ["Dashboard", "Lead Discovery", "Add Lead", "View Leads", "Referrals Sent", "Authorizations", "Activity Logs"]
             
-            # Add Update Password for regular users only (admins have it in User Management)
-            if st.session_state.user_role != "admin":
-                pages.append("Update Password")
-            
-            # Add admin panel for admins
+            # Admin panel for admins
             if st.session_state.user_role == "admin":
                 pages.append("User Management")
             
@@ -115,11 +121,46 @@ def main():
                 st.session_state.main_navigation = "Dashboard"
 
             def handle_nav_change():
-                """Callback when main navigation changes"""
+                """Callback when main navigation changes via sidebar"""
+                if getattr(st.session_state, "_sidebar_radio", None):
+                    st.session_state.main_navigation = st.session_state._sidebar_radio
+                
+                # Clear all stray query parameters (like target_id or search terms) to prevent leakage
+                st.query_params.clear()
                 # Persist current page in URL so refresh restores the same page
                 st.query_params['p'] = st.session_state.main_navigation
                 # Clear any sub-page state when navigating to a new main page
                 st.session_state.current_page = None
+                
+                # CRITICAL: Auto-clear the top search bar when navigating away
+                st.session_state['_clear_topbar_search'] = True
+                
+                # CRITICAL: Auto-clear ALL page-level search input boxes so stale
+                # search terms don't bleed into the newly selected page.
+                search_input_keys = [
+                    # View Leads page
+                    'search_name_input',
+                    'search_id_input',
+                    'search_staff_input',
+                    'search_source_input',
+                    # Referrals Sent page
+                    'ref_search_name_input',
+                    'search_id_input_ref',
+                    'ref_search_staff_input',
+                    'ref_search_source_input',
+                    # Authorizations page
+                    'conf_search_name_input',
+                    'search_id_input_conf',
+                    'conf_search_staff_input',
+                    'conf_search_source_input',
+                    # Top-bar partial query param state
+                    'topbar_search_input',
+                    # Prevent global_search_term from carrying over too
+                    'global_search_term',
+                ]
+                for key in search_input_keys:
+                    if key in st.session_state:
+                        del st.session_state[key]
                 
                 # CRITICAL: Clear ALL modal state on navigation to prevent ghost popups
                 st.session_state.pop('active_modal', None)
@@ -135,25 +176,19 @@ def main():
                     if key.startswith('editing_'):
                         del st.session_state[key]
             
-            # Additional check: If Mark Referral Page is active, ensure we don't accidentally navigate away
-            # unless the user explicitly clicked.
-            # But relying on on_change handles the explicit click nicely.
+            # Determine the index for the radio button. If we are on a hidden page (User Profile), index=None.
+            active_page = st.session_state.main_navigation
+            nav_index = pages.index(active_page) if active_page in pages else None
             
-            page = st.radio("Go to", pages, key="main_navigation", on_change=handle_nav_change)
+            # Decouple the radio key to safely allow hidden pages
+            st.radio("Go to", pages, index=nav_index, key="_sidebar_radio", on_change=handle_nav_change)
             
             # No legacy navigation enforcement needed below. 
             # The callback handles the reset logic efficiently.
             
-            # Show user info
-            st.divider()
-            st.markdown(f"<div style='background-color: #f1f5f9; padding: 10px; border-radius: 5px; border-left: 4px solid #0f172a;'>", unsafe_allow_html=True)
-            st.markdown(f"<p style='margin:0; font-size:0.9rem;'><b>Username:</b> {st.session_state.username}</p>", unsafe_allow_html=True)
-            st.markdown(f"<p style='margin:0; font-size:0.9rem;'><b>Employee ID:</b> {st.session_state.employee_id or 'N/A'}</p>", unsafe_allow_html=True)
-            st.markdown(f"<p style='margin:0; font-size:0.8rem; color: #64748b;'><b>Role:</b> {st.session_state.user_role}</p>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-            
             st.divider()
             render_historian()
+            
             
             # API Health Check Diagnostic
             from frontend.common import render_api_status
@@ -161,6 +196,10 @@ def main():
         
         # Route to selected page
         # Check for hidden pages first (not in navigation)
+        
+        # Use session state instead of sidebar radio value strictly, supporting hidden pages
+        page = st.session_state.main_navigation
+        
         if st.session_state.get('current_page') == 'Mark Referral Page':
             mark_referral_page()
         elif page == "Dashboard":
@@ -185,8 +224,8 @@ def main():
             referral_confirm()
         elif page == "Activity Logs":
             view_activity_logs()
-        elif page == "Update Password":
-            update_password()
+        elif page == "User Profile":
+            user_profile_page()
         elif page == "User Management":
             if st.session_state.user_role == "admin":
                 admin_panel()

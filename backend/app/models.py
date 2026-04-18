@@ -25,6 +25,7 @@ class User(Base):
     role = Column(String(50), nullable=False, default="user")
     is_approved = Column(Boolean, nullable=False, default=False)
     password_reset_requested = Column(Boolean, nullable=False, default=False)
+    profile_pic = Column(Text, nullable=True)  # Base64 or URL
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -330,3 +331,27 @@ class Attachment(Base):
     file_size = Column(Integer, nullable=False)
     uploaded_by = Column(String(100), nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+class Notification(Base):
+    """
+    In-app notifications for users, regarding leads, referrals, or system events.
+    """
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Content
+    title = Column(String(255), nullable=False)  # e.g., "ID: 101 | John Doe"
+    description = Column(Text, nullable=False)   # e.g., "Lead: Please follow-up with this lead."
+    
+    # Entities (Optional Linking)
+    entity_id = Column(Integer, nullable=True)   # ID of related Lead/Referral
+    entity_type = Column(String(50), nullable=True) # "lead" or "referral"
+    
+    # State
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationship
+    user = relationship("User")
