@@ -398,403 +398,405 @@ def referral_confirm():
         st.session_state.confirm_status_filter = "All"
 
     db = SessionLocal()
+    try:
     
-    # Use native SQL filtering for both count and the main list
-    auth_filter = True
+        # Use native SQL filtering for both count and the main list
+        auth_filter = True
 
-    # Recycle Bin Toggle
-    st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
-    show_deleted = st.checkbox(
-        "Show Deleted Leads",
-        value=st.session_state.confirm_show_deleted,
-        help="View authorized clients that have been deleted (can be restored)",
-        key="conf_show_deleted_chk"
-    )
-    if show_deleted != st.session_state.confirm_show_deleted:
-        st.session_state.confirm_show_deleted = show_deleted
-        st.session_state.conf_page = 0
-        st.rerun()
+        # Recycle Bin Toggle
+        st.markdown("<h4 style='font-weight: bold; color: #111827;'>🗑️ Recycle Bin</h4>", unsafe_allow_html=True)
+        show_deleted = st.checkbox(
+            "Show Deleted Leads",
+            value=st.session_state.confirm_show_deleted,
+            help="View authorized clients that have been deleted (can be restored)",
+            key="conf_show_deleted_chk"
+        )
+        if show_deleted != st.session_state.confirm_show_deleted:
+            st.session_state.confirm_show_deleted = show_deleted
+            st.session_state.conf_page = 0
+            st.rerun()
     
-    st.divider()
+        st.divider()
 
-    # Check if we should focus on a specific referral
-    specific_lead_id = st.session_state.get('referral_confirm_lead_id')
-    if specific_lead_id:
-        # Find the specific lead using SQL instead of memory
-        from app.crud.crud_leads import get_lead
-        specific_lead = get_lead(db, specific_lead_id)
-        if specific_lead and not specific_lead.authorization_received:
-            specific_lead = None
+        # Check if we should focus on a specific referral
+        specific_lead_id = st.session_state.get('referral_confirm_lead_id')
+        if specific_lead_id:
+            # Find the specific lead using SQL instead of memory
+            from app.crud.crud_leads import get_lead
+            specific_lead = get_lead(db, specific_lead_id)
+            if specific_lead and not specific_lead.authorization_received:
+                specific_lead = None
 
-        if specific_lead:
-            # Display the specific referral (always shown regardless of page)
-            display_referral_confirm(specific_lead, db, highlight=True)
-        else:
-            # Clear the invalid lead ID if referral not found
-            if 'referral_confirm_lead_id' in st.session_state:
-                st.session_state.pop('referral_confirm_lead_id', None)
+            if specific_lead:
+                # Display the specific referral (always shown regardless of page)
+                display_referral_confirm(specific_lead, db, highlight=True)
+            else:
+                # Clear the invalid lead ID if referral not found
+                if 'referral_confirm_lead_id' in st.session_state:
+                    st.session_state.pop('referral_confirm_lead_id', None)
 
-    # Total count for the header
-    filter_deleted = st.session_state.confirm_show_deleted
+        # Total count for the header
+        filter_deleted = st.session_state.confirm_show_deleted
     
-    total_authorized = count_search_leads(
-        db,
-        exclude_clients=False,
-        auth_received_filter=True,
-        only_clients=True, # Focus on active clients for count
-        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
-        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
-        ccu_filter=st.session_state.confirm_ccu_filter,
-        agency_filter=st.session_state.confirm_payor_filter,
-        include_deleted=filter_deleted
-    )
+        total_authorized = count_search_leads(
+            db,
+            exclude_clients=False,
+            auth_received_filter=True,
+            only_clients=True, # Focus on active clients for count
+            care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
+            care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+            caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+            ccu_filter=st.session_state.confirm_ccu_filter,
+            agency_filter=st.session_state.confirm_payor_filter,
+            include_deleted=filter_deleted
+        )
     
-    header_label = "Deleted (Recycle Bin)" if filter_deleted else st.session_state.confirm_status_filter
-    if header_label == "All":
-        header_label = "All Authorized"
-    elif header_label == "Transfer":
-        header_label = "Transfer Cases"
-    st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
+        header_label = "Deleted (Recycle Bin)" if filter_deleted else st.session_state.confirm_status_filter
+        if header_label == "All":
+            header_label = "All Authorized"
+        elif header_label == "Transfer":
+            header_label = "Transfer Cases"
+        st.write(f"**Total Authorized ({header_label}): {total_authorized}**")
     
-    st.divider()
+        st.divider()
 
-    # Define lead_id_search early to avoid UnboundLocalError in Download logic
-    # Use raw string for partial ILIKE matching instead of exact integer equality
-    lead_id_search = None
-    if _sid := st.session_state.get("search_id_input_conf"):
-        if _sid.strip():
-            lead_id_search = _sid.strip()
+        # Define lead_id_search early to avoid UnboundLocalError in Download logic
+        # Use raw string for partial ILIKE matching instead of exact integer equality
+        lead_id_search = None
+        if _sid := st.session_state.get("search_id_input_conf"):
+            if _sid.strip():
+                lead_id_search = _sid.strip()
 
-    # --- HANDLE GLOBAL SEARCH FROM TOP BAR ---
-    # 1. Handle traditional search terms (names)
-    global_term = st.session_state.pop('global_search_term', None)
-    if global_term:
-        st.session_state['conf_search_name_input'] = global_term
+        # --- HANDLE GLOBAL SEARCH FROM TOP BAR ---
+        # 1. Handle traditional search terms (names)
+        global_term = st.session_state.pop('global_search_term', None)
+        if global_term:
+            st.session_state['conf_search_name_input'] = global_term
     
-    # 2. Handle specific Target IDs (from Search Suggestions)
-    target_id = st.query_params.get('target_id')
-    if target_id:
-        st.session_state['search_id_input_conf'] = str(target_id)
-        # Ensure we show both active/inactive to find the lead
-        st.session_state.confirm_status_filter = "All"
-        st.session_state.confirm_care_filter = "All"
-        st.session_state.conf_page = 0
-        st.query_params.clear()
-        st.query_params['p'] = "Authorizations"
+        # 2. Handle specific Target IDs (from Search Suggestions)
+        target_id = st.query_params.get('target_id')
+        if target_id:
+            st.session_state['search_id_input_conf'] = str(target_id)
+            # Ensure we show both active/inactive to find the lead
+            st.session_state.confirm_status_filter = "All"
+            st.session_state.confirm_care_filter = "All"
+            st.session_state.conf_page = 0
+            st.query_params.clear()
+            st.query_params['p'] = "Authorizations"
 
-    # Search and filter
-    col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
-    with col1:
-        search_name = st.text_input("Search by name", key="conf_search_name_input")
-    with col2:
-        filter_staff = st.text_input("Filter by staff", key="conf_search_staff_input")
-    with col3:
-        filter_source = st.text_input("Filter by source", key="conf_search_source_input")
-    with col_id:
-        search_id = st.text_input("Search by ID", key="search_id_input_conf")
-    with col4:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
+        # Search and filter
+        col1, col2, col3, col_id, col4 = st.columns([1.5, 1.5, 1.5, 1.5, 1])
+        with col1:
+            search_name = st.text_input("Search by name", key="conf_search_name_input")
+        with col2:
+            filter_staff = st.text_input("Filter by staff", key="conf_search_staff_input")
+        with col3:
+            filter_source = st.text_input("Filter by source", key="conf_search_source_input")
+        with col_id:
+            search_id = st.text_input("Search by ID", key="search_id_input_conf")
+        with col4:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Search", key="search_confirm_btn_main", use_container_width=True):
+                st.session_state.conf_page = 0
+                st.rerun()
+
+        # Sorting
+        sort_col1, sort_col2 = st.columns([1.4, 4])
+        with sort_col1:
+            sort_options = ["Newest Added", "Recently Updated"]
+            selected_sort = st.selectbox(
+                "Sort By", 
+                sort_options, 
+                index=sort_options.index(st.session_state.confirmations_sort_by) if st.session_state.confirmations_sort_by in sort_options else 0,
+                key="confirmations_sort_by_select"
+            )
+            if selected_sort != st.session_state.confirmations_sort_by:
+                st.session_state.confirmations_sort_by = selected_sort
+                st.rerun()
+
+        # Payor Filter
+        st.write("**Filter by Payor:**")
+        agencies = crud_agencies.get_all_agencies(db)
+    
+        # Payor filter is now initialized in init_session_state() in common.py
+    
+        if agencies:
+            agency_names = ["All"] + [a.name for a in agencies]
+            selected_payor = st.selectbox("Select Payor", agency_names, index=agency_names.index(st.session_state.confirm_payor_filter) if st.session_state.confirm_payor_filter in agency_names else 0, key="confirm_payor_filter_select")
+        
+            if selected_payor != st.session_state.confirm_payor_filter:
+                st.session_state.confirm_payor_filter = selected_payor
+                st.rerun()
+
+        # CCU Filter
+        st.write("**Filter by CCU:**")
+        ccus = crud_ccus.get_all_ccus(db)
+    
+        # CCU filter is now initialized in init_session_state() in common.py
+    
+        if ccus:
+            ccu_names = ["All"] + [c.name for c in ccus]
+            selected_ccu = st.selectbox("Select CCU", ccu_names, index=ccu_names.index(st.session_state.confirm_ccu_filter) if st.session_state.confirm_ccu_filter in ccu_names else 0, key="confirm_ccu_filter_select")
+        
+            if selected_ccu != st.session_state.confirm_ccu_filter:
+                st.session_state.confirm_ccu_filter = selected_ccu
+                st.rerun()
+
+        st.write("**Filter by Status:**")
+    
+        # Tag Color Filter Dropdown
+        ct_colors = ["All", "Blue", "Purple"]
+        ct_icons = {"All": "All", "Blue": "🔵 Blue", "Purple": "🟣 Purple"}
+    
+        selected_ct = st.selectbox(
+            "Filter by Color Tag",
+            options=ct_colors,
+            format_func=lambda x: ct_icons.get(x, x),
+            index=ct_colors.index(st.session_state.confirm_tag_color_filter) if st.session_state.confirm_tag_color_filter in ct_colors else 0,
+            key="referral_confirm_tag_color_filter_select"
+        )
+    
+        if selected_ct != st.session_state.confirm_tag_color_filter:
+            st.session_state.confirm_tag_color_filter = selected_ct
             st.session_state.conf_page = 0
             st.rerun()
 
-    # Sorting
-    sort_col1, sort_col2 = st.columns([1.4, 4])
-    with sort_col1:
-        sort_options = ["Newest Added", "Recently Updated"]
-        selected_sort = st.selectbox(
-            "Sort By", 
-            sort_options, 
-            index=sort_options.index(st.session_state.confirmations_sort_by) if st.session_state.confirmations_sort_by in sort_options else 0,
-            key="confirmations_sort_by_select"
+        # Caregiver Type Filter
+        st.write("**Filter by Caregiver Type:**")
+        from frontend.common import CAREGIVER_TYPES
+        ct_filter_options = ["All"] + CAREGIVER_TYPES
+        selected_ct_filter = st.selectbox(
+            "Select Caregiver Type",
+            options=ct_filter_options,
+            index=ct_filter_options.index(st.session_state.confirm_caregiver_type_filter) if st.session_state.confirm_caregiver_type_filter in ct_filter_options else 0,
+            key="confirm_caregiver_type_filter_select",
+            label_visibility="visible"
         )
-        if selected_sort != st.session_state.confirmations_sort_by:
-            st.session_state.confirmations_sort_by = selected_sort
+        if selected_ct_filter != st.session_state.confirm_caregiver_type_filter:
+            st.session_state.confirm_caregiver_type_filter = selected_ct_filter
+            st.session_state.conf_page = 0
             st.rerun()
 
-    # Payor Filter
-    st.write("**Filter by Payor:**")
-    agencies = crud_agencies.get_all_agencies(db)
+        st.divider()
     
-    # Payor filter is now initialized in init_session_state() in common.py
-    
-    if agencies:
-        agency_names = ["All"] + [a.name for a in agencies]
-        selected_payor = st.selectbox("Select Payor", agency_names, index=agency_names.index(st.session_state.confirm_payor_filter) if st.session_state.confirm_payor_filter in agency_names else 0, key="confirm_payor_filter_select")
+        # --- STATUS FILTER BUTTONS ---
+        if not filter_deleted:
+            col_all_main, col_active, col_inactive, col_transfer = st.columns([1, 1, 1, 1])
         
-        if selected_payor != st.session_state.confirm_payor_filter:
-            st.session_state.confirm_payor_filter = selected_payor
-            st.rerun()
+            with col_all_main:
+                if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
+                    st.session_state.confirm_status_filter = "All"
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
 
-    # CCU Filter
-    st.write("**Filter by CCU:**")
-    ccus = crud_ccus.get_all_ccus(db)
-    
-    # CCU filter is now initialized in init_session_state() in common.py
-    
-    if ccus:
-        ccu_names = ["All"] + [c.name for c in ccus]
-        selected_ccu = st.selectbox("Select CCU", ccu_names, index=ccu_names.index(st.session_state.confirm_ccu_filter) if st.session_state.confirm_ccu_filter in ccu_names else 0, key="confirm_ccu_filter_select")
+            with col_active:
+                if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
+                    st.session_state.confirm_status_filter = "Active"
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
         
-        if selected_ccu != st.session_state.confirm_ccu_filter:
-            st.session_state.confirm_ccu_filter = selected_ccu
-            st.rerun()
+            with col_inactive:
+                if st.button("Inactive", key="filter_inactive_confirm", type="primary" if st.session_state.confirm_status_filter == "Inactive" else "secondary", use_container_width=True):
+                    st.session_state.confirm_status_filter = "Inactive"
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
 
-    st.write("**Filter by Status:**")
-    
-    # Tag Color Filter Dropdown
-    ct_colors = ["All", "Blue", "Purple"]
-    ct_icons = {"All": "All", "Blue": "🔵 Blue", "Purple": "🟣 Purple"}
-    
-    selected_ct = st.selectbox(
-        "Filter by Color Tag",
-        options=ct_colors,
-        format_func=lambda x: ct_icons.get(x, x),
-        index=ct_colors.index(st.session_state.confirm_tag_color_filter) if st.session_state.confirm_tag_color_filter in ct_colors else 0,
-        key="referral_confirm_tag_color_filter_select"
-    )
-    
-    if selected_ct != st.session_state.confirm_tag_color_filter:
-        st.session_state.confirm_tag_color_filter = selected_ct
-        st.session_state.conf_page = 0
-        st.rerun()
-
-    # Caregiver Type Filter
-    st.write("**Filter by Caregiver Type:**")
-    from frontend.common import CAREGIVER_TYPES
-    ct_filter_options = ["All"] + CAREGIVER_TYPES
-    selected_ct_filter = st.selectbox(
-        "Select Caregiver Type",
-        options=ct_filter_options,
-        index=ct_filter_options.index(st.session_state.confirm_caregiver_type_filter) if st.session_state.confirm_caregiver_type_filter in ct_filter_options else 0,
-        key="confirm_caregiver_type_filter_select",
-        label_visibility="visible"
-    )
-    if selected_ct_filter != st.session_state.confirm_caregiver_type_filter:
-        st.session_state.confirm_caregiver_type_filter = selected_ct_filter
-        st.session_state.conf_page = 0
-        st.rerun()
-
-    st.divider()
-    
-    # --- STATUS FILTER BUTTONS ---
-    if not filter_deleted:
-        col_all_main, col_active, col_inactive, col_transfer = st.columns([1, 1, 1, 1])
-        
-        with col_all_main:
-            if st.button("All", key="filter_all_confirm", type="primary" if st.session_state.confirm_status_filter == "All" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "All"
-                st.session_state.confirm_care_filter = "All"
-                st.session_state.conf_page = 0
-                st.rerun()
-
-        with col_active:
-            if st.button("Active", key="filter_active_confirm", type="primary" if st.session_state.confirm_status_filter == "Active" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Active"
-                st.session_state.confirm_care_filter = "All"
-                st.session_state.conf_page = 0
-                st.rerun()
-        
-        with col_inactive:
-            if st.button("Inactive", key="filter_inactive_confirm", type="primary" if st.session_state.confirm_status_filter == "Inactive" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Inactive"
-                st.session_state.confirm_care_filter = "All"
-                st.session_state.conf_page = 0
-                st.rerun()
-
-        with col_transfer:
-            if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
-                st.session_state.confirm_status_filter = "Transfer"
-                st.session_state.confirm_care_filter = "All"
-                st.session_state.conf_page = 0
-                st.rerun()
+            with col_transfer:
+                if st.button("Transfer", key="filter_transfer_confirm", type="primary" if st.session_state.confirm_status_filter == "Transfer" else "secondary", use_container_width=True):
+                    st.session_state.confirm_status_filter = "Transfer"
+                    st.session_state.confirm_care_filter = "All"
+                    st.session_state.conf_page = 0
+                    st.rerun()
                 
-        # Sub-filter for Active
-        if st.session_state.confirm_status_filter == "Active":
-            st.write("Filter by Care Status:")
-            col_all, col_start, col_not_start, col_spacer_sub = st.columns([1, 1, 1, 3])
+            # Sub-filter for Active
+            if st.session_state.confirm_status_filter == "Active":
+                st.write("Filter by Care Status:")
+                col_all, col_start, col_not_start, col_spacer_sub = st.columns([1, 1, 1, 3])
             
-            with col_all:
-                if st.button("All", key="filter_active_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "All"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_all:
+                    if st.button("All", key="filter_active_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "All"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-            with col_start:
-                if st.button("Care Start", key="filter_active_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "Care Start"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_start:
+                    if st.button("Care Start", key="filter_active_start", type="primary" if st.session_state.confirm_care_filter == "Care Start" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "Care Start"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-            with col_not_start:
-                if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "Not Start"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_not_start:
+                    if st.button("Not Start", key="filter_active_not_start", type="primary" if st.session_state.confirm_care_filter == "Not Start" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "Not Start"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-        # Sub-filter for Inactive
-        elif st.session_state.confirm_status_filter == "Inactive":
-            st.write("Filter by Inactive Status:")
-            col_all, col_hold, col_term, col_dec, col_spacer_sub = st.columns([1, 1, 1, 1, 2])
+            # Sub-filter for Inactive
+            elif st.session_state.confirm_status_filter == "Inactive":
+                st.write("Filter by Inactive Status:")
+                col_all, col_hold, col_term, col_dec, col_spacer_sub = st.columns([1, 1, 1, 1, 2])
             
-            with col_all:
-                if st.button("All", key="filter_inactive_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "All"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_all:
+                    if st.button("All", key="filter_inactive_all", type="primary" if st.session_state.confirm_care_filter == "All" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "All"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-            with col_hold:
-                if st.button("Hold", key="filter_inactive_hold", type="primary" if st.session_state.confirm_care_filter == "Hold" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "Hold"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_hold:
+                    if st.button("Hold", key="filter_inactive_hold", type="primary" if st.session_state.confirm_care_filter == "Hold" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "Hold"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-            with col_term:
-                if st.button("Terminated", key="filter_inactive_term", type="primary" if st.session_state.confirm_care_filter == "Terminated" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "Terminated"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_term:
+                    if st.button("Terminated", key="filter_inactive_term", type="primary" if st.session_state.confirm_care_filter == "Terminated" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "Terminated"
+                        st.session_state.conf_page = 0
+                        st.rerun()
                     
-            with col_dec:
-                if st.button("Deceased", key="filter_inactive_dec", type="primary" if st.session_state.confirm_care_filter == "Deceased" else "secondary", use_container_width=True):
-                    st.session_state.confirm_care_filter = "Deceased"
-                    st.session_state.conf_page = 0
-                    st.rerun()
+                with col_dec:
+                    if st.button("Deceased", key="filter_inactive_dec", type="primary" if st.session_state.confirm_care_filter == "Deceased" else "secondary", use_container_width=True):
+                        st.session_state.confirm_care_filter = "Deceased"
+                        st.session_state.conf_page = 0
+                        st.rerun()
     
-    st.divider()
+        st.divider()
     
-    # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
-    skip, limit, page_index, rows_per_page = get_pagination_params("conf", default_limit=20)
+        # --- DATA FETCHING & FILTERING (PERFORMANCE OPTIMIZED) ---
+        skip, limit, page_index, rows_per_page = get_pagination_params("conf", default_limit=20)
     
 
-    auth_val = True # All leads on this page should have authorization received
-    owner_id = None # Not filtering by owner on this page
-    only_my_referrals = False # Not filtering by owner on this page
+        auth_val = True # All leads on this page should have authorization received
+        owner_id = None # Not filtering by owner on this page
+        only_my_referrals = False # Not filtering by owner on this page
 
-    leads = search_leads(
-        db,
-        search_query=search_name if search_name else None,
-        staff_filter=filter_staff if filter_staff else None,
-        source_filter=filter_source if filter_source else None,
-        status_filter=None, 
-        priority_filter=None, 
-        active_inactive_filter=None,
-        owner_id=None,
-        only_my_leads=False,
-        include_deleted=filter_deleted,
-        exclude_clients=False,
-        auth_received_filter=auth_val,
-        only_clients=False,
-        skip=skip,
-        limit=limit,
-        lead_id_search=lead_id_search,
-        lead_type_filter=st.session_state.confirm_lead_type_filter,
-        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
-        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-        tag_color_filter=st.session_state.confirm_tag_color_filter,
-        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
-        ccu_filter=st.session_state.confirm_ccu_filter,
-        agency_filter=st.session_state.confirm_payor_filter,
-        sort_by=st.session_state.confirmations_sort_by
-    )
+        leads = search_leads(
+            db,
+            search_query=search_name if search_name else None,
+            staff_filter=filter_staff if filter_staff else None,
+            source_filter=filter_source if filter_source else None,
+            status_filter=None, 
+            priority_filter=None, 
+            active_inactive_filter=None,
+            owner_id=None,
+            only_my_leads=False,
+            include_deleted=filter_deleted,
+            exclude_clients=False,
+            auth_received_filter=auth_val,
+            only_clients=False,
+            skip=skip,
+            limit=limit,
+            lead_id_search=lead_id_search,
+            lead_type_filter=st.session_state.confirm_lead_type_filter,
+            care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
+            care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+            tag_color_filter=st.session_state.confirm_tag_color_filter,
+            caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+            ccu_filter=st.session_state.confirm_ccu_filter,
+            agency_filter=st.session_state.confirm_payor_filter,
+            sort_by=st.session_state.confirmations_sort_by
+        )
     
-    # Post-filter (Now handled at SQL level)
-    pass
+        # Post-filter (Now handled at SQL level)
+        pass
 
-    total_leads = count_search_leads(
-        db,
-        search_query=search_name if search_name else None,
-        staff_filter=filter_staff if filter_staff else None,
-        source_filter=filter_source if filter_source else None,
-        exclude_clients=False,
-        only_clients=False,
-        auth_received_filter=True,
-        include_deleted=filter_deleted,
-        care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
-        care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-        lead_id_search=lead_id_search,
-        tag_color_filter=st.session_state.confirm_tag_color_filter,
-        caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
-        ccu_filter=st.session_state.confirm_ccu_filter,
-        agency_filter=st.session_state.confirm_payor_filter,
-        lead_type_filter=st.session_state.confirm_lead_type_filter
-    )
+        total_leads = count_search_leads(
+            db,
+            search_query=search_name if search_name else None,
+            staff_filter=filter_staff if filter_staff else None,
+            source_filter=filter_source if filter_source else None,
+            exclude_clients=False,
+            only_clients=False,
+            auth_received_filter=True,
+            include_deleted=filter_deleted,
+            care_status_filter=st.session_state.confirm_status_filter if not filter_deleted else None,
+            care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+            lead_id_search=lead_id_search,
+            tag_color_filter=st.session_state.confirm_tag_color_filter,
+            caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+            ccu_filter=st.session_state.confirm_ccu_filter,
+            agency_filter=st.session_state.confirm_payor_filter,
+            lead_type_filter=st.session_state.confirm_lead_type_filter
+        )
     
-    # UI Metadata
-    num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
-    current_page_display = page_index + 1 if total_leads > 0 else 0
+        # UI Metadata
+        num_pages = max(1, (total_leads // rows_per_page) + (1 if total_leads % rows_per_page > 0 else 0))
+        current_page_display = page_index + 1 if total_leads > 0 else 0
 
-    # Excel Download Button
-    download_all_col1, download_all_col2 = st.columns([4, 1])
-    with download_all_col2:
-        if st.button(" Download Excel", key="download_confirm_excel_btn", use_container_width=True):
-            # Fetch all matching authorized referrals
-            all_filtered_leads = search_leads(
-                db,
-                search_query=search_name if search_name else None,
-                staff_filter=filter_staff if filter_staff else None,
-                source_filter=filter_source if filter_source else None,
-                status_filter=None, 
-                priority_filter=None, 
-                active_inactive_filter=None,
-                owner_id=None,
-                only_my_leads=False,
-                include_deleted=filter_deleted,
-                exclude_clients=False, 
-                auth_received_filter=True, 
-                only_clients=False,
-                skip=0,
-                limit=2000,
-                lead_id_search=lead_id_search,
-                lead_type_filter=st.session_state.confirm_lead_type_filter,
-                care_status_filter=st.session_state.confirm_status_filter,
-                care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
-                tag_color_filter=st.session_state.confirm_tag_color_filter,
-                caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
-                ccu_filter=st.session_state.confirm_ccu_filter,
-                agency_filter=st.session_state.confirm_payor_filter,
-                sort_by=st.session_state.confirmations_sort_by
-            )
+        # Excel Download Button
+        download_all_col1, download_all_col2 = st.columns([4, 1])
+        with download_all_col2:
+            if st.button(" Download Excel", key="download_confirm_excel_btn", use_container_width=True):
+                # Fetch all matching authorized referrals
+                all_filtered_leads = search_leads(
+                    db,
+                    search_query=search_name if search_name else None,
+                    staff_filter=filter_staff if filter_staff else None,
+                    source_filter=filter_source if filter_source else None,
+                    status_filter=None, 
+                    priority_filter=None, 
+                    active_inactive_filter=None,
+                    owner_id=None,
+                    only_my_leads=False,
+                    include_deleted=filter_deleted,
+                    exclude_clients=False, 
+                    auth_received_filter=True, 
+                    only_clients=False,
+                    skip=0,
+                    limit=2000,
+                    lead_id_search=lead_id_search,
+                    lead_type_filter=st.session_state.confirm_lead_type_filter,
+                    care_status_filter=st.session_state.confirm_status_filter,
+                    care_sub_status_filter=st.session_state.confirm_care_filter if st.session_state.confirm_status_filter == "Active" else "All",
+                    tag_color_filter=st.session_state.confirm_tag_color_filter,
+                    caregiver_type_filter=st.session_state.confirm_caregiver_type_filter,
+                    ccu_filter=st.session_state.confirm_ccu_filter,
+                    agency_filter=st.session_state.confirm_payor_filter,
+                    sort_by=st.session_state.confirmations_sort_by
+                )
             
-            # Post-filter (Now handled at SQL level)
-            pass
+                # Post-filter (Now handled at SQL level)
+                pass
 
-            if all_filtered_leads:
-                excel_data = export_leads_to_excel(all_filtered_leads)
-                st.download_button(
-                    label="Click here to download",
-                    data=excel_data,
-                    file_name=f"authorizations_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key="trigger_download_confirm"
+                if all_filtered_leads:
+                    excel_data = export_leads_to_excel(all_filtered_leads)
+                    st.download_button(
+                        label="Click here to download",
+                        data=excel_data,
+                        file_name=f"authorizations_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="trigger_download_confirm"
+                    )
+                else:
+                    st.warning("No authorized referrals found to download.")
+
+        # Show filtered count
+        st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
+    
+        if not leads:
+            if search_name or lead_id_search:
+                st.info(
+                    "💡 No exact match found. "
+                    "Try a shorter search term, different spelling, or check the ID."
                 )
             else:
-                st.warning("No authorized referrals found to download.")
-
-    # Show filtered count
-    st.write(f"**Showing {len(leads)} clients of {total_leads} total**")
+                st.info("**No clients match the selected filter.**")
+                st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
+            db.close()
+            return
     
-    if not leads:
-        if search_name or lead_id_search:
-            st.info(
-                "💡 No exact match found. "
-                "Try a shorter search term, different spelling, or check the ID."
-            )
-        else:
-            st.info("**No clients match the selected filter.**")
-            st.caption("Go to Referrals and click 'Authorization Received' on a referral to mark it as authorized.")
+        # Display each authorized referral
+        for lead in leads:
+            # Avoid duplicating focused lead if it happens to be on this page
+            if 'specific_lead_id' in locals() and lead.id == specific_lead_id:
+                continue
+            display_referral_confirm(lead, db)
+    
+        # --- PAGINATION UI CONTROLS ---
+        render_pagination(total_leads, "conf")
+    
+    finally:
         db.close()
-        return
-    
-    # Display each authorized referral
-    for lead in leads:
-        # Avoid duplicating focused lead if it happens to be on this page
-        if 'specific_lead_id' in locals() and lead.id == specific_lead_id:
-            continue
-        display_referral_confirm(lead, db)
-    
-    # --- PAGINATION UI CONTROLS ---
-    render_pagination(total_leads, "conf")
-    
-    db.close()
