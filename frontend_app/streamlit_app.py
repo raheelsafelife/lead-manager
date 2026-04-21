@@ -231,6 +231,13 @@ def main():
                 admin_panel()
             else:
                 st.error("Access denied. Admin only.")
+        elif page == "Notifications":
+            from frontend.common import render_notification_center
+            db = SessionLocal()
+            try:
+                render_notification_center(db, st.session_state.db_user_id)
+            finally:
+                db.close()
 
         # --- MODAL RENDERING (POST-ROUTING) ---
         # Calling this at the absolute end ensures that if a button was clicked 

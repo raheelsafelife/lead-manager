@@ -24,6 +24,11 @@ def user_profile_page():
     """Personalized User Profile page with security settings"""
     st.markdown('<div class="main-header"> User Profile & Security</div>', unsafe_allow_html=True)
     
+    if st.button("← Back to Dashboard", key="btn_back_dashboard_user_profile"):
+        st.session_state['main_navigation'] = 'Dashboard'
+        st.query_params['p'] = 'Dashboard'
+        st.rerun()
+    
     db = SessionLocal()
     try:
         user = crud_users.get_user_by_username(db, st.session_state.username)

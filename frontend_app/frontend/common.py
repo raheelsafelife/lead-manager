@@ -10,6 +10,7 @@ sys.path.insert(0, str(backend_path))
 
 import streamlit as st
 import pandas as pd
+import base64
 from assets_base64 import LOGO_BASE64
 from app.db import SessionLocal, engine
 from app.utils.activity_logger import utc_to_local
@@ -20,6 +21,7 @@ from streamlit.components.v1 import html
 import os
 import io
 from datetime import datetime, timedelta
+import textwrap
 
 def get_logo_path(filename="icon1.png"):
     """Find the specified logo file in multiple possible locations"""
@@ -35,6 +37,17 @@ def get_logo_path(filename="icon1.png"):
         if os.path.exists(path):
             return path
     return filename # Fallback
+
+
+def get_base64_img(img_path):
+    """Convert local image to base64 for CSS injection."""
+    if not img_path or not os.path.exists(img_path):
+        return ""
+    try:
+        with open(img_path, "rb") as img_file:
+            return "data:image/png;base64," + base64.b64encode(img_file.read()).decode()
+    except Exception:
+        return ""
 
 
 def get_cookie_manager():
@@ -3132,6 +3145,81 @@ div.stMain { padding-top: 1rem !important; }
     color: #64748b;
     margin-top: 1px;
 }
+/* ------------------------------------------------------------------
+   100% HIGH-FIDELITY NOTIFICATION MODAL (SCREENSHOT 2 STYLE)
+   ------------------------------------------------------------------ */
+.notif-modal-root {
+    position: fixed !important;
+    top: 80px !important;
+    right: 40px !important;
+    width: 440px !important;
+    background: white !important;
+    border-radius: 14px !important;
+    box-shadow: 0 15px 50px rgba(0,0,0,0.18) !important;
+    z-index: 9999999 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+    border: 1px solid #edf2f6 !important;
+    animation: fadeInModal 0.2s ease-out;
+}
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.notif-header {
+    padding: 14px 22px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: white !important;
+}
+.notif-footer {
+    padding: 16px 22px !important;
+    border-top: 1px solid #f1f5f9 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: white !important;
+}
+
+/* Modal Native Button Styling overrides */
+div.notif-modal-root button[key^="notif_"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    transition: all 0.2s ease !important;
+    outline: none !important;
+}
+div.notif-modal-root button[key="notif_close_btn"] {
+    color: #94a3b8 !important;
+    font-size: 1.4rem !important;
+    font-weight: 300 !important;
+    min-width: 32px !important;
+    background: transparent !important;
+}
+div.notif-modal-root button[key^="notif_mark_read_"] {
+    color: #ef4444 !important;
+    font-size: 1.1rem !important;
+}
+div.notif-modal-root button[key="notif_mark_all_read"] {
+    color: #00506b !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    text-decoration: underline !important;
+}
+div.notif-modal-root button:hover {
+    opacity: 0.6 !important;
+    background: transparent !important;
+}
+div.notif-modal-root button:active, div.notif-modal-root button:focus {
+    background: transparent !important;
+    color: inherit !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -3215,39 +3303,150 @@ div.stMain { padding-top: 1rem !important; }
                 </script>
             """, height=0)
 
-            # Use a container to place the icon
-            st.markdown('<div class="search-container"><span class="search-icon">🔍</span>', unsafe_allow_html=True)
-            
-            # Use query param as default if typing is happening. 
-            # CRITICAL FIX: If target_id is present, we just arrived via a search click, 
-            # so we must ignore the leftover garbage text to reset the bar cleanly.
-            if 'target_id' in st.query_params:
-                partial_q = ""
-            else:
-                partial_q = st.query_params.get('partial_q', "")
-            
-            search_query = st.text_input(
-                "search",
-                placeholder="SmartSearch leads by name or ID...",
-                key="topbar_search_input",
-                label_visibility="collapsed",
-                value=partial_q if partial_q else ""
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
+            # --- START HEADER LAYOUT ---
+            # 1. Fetch User Data
+            from sqlalchemy import text
+            try:
+                # Fetch profile pic and id
+                u_data = db.execute(text("SELECT profile_pic, id FROM users WHERE username = :u"), {"u": st.session_state.username}).first()
+                p_pic = u_data.profile_pic if u_data else None
+                u_id = u_data.id if u_data else "Unknown"
+            except Exception:
+                p_pic = None
+                u_id = "N/A"
+
+            # 2. Inject Native Styling (Prominent Header)
+            st.markdown(textwrap.dedent(f"""
+                <style>
+                /* SEARCH BAR FIX: Inside-padding and absolute anchor */
+                .search-hub-container {{
+                    position: relative !important;
+                    width: 100% !important;
+                    max-width: 600px !important;
+                }}
+                .search-icon-overlay {{
+                    position: absolute !important;
+                    left: 15px !important;
+                    top: 50% !important;
+                    transform: translateY(-50%) !important;
+                    z-index: 100 !important; /* Ensure it stays above input */
+                    font-size: 1.2rem !important;
+                    color: #94a3b8 !important;
+                    pointer-events: none !important;
+                }}
+                [data-testid="stTextInput"] input {{
+                    padding-left: 50px !important;
+                    height: 48px !important;
+                    border-radius: 12px !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                }}
+
+                /* PROMINENT PROFILE HUB (Top-Right) */
+                .prominent-profile-hub {{
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    padding-left: 15px;
+                    border-left: 1px solid #f1f5f9;
+                }}
+                .hub-avatar-prominent {{
+                    width: 110px;
+                    height: 110px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 3px solid #3ca5aa;
+                    box-shadow: 0 10px 24px rgba(60, 165, 170, 0.5);
+                    margin-bottom: 8px;
+                }}
+                .hub-text-prominent {{
+                    font-size: 1.40em;
+                    font-weight: 1000;
+                    color: #013a4d;
+                    text-transform: uppercase;
+                    margin: 0;
+                }}
+                .hub-id-prominent {{
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    color: #64748b;
+                    opacity: 0.8;
+                }}
+
+                /* BUTTON ROW STYLING */
+                [data-testid="stHorizontalBlock"] button {{
+                    border-radius: 20px !important;
+                    height: 40px !important;
+                    font-weight: 700 !important;
+                    transition: all 0.2s ease !important;
+                }}
+                button[key^="header_btn_settings"], button[key^="header_btn_notif"] {{
+                    background: #3ca5aa !important;
+                    color: white !important;
+                    border: none !important;
+                }}
+                button[key="header_btn_logout"] {{
+                    background: #f1f5f9 !important;
+                    color: #ef4444 !important;
+                    border: 1px solid #e2e8f0 !important;
+                }}
+                </style>
+            """), unsafe_allow_html=True)
+
+            # --- ROW 1: SEARCH BAR + PROMINENT HUB ---
+            st.markdown('<div style="margin-top: -20px;"></div>', unsafe_allow_html=True) # Tighten space
+            col_search_main, col_hub_main = st.columns([3.5, 1])
+
+            with col_search_main:
+                st.markdown('<div class="search-hub-container"><span class="search-icon-overlay">🔍</span>', unsafe_allow_html=True)
+                
+                # Use query param as default if typing is happening. 
+                if 'target_id' in st.query_params:
+                    partial_q = ""
+                else:
+                    partial_q = st.query_params.get('partial_q', "")
+                
+                search_query = st.text_input(
+                    "search",
+                    placeholder="SmartSearch leads by name or ID...",
+                    key="topbar_search_input",
+                    label_visibility="collapsed",
+                    value=partial_q if partial_q else ""
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            with col_hub_main:
+                avatar_url = p_pic if p_pic else "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
+                st.markdown(textwrap.dedent(f"""
+                    <div class="prominent-profile-hub">
+                        <img src="{avatar_url}" class="hub-avatar-prominent" />
+                        <div class="hub-text-prominent">{st.session_state.username}</div>
+                        <div class="hub-id-prominent">ID Number = {u_id}</div>
+                    </div>
+                """), unsafe_allow_html=True)
 
             # --- LIVE DROPDOWN RENDERING ---
             if partial_q:
                 suggestions = get_search_suggestions(db, partial_q)
                 if suggestions.get('clients'):
-                    current_p = st.session_state.get('main_navigation', 'View Leads')
-                    # ALWAYS stay on the exact page you are on. We open a modal instead of redirecting!
-                    dropdown_html = '<div class="search-suggestions-card">'
-                    dropdown_html += '<div class="suggestion-section"><div class="suggestion-header">Client List</div>'
+                    st.markdown('<div class="search-suggestions-card"><div class="suggestion-section"><div class="suggestion-header">Client List</div>', unsafe_allow_html=True)
                     for c in suggestions['clients']:
-                        link = f"/?p={c['target_page']}&target_id={c['id']}"
-                        dropdown_html += f'<a href="{link}" target="_self" class="suggestion-item"><div class="suggestion-icon">👤</div><div class="suggestion-content"><div class="suggestion-name">{c["name"]} - {c["id"]} - {c["dob"]}</div></div></a>'
-                    dropdown_html += '</div></div>'
-                    st.markdown(dropdown_html, unsafe_allow_html=True)
+                        # Use a native button styled as a suggestion item
+                        if st.button(
+                            f"👤 {c['name']} - {c['id']} - {c['dob']}",
+                            key=f"search_sugg_{c['id']}",
+                            use_container_width=True,
+                            help=f"View {c['name']}"
+                        ):
+                            # Instant navigation via state
+                            st.session_state['main_navigation'] = c['target_page']
+                            st.query_params.clear()
+                            st.query_params['p'] = c['target_page']
+                            st.query_params['target_id'] = c['id']
+                            # Let script finish to flush URL
+
+                    st.markdown('</div></div>', unsafe_allow_html=True)
 
             # --- HANDLE SEARCH REDIRECTION (Traditional Enter) ---
             if st.session_state.pop('_disable_manual_search_this_run', False):
@@ -3309,99 +3508,38 @@ div.stMain { padding-top: 1rem !important; }
                 # Wipe ALL URL query parameters to eradicate stale target_id / partial_q
                 st.query_params.clear()
                 st.query_params['p'] = current_p
+                # Let script finish to flush URL
 
-                st.rerun()
+            # (Duplicate search input removed to fix Duplicate Element Key Error and unify layout)
 
-        with col_right:
-            # UNIFIED ACTION BAR using flexbox for perfect alignment
-            from sqlalchemy import text
-            try:
-                p_pic = db.execute(text("SELECT profile_pic FROM users WHERE username = :u"), {"u": st.session_state.username}).scalar()
-            except Exception:
-                p_pic = None
-                
-            if p_pic:
-                avatar_html = f'<img src="{p_pic}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #3CA5AA; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">'
-            else:
-                avatar_html = '''<div style="width: 38px; height: 38px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; border: 2px solid #3CA5AA;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="#64748b" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                </div>'''
-
-            badge_html = f'<span class="notif-badge">{unread_count if unread_count < 100 else "99+"}</span>' if unread_count > 0 else ""
-            st.markdown(f'''
-                <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px; height:60px; width:100%;">
-                    <a href="/?p=User+Profile" target="_self" class="top-user-display" 
-                       style="margin-right:8px; font-size:1.15rem; font-weight:800; color:#000000 !important; display:flex; align-items:center; gap:8px; cursor:pointer; text-decoration:none !important; transition: opacity 0.2s;" 
-                       onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"
-                       title="View Profile: {user_display}">
-                        {avatar_html}
-                        {user_display}
-                    </a>
-                    <div style="width: 1px; height: 24px; background: #e2e8f0; margin: 0 4px;"></div>
-                    <a href="{current_url_path}&notif_action=toggle" target="_self" class="header-action-btn" title="Notifications" style="text-decoration:none; position:relative;">
-                        🔔 <span>Notifications</span> {badge_html}
-                    </a>
-                    <a href="{current_url_path}&notif_action=logout" target="_self" class="header-action-btn" title="Logout" style="text-decoration:none; color:#ef4444 !important; font-size: 1.3rem;">
-                        ⏻
-                    </a>
-                </div>
-            ''', unsafe_allow_html=True)
-        
-        # --- HANDLE ACTIONS FROM QUERY PARAMS (Safe, reliable cross-trigger) ---
-        query_params = st.query_params
-        action = query_params.get("notif_action")
-        
-        if action == "mark_all_read":
-            crud_notifications.mark_all_as_read(db, user_id)
-            # Remove specific params but KEEP the page (?p=...)
-            for key in ["notif_action", "notif_id"]:
-                if key in st.query_params: del st.query_params[key]
-            st.session_state.show_notif_center = False
-            st.rerun()
+            # --- ROW 2: ACTION BUTTONS ---
+            st.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
+            col_notif, col_settings, col_logout, col_spacer = st.columns([1, 1, 1, 1.5])
             
-        elif action == "mark_read":
-            n_id = query_params.get("notif_id")
-            if n_id:
-                crud_notifications.mark_as_read(db, int(n_id))
-            # Remove specific params but KEEP the page (?p=...)
-            for key in ["notif_action", "notif_id"]:
-                if key in st.query_params: del st.query_params[key]
-            # Keep notification center open while dismissing individual items
-            st.rerun()
+            with col_notif:
+                label = f"Notifications ({unread_count})" if unread_count > 0 else "Notifications"
+                if st.button(label, key="header_btn_notif", use_container_width=True):
+                    st.session_state['main_navigation'] = 'Notifications'
+                    st.query_params['p'] = 'Notifications'
 
-        elif action == "toggle":
-            st.session_state.show_notif_center = not st.session_state.get('show_notif_center', False)
-            # Clear individual action params
-            for key in ["notif_action", "notif_id"]:
-                if key in st.query_params: del st.query_params[key]
-            st.rerun()
-            
-        elif action == "close":
-            st.session_state.show_notif_center = False
-            # Clear individual action params
-            for key in ["notif_action", "notif_id"]:
-                if key in st.query_params: del st.query_params[key]
-            st.rerun()
+            with col_settings:
+                if st.button("User Settings", key="header_btn_settings", use_container_width=True):
+                    st.session_state['main_navigation'] = 'User Profile'
+                    st.query_params.clear()
+                    st.query_params['p'] = 'User Profile'
 
-        elif action == "logout":
-            # 1. Clear JWT Cookie and skip logic
-            clear_session_token()
-            # 2. Clear all session state keys EXCEPT the skip auth flags
-            # Without keeping these flags, Streamlit immediately re-reads the stale cookie 
-            # and logs the user back in before JS can delete it.
-            keys_to_preserve = ["_skip_cookie_auth", "_cookie_pending"]
-            for key in list(st.session_state.keys()):
-                if key not in keys_to_preserve:
-                    del st.session_state[key]
-            # 3. Force clean redirect to base URL
-            st.query_params.clear()
-            st.rerun()
-
-        # --- Notification panel ---
-        if st.session_state.get('show_notif_center'):
-            render_notification_center(db, user_id)
+            with col_logout:
+                if st.button("Log Out", key="header_btn_logout", use_container_width=True):
+                    from frontend.common import clear_session_token
+                    clear_session_token()
+                    keys_to_preserve = ["_skip_cookie_auth", "_cookie_pending"]
+                    for k in list(st.session_state.keys()):
+                        if k not in keys_to_preserve:
+                            del st.session_state[k]
+                    st.query_params.clear()
+                    st.rerun()
+                    
+        # --- Notification Panel (Handled by Router in streamlit_app.py) ---
 
     finally:
         db.close()
@@ -3409,123 +3547,160 @@ div.stMain { padding-top: 1rem !important; }
 
 
 def render_notification_center(db, user_id):
-    """Refined notification dropdown panel matching high-fidelity design."""
+    """Full-page notification center with 100% Screenshot 2 fidelity (Native)."""
     from app.utils.activity_logger import format_time_ago
     from app.models import Notification
-    from app.crud import crud_notifications
 
-    # Fetch notifications
+    # Fetch Data (Fetch more so we can expand)
+    limit = st.session_state.get('notif_display_limit', 5)
     notifications = db.query(Notification).filter(
         Notification.user_id == user_id
     ).order_by(Notification.created_at.desc()).limit(30).all()
-    
     unread_count = db.query(Notification).filter(Notification.user_id == user_id, Notification.is_read == False).count()
 
-    # --- ACTION OVERLAYS ---
-    # We place invisible native buttons over the HTML icons to handle clicks without reloads.
-    with st.container():
-        # Using a specialized container to anchor the overlays
-        st.markdown('<div style="position:fixed; top:85px; right:40px; width:480px; z-index:1000001; pointer-events:none;">', unsafe_allow_html=True)
-        
-        # Header Actions Column
-        c1, c2 = st.columns([10, 1])
-        with c2: # Close button overlay
-            if st.button(" ", key="notif_overlay_close", help="Close"):
-                st.session_state.show_notif_center = False
-                st.rerun()
-        
-        # Body Actions
-        if notifications:
-            for n in notifications:
-                if not n.is_read:
-                    # Individual Mark-as-Read Hitbox (this is more complex due to scrolling)
-                    # For simplicity and reliability, we'll use a standard list of buttons below 
-                    # but for this specific request, we will stick to the 'Close' and 'Mark All' overlays
-                    # and use standard buttons for individual ones if needed.
-                    pass
-        
-        # Footer Actions
-        f1, f2 = st.columns([1, 1])
-        with f2: # Mark All Overlay
-            if st.button(" ", key="notif_overlay_mark_all", help="Mark All as Read"):
-                crud_notifications.mark_all_as_read(db, user_id)
-                st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    display_notifs = notifications[:limit]
+    has_more = len(notifications) > limit
 
-    # Build notification HTML cards
-    cards_html = ""
-    if not notifications:
-        cards_html = '<div style="padding:40px 0; text-align:center; color:#64748b; font-size:0.9rem;">No notifications.</div>'
+    # --- UI STYLING (Full-Page Layout) ---
+    st.markdown(textwrap.dedent("""
+        <style>
+        .notif-page-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid #edf2f7;
+            max-width: 1000px;
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .notif-header {
+            padding: 20px 25px;
+            border-bottom: 2px solid #f8fafc;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .notif-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+        }
+        /* Page Native Button Styling overrides */
+        button[key^="notif_"] {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            transition: all 0.2s ease !important;
+        }
+        button[key="notif_mark_all_read"] {
+            color: #00506b !important;
+            font-size: 0.9rem !important;
+            font-weight: 700 !important;
+            text-decoration: underline !important;
+        }
+        button[key^="notif_mark_read_"] {
+            color: #ef4444 !important;
+            font-size: 1.1rem !important;
+            }
+        button:hover { opacity: 0.7; }
+        </style>
+    """), unsafe_allow_html=True)
+
+    # --- BREADCRUMBS ---
+    st.markdown(textwrap.dedent(f'''
+        <div style="margin-bottom: 20px;">
+            <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">Home / Notifications</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #013a4d;">Review Notifications</div>
+        </div>
+    '''), unsafe_allow_html=True)
+
+    if st.button("← Back to Dashboard", key="btn_back_dashboard_notifs"):
+        st.session_state['main_navigation'] = 'Dashboard'
+        st.query_params['p'] = 'Dashboard'
+        st.rerun()
+
+    # --- RENDER PAGE CONTAINER ---
+    st.markdown('<div class="notif-page-card">', unsafe_allow_html=True)
+    
+    # 1. HEADER
+    st.markdown('<div class="notif-header">', unsafe_allow_html=True)
+    st.markdown('<div style="color: #00506b; font-weight: 800; font-size: 1.1rem;">Latest Updates</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 2. BODY
+    if not display_notifs:
+        st.markdown('<div style="min-height: 400px; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#94a3b8; font-size:1rem;">Your notification list is empty. Check back later!</div>', unsafe_allow_html=True)
     else:
         now = datetime.utcnow()
-        for idx, n in enumerate(notifications):
+        for idx, n in enumerate(display_notifs):
             is_today = n.created_at.date() == now.date()
-            time_badge = f"Today at {n.created_at.strftime('%I:%M %p')}" if is_today else format_time_ago(n.created_at)
-                
-            unread_bg = "#f0f7ff" if not n.is_read else "#ffffff"
-            title_color = "#00506b" if not n.is_read else "#0f172a"
-            desc_color = "#334155" if not n.is_read else "#475569"
+            if is_today: time_badge = f"Today at {n.created_at.strftime('%I:%M %p')}"
+            else: time_badge = format_time_ago(n.created_at)
+
+            unread_bg = "#f8fafd" if not n.is_read else "#ffffff"
+            title_color = "#00506b" if not n.is_read else "#1e293b"
+            badge_bg = "#5caadd"
             
-            display_title = f"ID: {n.entity_id} | {n.title}" if (n.entity_id and not n.title.startswith(f"ID: {n.entity_id}")) else n.title
-
-            if not n.is_read:
-                # Individual buttons are handled natively below the HTML block to ensure scrolling works
-                action_btn = '<span style="color:#ef4444; font-size:1.1rem; font-weight:700;">✕</span>'
-            else:
-                action_btn = '<span style="color:#22c55e; font-size:1.1rem; font-weight:800;">✓</span>'
-
-            logo_img = f'<img src="{LOGO_BASE64}" style="width:100%; height:100%; object-fit:contain; border-radius:50%; filter: invert(1) brightness(1.5); mix-blend-mode:screen; padding:2px;" />'
+            display_title = n.title if not n.entity_id or n.title.startswith("ID:") else f"ID: {n.entity_id} | {n.title}"
             
-            cards_html += f'''
-<div style="display:flex; align-items:flex-start; gap:15px; padding:18px 20px; background:{unread_bg}; border-bottom:1px solid #edf2f7;">
-    <div style="width:45px; height:45px; border-radius:50%; background:#00506b; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{logo_img}</div>
-    <div style="flex:1; min-width:0;">
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:5px;">
-            <span style="font-weight:700; font-size:0.95rem; color:{title_color}; text-decoration:{'underline' if not n.is_read else 'none'};">{display_title}</span>
-            <span style="background:#4B9CD3; color:white; font-size:0.7rem; font-weight:700; padding:3px 12px; border-radius:20px;">{time_badge}</span>
-        </div>
-        <div style="font-size:0.85rem; color:{desc_color}; margin-bottom:6px;">{n.description}</div>
-        <div style="font-size:0.75rem; color:{'#22c55e' if not n.is_read else '#64748b'}; font-weight:600;">🕒 {n.created_at.strftime('%m/%d/%y %I:%M %p')}</div>
-    </div>
-    <div style="display:flex; align-items:center; height:100%;">{action_btn}</div>
-</div>
-'''
+            # Row
+            st.markdown(f'<div style="background:{unread_bg}; border-bottom:1px solid #f1f5f9; padding: 22px 25px;">', unsafe_allow_html=True)
+            c_col_icon, c_col_text, c_col_action = st.columns([0.1, 0.82, 0.08])
+            
+            with c_col_icon:
+                logo_style = "width:100%; height:100%; object-fit:contain; border-radius:50%; filter: invert(1) brightness(1.5); mix-blend-mode:screen; padding:4px;"
+                logo_img = f'<img src="{LOGO_BASE64}" style="{logo_style}" />'
+                st.markdown(f'<div style="width:50px; height:50px; border-radius:50%; background:#00506b; display:flex; align-items:center; justify-content:center;">{logo_img}</div>', unsafe_allow_html=True)
+            
+            with c_col_text:
+                st.markdown(f'''
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                        <span style="font-weight:800; font-size:1.05rem; color:{title_color};">[{n.entity_type.upper() if n.entity_type else "NOTIF"}] {display_title}</span>
+                        <span style="background:{badge_bg}; color:white; font-size:0.7rem; font-weight:700; padding:3px 12px; border-radius:30px;">{time_badge}</span>
+                    </div>
+                    <div style="font-size:0.95rem; color:#475569; margin-bottom:8px; line-height:1.5; font-weight:500;">{n.description}</div>
+                    <div style="font-size:0.8rem; color:#94a3b8; font-weight:600;">🕒 {n.created_at.strftime('%m/%d/%y %I:%M %p')}</div>
+                ''', unsafe_allow_html=True)
+            
+            with c_col_action:
+                if not n.is_read:
+                    if st.button("✕", key=f"notif_mark_read_{n.id}", help="Mark as Read"):
+                        from app.crud import crud_notifications
+                        crud_notifications.mark_as_read(db, n.id)
+                        st.rerun()
+                else:
+                    st.markdown('<span style="color:#22c55e; font-size:1.3rem; font-weight:900; display:block; text-align:center;">✓</span>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    panel_html = f'''
-<style>
-/* Style the invisible hitboxes for the notification panel */
-button[key^="notif_overlay_"] {{
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    width: 30px !important;
-    height: 30px !important;
-    pointer-events: auto !important;
-}}
-#notif_overlay_mark_all {{ width: 120px !important; height: 40px !important; }}
-</style>
-<div id="notification-panel-root" style="position: fixed; top: 85px; right: 40px; width: 480px; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.25); z-index: 999999; overflow: hidden; display: flex; flex-direction: column; font-family: sans-serif;">
-    <div style="padding: 12px 20px; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; background: #f8fafd;">
-        <div style="color: #00506b; font-weight: 700; font-size: 0.95rem;">Notifications</div>
-        <div style="color: #64748b; font-size: 1.2rem; font-weight: bold;">✕</div>
-    </div>
-    <div style="max-height: 520px; overflow-y:auto; border-bottom:1px solid #edf2f7;">{cards_html}</div>
-    <div style="padding:15px 20px; border-top:1px solid #edf2f7; display:flex; justify-content:space-between; align-items:center; background:white;">
-        <div style="color:#00506b; font-size:0.85rem; font-weight:600; text-decoration:underline;">You have {unread_count} alerts</div>
-        <div style="color:#00506b; font-size:0.85rem; font-weight:700; text-decoration:underline;">Mark All As Read</div>
-    </div>
-</div>
-'''
-    st.markdown(panel_html, unsafe_allow_html=True)
-    
-    # Render individual mark-as-read buttons as a hidden list for reliable event handling
-    if notifications:
-        for n in notifications:
-            if not n.is_read:
-                # We hide these but they can still be triggered or positioned via CSS if we wanted to get fancy.
-                # For now, closing/marking all is the priority for reload-free experience.
-                pass
+        # See More
+        if has_more:
+            st.markdown('<div style="padding:25px; text-align:center; background:white;">', unsafe_allow_html=True)
+            if st.button("Load more notifications...", key="notif_see_more"):
+                st.session_state['notif_display_limit'] = limit + 10
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 3. FOOTER
+    st.markdown('<div class="notif-footer">', unsafe_allow_html=True)
+    f_col1, f_col2 = st.columns([0.7, 0.3])
+    with f_col1:
+        st.markdown(f'<div style="color:#00506b; font-size:0.95rem; font-weight:700; text-decoration:underline;">You have {unread_count} pending updates</div>', unsafe_allow_html=True)
+    with f_col2:
+        if st.button("Mark All As Read", key="notif_mark_all_read"):
+            from app.crud import crud_notifications
+            crud_notifications.mark_all_as_read(db, user_id)
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # End page card
 
 def old_render_notifications():
     # Keep old one renamed or remove it once verified
