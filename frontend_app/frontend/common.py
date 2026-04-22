@@ -3227,6 +3227,57 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
         st.markdown('<div id="topbar-anchor"></div>', unsafe_allow_html=True)
         
         with st.container():
+            st.markdown('<div id="topbar-content-marker" style="display:none;"></div>', unsafe_allow_html=True)
+            html("""
+            <script>
+                const pDoc = window.parent.document;
+                function applySticky() {
+                    const marker = pDoc.getElementById('topbar-content-marker');
+                    if (marker && !marker.dataset.stickyApplied) {
+                        marker.dataset.stickyApplied = "true";
+                        const stContainerBlock = marker.closest('div[data-testid="stVerticalBlock"]');
+                        if (stContainerBlock) {
+                            const topLevelElementContainer = stContainerBlock.parentElement;
+                            if (topLevelElementContainer && topLevelElementContainer.classList.contains('element-container')) {
+                                topLevelElementContainer.style.position = '-webkit-sticky';
+                                topLevelElementContainer.style.position = 'sticky';
+                                topLevelElementContainer.style.top = '0';
+                                topLevelElementContainer.style.zIndex = '999999';
+                                topLevelElementContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+                                topLevelElementContainer.style.backdropFilter = 'blur(10px)';
+                                topLevelElementContainer.style.paddingTop = '10px';
+                                topLevelElementContainer.style.paddingBottom = '10px';
+                                topLevelElementContainer.style.borderBottom = '1px solid #f1f5f9';
+                                topLevelElementContainer.style.transition = 'box-shadow 0.2s';
+                                
+                                const scrollArea = pDoc.querySelector('.main .stApp') || pDoc.querySelector('.main') || pDoc.documentElement;
+                                if (scrollArea) {
+                                    scrollArea.addEventListener('scroll', () => {
+                                        if (scrollArea.scrollTop > 10 || window.scrollY > 10 || window.parent.scrollY > 10) {
+                                            topLevelElementContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.05)';
+                                        } else {
+                                            topLevelElementContainer.style.boxShadow = 'none';
+                                        }
+                                    });
+                                    // Handle window scroll as well (Streamlit structural changes fallback)
+                                    window.parent.addEventListener('scroll', () => {
+                                        if (window.parent.scrollY > 10 || scrollArea.scrollTop > 10) {
+                                            topLevelElementContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.05)';
+                                        } else {
+                                            topLevelElementContainer.style.boxShadow = 'none';
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                setTimeout(applySticky, 100);
+                setTimeout(applySticky, 500);
+                setInterval(applySticky, 2000); // Re-apply if Streamlit redraws the DOM
+            </script>
+            """, height=0)
+
             # --- TOP BAR ROW (native Streamlit columns) ---
             col_left, col_search, col_right = st.columns([2, 5, 3])
 
@@ -3243,11 +3294,66 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                 )
 
         with col_search:
-            # Clear search box if flagged from previous run
-            if st.session_state.pop('_clear_topbar_search', False):
-                if 'topbar_search_input' in st.session_state:
-                    del st.session_state['topbar_search_input']
+            # --- START SEARCH STATE INIT ---
+            if "topbar_search_input" not in st.session_state:
+                st.session_state.topbar_search_input = ""
+            if "topbar_search_partial" not in st.session_state:
+                st.session_state.topbar_search_partial = ""
+            if "search_last_processed_query" not in st.session_state:
+                st.session_state.search_last_processed_query = ""
 
+            # Check transient reset flag from previous search navigation
+            if st.session_state.pop('_clear_topbar_search', False):
+                st.session_state.topbar_search_input = ""
+                st.session_state.topbar_search_partial = ""
+                st.session_state.search_last_processed_query = ""
+                if 'partial_q' in st.query_params:
+                    del st.query_params['partial_q']
+
+            # --- HIDDEN RERUN TRIGGER (Automated Background Sync) ---
+            st.button("search_hidden_rerun", key="_search_hidden_rerun")
+            html("""
+            <script>
+                // This is the "Background Messenger" sniper. 
+                // It ensures the automation button is never seen by the user.
+                const hideRerunTrigger = () => {
+                    const pDoc = window.parent.document;
+                    const btns = Array.from(pDoc.querySelectorAll('button'));
+                    const target = btns.find(b => b.innerText && b.innerText.includes('search_hidden_rerun'));
+                    if (target) {
+                        const container = target.closest('[data-testid="stButton"]');
+                        if (container) {
+                            container.style.display = 'none';
+                            container.style.height = '0';
+                            container.style.margin = '0';
+                        }
+                    }
+                };
+                
+                // Run immediately and then poll a few times as Streamlit renders
+                hideRerunTrigger();
+                setTimeout(hideRerunTrigger, 10);
+                setTimeout(hideRerunTrigger, 100);
+                setTimeout(hideRerunTrigger, 500);
+            </script>
+            """, height=0)
+
+            # Intercept rich HTML JS native routing
+            if 'js_target_page' in st.query_params and 'js_target_id' in st.query_params:
+                t_page = st.query_params.pop('js_target_page')
+                t_id = st.query_params.pop('js_target_id')
+                
+                st.session_state['main_navigation'] = t_page
+                
+                # Flag to clear boxes at the start of the NEXT run (prevents API Exception)
+                st.session_state['_clear_topbar_search'] = True
+                st.session_state.topbar_search_partial = ""
+                st.session_state.search_last_processed_query = ""
+                
+                st.query_params.clear()
+                st.query_params['p'] = t_page
+                st.query_params['target_id'] = t_id
+                st.rerun()
             # --- JS BRIDGE: LIVE KEYSTROKE LISTENER ---
             # This hidden bridge detects typing on the search box and reports it to Streamlit via query params
             # We use a short debounce (200ms) to avoid too many reruns
@@ -3255,6 +3361,21 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                 <script>
                 const parentDoc = window.parent.document;
                 const searchSelector = 'input[placeholder="SmartSearch leads by name or ID..."]';
+                
+                // Expose a navigation trigger for rich HTML dropdown elements to use natively
+                window.parent.navigateSearch = function(targetPage, targetId) {{
+                    const url = new URL(window.parent.location);
+                    url.searchParams.delete('partial_q');
+                    url.searchParams.set('js_target_page', targetPage);
+                    url.searchParams.set('js_target_id', targetId);
+                    window.parent.history.replaceState({{}}, '', url);
+                    
+                    const allBtns = Array.from(parentDoc.querySelectorAll('button'));
+                    const rerunBtn = allBtns.find(b => b.textContent && b.textContent.includes('search_hidden_rerun'));
+                    if (rerunBtn) {{
+                        rerunBtn.click();
+                    }}
+                }};
                 
                 function setupListener() {{
                     const input = parentDoc.querySelector(searchSelector);
@@ -3267,7 +3388,6 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                             clearTimeout(debounceTimer);
                             debounceTimer = setTimeout(() => {{
                                 const val = e.target.value;
-                                // Use window.parent.location to update query param without full page reload
                                 const url = new URL(window.parent.location);
                                 if (val.length >= 1) {{
                                     url.searchParams.set('partial_q', val);
@@ -3276,11 +3396,11 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                                 }}
                                 window.parent.history.replaceState({{}}, '', url);
                                 
-                                // Trigger a soft rerun/update if possible, or just let st.rerun handle it
-                                // For simplicity, we can just wait for Streamlit to detect the param on next heartbeat
-                                // but a force reload is more reliable for "instant" feel
-                                if (val.length === 1 || val.length === 0 || val.length % 2 === 0) {{
-                                     // window.parent.location.reload(); // Too heavy
+                                // Trigger soft rerun using Streamlit native button
+                                const allBtns = Array.from(parentDoc.querySelectorAll('button'));
+                                const rerunBtn = allBtns.find(b => b.textContent && b.textContent.includes('search_hidden_rerun'));
+                                if (rerunBtn) {{
+                                    rerunBtn.click();
                                 }}
                             }}, 150);
                         }});
@@ -3292,6 +3412,12 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                                 if (url.searchParams.has('partial_q')) {{
                                     url.searchParams.delete('partial_q');
                                     window.parent.history.replaceState({{}}, '', url);
+                                    
+                                    const allBtns = Array.from(parentDoc.querySelectorAll('button'));
+                                    const rerunBtn = allBtns.find(b => b.textContent && b.textContent.includes('search_hidden_rerun'));
+                                    if (rerunBtn) {{
+                                        rerunBtn.click();
+                                    }}
                                 }}
                             }}
                         }});
@@ -3394,123 +3520,148 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                 </style>
             """), unsafe_allow_html=True)
 
-            # --- ROW 1: SEARCH BAR + PROMINENT HUB ---
+            # --- ROW 1: SEARCH BAR ---
             st.markdown('<div style="margin-top: -20px;"></div>', unsafe_allow_html=True) # Tighten space
-            col_search_main, col_hub_main = st.columns([3.5, 1])
+            st.markdown('<div class="search-hub-container"><span class="search-icon-overlay"></span>', unsafe_allow_html=True)
+            
+            # Use query param ONLY for topbar_search_partial tracking
+            st.session_state.topbar_search_partial = st.query_params.get('partial_q', "")
+            
+            search_query = st.text_input(
+                "search",
+                placeholder="🔍SmartSearch leads by name or ID...",
+                key="topbar_search_input",
+                label_visibility="collapsed"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            with col_search_main:
-                st.markdown('<div class="search-hub-container"><span class="search-icon-overlay">🔍</span>', unsafe_allow_html=True)
-                
-                # Use query param as default if typing is happening. 
-                if 'target_id' in st.query_params:
-                    partial_q = ""
-                else:
-                    partial_q = st.query_params.get('partial_q', "")
-                
-                search_query = st.text_input(
-                    "search",
-                    placeholder="SmartSearch leads by name or ID...",
-                    key="topbar_search_input",
-                    label_visibility="collapsed",
-                    value=partial_q if partial_q else ""
-                )
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            with col_hub_main:
-                avatar_url = p_pic if p_pic else "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
-                st.markdown(textwrap.dedent(f"""
-                    <div class="prominent-profile-hub">
-                        <img src="{avatar_url}" class="hub-avatar-prominent" />
-                        <div class="hub-text-prominent">{st.session_state.username}</div>
-                        <div class="hub-id-prominent">ID Number = {u_id}</div>
+            # --- WELCOME TEXT BLOCK ---
+            st.markdown(f"""
+                <div style="margin-top: 16px; margin-bottom: 0px;">
+                    <div style="font-size: 1.35rem; font-weight: 600; color: #334155;">
+                        Welcome back, {st.session_state.username} 👋
                     </div>
-                """), unsafe_allow_html=True)
+                    <div style="font-size: 0.9rem; color: #94a3b8; font-weight: 400; margin-top: 2px;">
+                        ID: {u_id} &bull; Here's what's happening with your leads today.
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
             # --- LIVE DROPDOWN RENDERING ---
-            if partial_q:
-                suggestions = get_search_suggestions(db, partial_q)
-                if suggestions.get('clients'):
-                    st.markdown('<div class="search-suggestions-card"><div class="suggestion-section"><div class="suggestion-header">Client List</div>', unsafe_allow_html=True)
-                    for c in suggestions['clients']:
-                        # Use a native button styled as a suggestion item
-                        if st.button(
-                            f"👤 {c['name']} - {c['id']} - {c['dob']}",
-                            key=f"search_sugg_{c['id']}",
-                            use_container_width=True,
-                            help=f"View {c['name']}"
-                        ):
-                            # Instant navigation via state
-                            st.session_state['main_navigation'] = c['target_page']
-                            st.query_params.clear()
-                            st.query_params['p'] = c['target_page']
-                            st.query_params['target_id'] = c['id']
-                            # Let script finish to flush URL
-
-                    st.markdown('</div></div>', unsafe_allow_html=True)
+            if st.session_state.topbar_search_partial:
+                suggestions = get_search_suggestions(db, st.session_state.topbar_search_partial)
+                clients = suggestions.get('clients', [])
+                
+                html_items = ""
+                if clients:
+                    for c in clients:
+                        name_esc = c['name'].replace("'", "\\'")
+                        page_esc = c['target_page'].replace("'", "\\'")
+                        id_esc = str(c['id'])
+                        dob_safe = c.get('dob', 'N/A')
+                        
+                        html_items += f"""
+                            <div class="suggestion-item" onclick="parent.navigateSearch('{page_esc}', '{id_esc}')" style="display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; background: white;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                <div class="suggestion-icon" style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">👤</div>
+                                <div class="suggestion-content" style="flex: 1;">
+                                    <div class="suggestion-name" style="font-size: 0.95rem; font-weight: 600; color: #1e293b;">{c['name']}</div>
+                                    <div class="suggestion-meta" style="font-size: 0.8rem; color: #64748b;">ID: {c['id']} • {dob_safe}</div>
+                                </div>
+                            </div>
+                        """
+                else:
+                    html_items = f"""
+                        <div style="padding: 24px; text-align: center; color: #94a3b8; font-size: 0.95rem;">
+                            No direct clients found matching <b>"{st.session_state.topbar_search_partial}"</b>
+                        </div>
+                    """
+                
+                dropdown_html = f"""
+                    <div class="search-suggestions-card" style="position: absolute; top: 55px; left: 0; width: 100%; min-width: 400px; background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); z-index: 10000; max-height: 500px; overflow-y: auto; border: 1px solid #edf2f7; animation: slideDown 0.2s ease-out;">
+                        <div class="suggestion-section" style="padding: 0;">
+                            <div class="suggestion-header" style="padding: 10px 20px; font-size: 0.75rem; font-weight: 800; color: #4a5568; text-transform: uppercase; letter-spacing: 0.05em; background: #f8fafc; border-bottom: 1px solid #edf2f7;">
+                                Client Matches
+                            </div>
+                            {{html_items}}
+                            <div style="padding: 12px 20px; background: #f8fafc; text-align: center; font-size: 0.8rem; font-weight: 600; color: #64748b; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; cursor: default;">
+                                Press <b>Enter ↵</b> to run a deep search on all leads
+                            </div>
+                        </div>
+                    </div>
+                """
+                # Use f-string double braces injection workaround
+                dropdown_html = dropdown_html.replace("{html_items}", html_items)
+                st.markdown(dropdown_html, unsafe_allow_html=True)
 
             # --- HANDLE SEARCH REDIRECTION (Traditional Enter) ---
             if st.session_state.pop('_disable_manual_search_this_run', False):
                 pass  # Explicitly ignore ghost "Enter" events if we just intercepted a modal trigger!
-            elif search_query and search_query.strip() and not partial_q:
-                # Set the global term for the destination page to pick up
-                st.session_state['global_search_term'] = search_query.strip()
+            else:
+                submitted = search_query.strip() if search_query else ""
+                
+                if submitted and submitted != st.session_state.get('search_last_processed_query', ""):
+                    st.session_state['search_last_processed_query'] = submitted
+                    
+                    # Set the global term for the destination page to pick up
+                    st.session_state['global_search_term'] = submitted
 
-                # --- ALWAYS sniff the DB to find the correct destination page ---
-                # This ensures that searching from ANY page (View Leads, Referrals Sent,
-                # Authorizations, Dashboard, etc.) always navigates to the page that
-                # actually holds the matching record, not just the page the user is on.
-                import re
-                from app.models import Lead
-                from sqlalchemy import or_, and_, func, cast, String
-                # Normalize input: lowercase, trim, collapse spaces
-                query_clean = re.sub(r'\s+', ' ', search_query.strip()).lower()
-                tokens = [t for t in query_clean.split() if t]
+                    # --- ALWAYS sniff the DB to find the correct destination page ---
+                    # This ensures that searching from ANY page (View Leads, Referrals Sent,
+                    # Authorizations, Dashboard, etc.) always navigates to the page that
+                    # actually holds the matching record, not just the page the user is on.
+                    import re
+                    from app.models import Lead
+                    from sqlalchemy import or_, and_, func, cast, String
+                    # Normalize input: lowercase, trim, collapse spaces
+                    query_clean = re.sub(r'\s+', ' ', submitted).lower()
+                    tokens = [t for t in query_clean.split() if t]
 
-                first_match = None
-                if tokens:
-                    full_name_expr = func.lower(Lead.first_name + ' ' + Lead.last_name)
-                    full_name_rev  = func.lower(Lead.last_name  + ' ' + Lead.first_name)
+                    first_match = None
+                    if tokens:
+                        full_name_expr = func.lower(Lead.first_name + ' ' + Lead.last_name)
+                        full_name_rev  = func.lower(Lead.last_name  + ' ' + Lead.first_name)
 
-                    token_conditions = []
-                    for token in tokens:
-                        tok_pat = f"%{token}%"
-                        token_conditions.append(or_(
-                            Lead.first_name.ilike(tok_pat),
-                            Lead.last_name.ilike(tok_pat),
-                            full_name_expr.ilike(tok_pat),
-                            full_name_rev.ilike(tok_pat),
-                            cast(Lead.id, String).ilike(tok_pat),
-                        ))
+                        token_conditions = []
+                        for token in tokens:
+                            tok_pat = f"%{token}%"
+                            token_conditions.append(or_(
+                                Lead.first_name.ilike(tok_pat),
+                                Lead.last_name.ilike(tok_pat),
+                                full_name_expr.ilike(tok_pat),
+                                full_name_rev.ilike(tok_pat),
+                                cast(Lead.id, String).ilike(tok_pat),
+                            ))
 
-                    first_match = db.query(Lead).filter(
-                        and_(*token_conditions),
-                        Lead.deleted_at == None
-                    ).first()
+                        first_match = db.query(Lead).filter(
+                            and_(*token_conditions),
+                            Lead.deleted_at == None
+                        ).first()
 
-                # Determine destination: route based on the matched record's type
-                if first_match:
-                    if first_match.active_client:
-                        if first_match.authorization_received:
-                            current_p = "Authorizations"
+                    # Determine destination: route based on the matched record's type
+                    if first_match:
+                        if first_match.active_client:
+                            if first_match.authorization_received:
+                                current_p = "Authorizations"
+                            else:
+                                current_p = "Referrals Sent"
                         else:
-                            current_p = "Referrals Sent"
+                            current_p = "View Leads"
                     else:
+                        # No exact match: fall back to View Leads so the user sees
+                        # the "no match" hint with the search term applied
                         current_p = "View Leads"
-                else:
-                    # No exact match: fall back to View Leads so the user sees
-                    # the "no match" hint with the search term applied
-                    current_p = "View Leads"
 
-                st.session_state['main_navigation'] = current_p
-                # Flag to clear the top bar input on the NEXT render
-                st.session_state['_clear_topbar_search'] = True
+                    st.session_state['main_navigation'] = current_p
+                    
+                    # Flag to clear boxes at the start of the NEXT run (prevents API Exception)
+                    st.session_state['_clear_topbar_search'] = True
+                    st.session_state.topbar_search_partial = ""
+                    st.session_state.search_last_processed_query = ""
 
-                # Wipe ALL URL query parameters to eradicate stale target_id / partial_q
-                st.query_params.clear()
-                st.query_params['p'] = current_p
-                # Let script finish to flush URL
-
-            # (Duplicate search input removed to fix Duplicate Element Key Error and unify layout)
+                    # Wipe ALL URL query parameters to eradicate stale target_id / partial_q
+                    st.query_params.clear()
+                    st.query_params['p'] = current_p
+                    st.rerun()
 
             # --- ROW 2: ACTION BUTTONS ---
             st.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
@@ -3538,6 +3689,16 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
                             del st.session_state[k]
                     st.query_params.clear()
                     st.rerun()
+
+        with col_right:
+            avatar_url = p_pic if p_pic else "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y"
+            st.markdown(textwrap.dedent(f"""
+                <div class="prominent-profile-hub" style="height: 100%; border-left: 1px solid #f1f5f9; padding-left: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <img src="{avatar_url}" class="hub-avatar-prominent" />
+                    <div class="hub-text-prominent">{st.session_state.username}</div>
+                     <div class="hub-id-prominent">ID Number = {u_id}</div>
+                </div>
+            """), unsafe_allow_html=True)
                     
         # --- Notification Panel (Handled by Router in streamlit_app.py) ---
 
