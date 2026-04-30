@@ -3,6 +3,7 @@ import sys
 import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.pool import NullPool
 
 # Configure logging to stderr to avoid stdout issues
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -33,11 +34,20 @@ if DATABASE_URL.startswith("postgres://"):
 
 # Create engine
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine_kwargs = {
+    "connect_args": connect_args,
+    "pool_pre_ping": True,  # Ensure connections are alive
+}
+
+if DATABASE_URL.startswith("sqlite"):
+    # Streamlit reruns can leave SQLAlchemy sessions alive longer than a single
+    # page render. SQLite is local and cheap to reconnect to, so disabling the
+    # bounded QueuePool prevents app-wide "QueuePool limit reached" timeouts.
+    engine_kwargs["poolclass"] = NullPool
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True  # Ensure connections are alive
+    **engine_kwargs,
 )
 
 # Enable stability pragmas for SQLite
