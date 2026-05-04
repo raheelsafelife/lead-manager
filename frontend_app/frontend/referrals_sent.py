@@ -416,7 +416,7 @@ def view_referrals():
                     auth_received_filter=False,
                     skip=0,
                     limit=2000,
-                    lead_id_filter=lead_id_filter,
+                    lead_id_search=lead_id_search,
                     referral_category_filter=st.session_state.referral_type_filter,
                     tag_color_filter=st.session_state.referral_tag_color_filter,
                     caregiver_type_filter=st.session_state.referral_caregiver_type_filter,
