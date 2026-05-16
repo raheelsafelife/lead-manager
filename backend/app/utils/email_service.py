@@ -24,26 +24,8 @@ ADMIN_EMAIL = "safelifeleadsccp@gmail.com"
 
 def get_template_content(slug: str, default_subject: str, default_body: str, data: dict):
     """
-    Fetches a template from DB and formats it with data.
-    Falls back to hardcoded defaults if DB template is missing.
+    Formats the built-in default email content.
     """
-    from app.db import SessionLocal
-    from app.crud.crud_email_templates import get_template_by_slug
-    
-    db = SessionLocal()
-    try:
-        t = get_template_by_slug(db, slug)
-        if t:
-            # Use DB template
-            subject = t.subject.format(**data)
-            body = t.body.format(**data)
-            return subject, body
-    except Exception as e:
-        logger.error(f"Error fetching template '{slug}': {e}")
-    finally:
-        db.close()
-        
-    # Fallback to hardcoded
     return default_subject.format(**data), default_body.format(**data)
 
 
