@@ -387,7 +387,7 @@ async function activityPayload(user, query = {}) {
 
 app.get("/api/auth/me", auth, async (req, res) => {
   const user = await getCurrentUser(req.user.user_id);
-  res.json({ user: publicUser(user) });
+  res.json({ user: publicUser(user, { profile: true }) });
 });
 
 app.post("/api/auth/logout", auth, async (req, res) => {
@@ -500,7 +500,7 @@ app.get("/api/bootstrap", auth, async (req, res) => {
     notificationsPayload(req.user),
     activityPayload(req.user, { limit: 4, offset: 0 })
   ]);
-  res.json({ user: publicUser(user), lookups, notifications, activity });
+  res.json({ user: publicUser(user, { profile: true }), lookups, notifications, activity });
 });
 
 app.post("/api/notifications/read-all", auth, async (req, res) => {

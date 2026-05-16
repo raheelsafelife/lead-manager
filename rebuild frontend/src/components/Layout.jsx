@@ -34,7 +34,7 @@ const pageTitles = {
 };
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,6 +60,7 @@ export default function Layout({ children }) {
         const activityData = bootstrapRes.data.activity || {};
         const lookupData = bootstrapRes.data.lookups || {};
         if (mounted) {
+          if (bootstrapRes.data.user) setUser((current) => ({ ...current, ...bootstrapRes.data.user }));
           setNotifications(notificationData.notifications || []);
           setNotificationTotal(notificationData.count || 0);
           setHistorianRows(activityData.rows || []);

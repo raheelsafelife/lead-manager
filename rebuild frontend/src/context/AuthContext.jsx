@@ -35,9 +35,12 @@ export function AuthProvider({ children }) {
   const [loading] = useState(false);
 
   function setUser(value) {
-    if (value) localStorage.setItem("lead_manager_user", JSON.stringify(value));
-    else localStorage.removeItem("lead_manager_user");
-    setUserState(value);
+    setUserState((current) => {
+      const next = typeof value === "function" ? value(current) : value;
+      if (next) localStorage.setItem("lead_manager_user", JSON.stringify(next));
+      else localStorage.removeItem("lead_manager_user");
+      return next;
+    });
   }
 
   useEffect(() => {
