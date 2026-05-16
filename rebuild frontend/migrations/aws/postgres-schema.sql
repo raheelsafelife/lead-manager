@@ -263,10 +263,17 @@ create index if not exists idx_leads_priority on leads(priority);
 create index if not exists idx_leads_deleted_at on leads(deleted_at);
 create index if not exists idx_leads_source on leads(source);
 create index if not exists idx_leads_created_at on leads(created_at desc);
+create index if not exists idx_leads_owner_staff on leads(owner_id, staff_name);
+create index if not exists idx_leads_updated_at on leads(updated_at desc);
+create index if not exists idx_leads_care_status on leads(care_status);
+create index if not exists idx_leads_phone on leads(phone);
+create index if not exists idx_leads_full_name_lower on leads(lower(first_name), lower(last_name));
 create index if not exists idx_activity_logs_timestamp on activity_logs(timestamp);
 create index if not exists idx_activity_logs_username on activity_logs(username);
+create index if not exists idx_activity_logs_filters on activity_logs(username, action_type, entity_type, timestamp desc);
 create index if not exists idx_lead_comments_lead_id on lead_comments(lead_id);
 create index if not exists idx_attachments_lead_id on attachments(lead_id);
+create index if not exists idx_notifications_user_read on notifications(user_id, is_read);
 create index if not exists idx_notification_reads_user_id on notification_reads(user_id);
 
 alter table users alter column is_approved drop default;

@@ -38,16 +38,50 @@ const upload = multer({ dest: uploadsDir });
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
 app.use((req, res, next) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
   next();
 });
 
 const now = () => new Date().toISOString().replace("T", " ").replace("Z", "");
 const bool = (v) => (v ? 1 : 0);
-const publicUser = (u) => u && ({ id: u.id, user_id: u.user_id, username: u.username, email: u.email, role: u.role, is_approved: !!u.is_approved, profile_pic: u.profile_pic });
+const publicUser = (u, options = {}) => u && ({
+  id: u.id,
+  user_id: u.user_id,
+  username: u.username,
+  email: u.email,
+  role: u.role,
+  is_approved: !!u.is_approved,
+  ...(options.profile ? { profile_pic: u.profile_pic } : {})
+});
 const normalizePhone = (value = "") => String(value || "").replace(/\D/g, "");
+
+const cache = new Map();
+function cacheKey(name, parts = []) {
+  return [name, ...parts.map((part) => String(part ?? ""))].join(":");
+}
+
+async function cached(key, ttlMs, loader) {
+  const hit = cache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const value = await loader();
+  cache.set(key, { value, expires: Date.now() + ttlMs });
+  return value;
+}
+
+function clearDataCaches() {
+  cache.clear();
+}
+
+const originalDbRun = db.run.bind(db);
+db.run = async (...args) => {
+  const result = await originalDbRun(...args);
+  clearDataCaches();
+  return result;
+};
 
 function duplicateKind(lead) {
   if (!lead) return "";
@@ -290,11 +324,69 @@ app.post("/api/auth/login", async (req, res) => {
   const payload = { sub: user.username, username: user.username, role: user.role, user_id: user.id, employee_id: user.user_id };
   const token = jwt.sign(payload, jwtSecret, { expiresIn: "7d" });
   await logActivity(payload, "USER_LOGIN", "User", user.id, user.username, `User '${user.username}' logged in`, null, null, "auth,login");
-  res.json({ token, user: publicUser(user) });
+  res.json({ token, user: publicUser(user, { profile: true }) });
 });
 
+async function getCurrentUser(userId) {
+  return cached(cacheKey("user", [userId]), 60_000, () => db.get("select * from users where id = ?", userId));
+}
+
+async function lookupPayload() {
+  return cached("lookups", 300_000, async () => {
+    const [users, approvedUsers, agencies, agencySuboptions, ccus, events] = await Promise.all([
+      db.all("select id,user_id,username,email,role,is_approved,password_reset_requested,created_at from users order by username", ),
+      db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ),
+      db.all("select * from agencies order by name", ),
+      db.all("select * from agency_suboptions order by name", ),
+      db.all("select * from ccus order by name", ),
+      db.all("select * from events order by event_name", )
+    ]);
+    return { users, approvedUsers, agencies, agencySuboptions, ccus, events };
+  });
+}
+
+async function activityPayload(user, query = {}) {
+  const limit = Math.min(Number(query.limit || 100), 500);
+  const offset = Math.max(Number(query.offset || 0), 0);
+  const where = [];
+  const params = { limit, offset };
+  if (user.role !== "admin") {
+    where.push("username = @username");
+    params.username = user.username;
+  } else if (query.username) {
+    where.push("username = @username");
+    params.username = query.username;
+  }
+  if (query.actionType) {
+    where.push("action_type = @actionType");
+    params.actionType = query.actionType;
+  }
+  if (query.entityType) {
+    where.push("entity_type = @entityType");
+    params.entityType = query.entityType;
+  }
+  if (query.startDate) {
+    where.push("timestamp >= @startDate");
+    params.startDate = query.startDate;
+  }
+  if (query.endDate) {
+    where.push("timestamp <= @endDate");
+    params.endDate = `${query.endDate} 23:59:59`;
+  }
+  if (query.search) {
+    where.push("(lower(description) like @search or lower(keywords) like @search or lower(entity_name) like @search)");
+    params.search = `%${String(query.search).toLowerCase()}%`;
+  }
+  const clause = where.length ? `where ${where.join(" and ")}` : "";
+  const [totalRow, rows] = await Promise.all([
+    db.get(`select count(*) as count from activity_logs ${clause}`, params),
+    db.all(`select * from activity_logs ${clause} order by timestamp desc limit @limit offset @offset`, params)
+  ]);
+  return { rows, total: totalRow?.count || 0 };
+}
+
 app.get("/api/auth/me", auth, async (req, res) => {
-  const user = await db.get("select * from users where id = ?", req.user.user_id);
+  const user = await getCurrentUser(req.user.user_id);
   res.json({ user: publicUser(user) });
 });
 
@@ -321,15 +413,8 @@ app.post("/api/auth/forgot", async (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/api/lookups", auth, async (req, res) => {
-  res.json({
-    users: await db.all("select id,user_id,username,email,role,is_approved,password_reset_requested,created_at from users order by username", ),
-    approvedUsers: await db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ),
-    agencies: await db.all("select * from agencies order by name", ),
-    agencySuboptions: await db.all("select * from agency_suboptions order by name", ),
-    ccus: await db.all("select * from ccus order by name", ),
-    events: await db.all("select * from events order by event_name", )
-  });
+app.get("/api/lookups", auth, async (_req, res) => {
+  res.json(await lookupPayload());
 });
 
 async function notificationRows(user) {
@@ -394,12 +479,28 @@ async function notificationRows(user) {
 }
 
 app.get("/api/notifications", auth, async (req, res) => {
-  const all = await notificationRows(req.user);
-  const readRows = await db.all("select notification_id from notification_reads where user_id=?", req.user.user_id);
+  res.json(await notificationsPayload(req.user));
+});
+
+async function notificationsPayload(user) {
+  const [all, readRows] = await Promise.all([
+    cached(cacheKey("notifications-base", [user.role, user.user_id, user.username]), 30_000, () => notificationRows(user)),
+    db.all("select notification_id from notification_reads where user_id=?", user.user_id)
+  ]);
   const readIds = new Set(readRows.map((row) => row.notification_id));
   const notifications = all.map((item) => ({ ...item, read: readIds.has(item.id) }));
   const unreadCount = notifications.filter((item) => !item.read).length;
-  res.json({ count: unreadCount, notifications, total: all.length });
+  return { count: unreadCount, notifications, total: all.length };
+}
+
+app.get("/api/bootstrap", auth, async (req, res) => {
+  const [user, lookups, notifications, activity] = await Promise.all([
+    getCurrentUser(req.user.user_id),
+    lookupPayload(),
+    notificationsPayload(req.user),
+    activityPayload(req.user, { limit: 4, offset: 0 })
+  ]);
+  res.json({ user: publicUser(user), lookups, notifications, activity });
 });
 
 app.post("/api/notifications/read-all", auth, async (req, res) => {
@@ -537,51 +638,20 @@ app.delete("/api/attachments/:id", auth, admin, async (req, res) => {
 });
 
 app.get("/api/activity", auth, async (req, res) => {
-  const limit = Math.min(Number(req.query.limit || 100), 500);
-  const offset = Math.max(Number(req.query.offset || 0), 0);
-  const where = [];
-  const params = { limit, offset };
-  if (req.user.role !== "admin") {
-    where.push("username = @username");
-    params.username = req.user.username;
-  } else if (req.query.username) {
-    where.push("username = @username");
-    params.username = req.query.username;
-  }
-  if (req.query.actionType) {
-    where.push("action_type = @actionType");
-    params.actionType = req.query.actionType;
-  }
-  if (req.query.entityType) {
-    where.push("entity_type = @entityType");
-    params.entityType = req.query.entityType;
-  }
-  if (req.query.startDate) {
-    where.push("timestamp >= @startDate");
-    params.startDate = req.query.startDate;
-  }
-  if (req.query.endDate) {
-    where.push("timestamp <= @endDate");
-    params.endDate = `${req.query.endDate} 23:59:59`;
-  }
-  if (req.query.search) {
-    where.push("(lower(description) like @search or lower(keywords) like @search or lower(entity_name) like @search)");
-    params.search = `%${String(req.query.search).toLowerCase()}%`;
-  }
-  const clause = where.length ? `where ${where.join(" and ")}` : "";
-  const total = (await db.get(`select count(*) as count from activity_logs ${clause}`, params)).count;
-  const rows = await db.all(`select * from activity_logs ${clause} order by timestamp desc limit @limit offset @offset`, params);
-  res.json({ rows, total });
+  res.json(await activityPayload(req.user, req.query));
 });
 
 app.get("/api/leads/:id/history", auth, async (req, res) => {
   res.json({ rows: await db.all("select * from activity_logs where entity_type='Lead' and entity_id=? order by timestamp desc limit 20", req.params.id) });
 });
 
-app.get("/api/dashboard", auth, async (req, res) => {
+async function dashboardPayload(user, query = {}) {
+  const includeUsers = query.includeUsers === "true" || query.includeUsers === true;
+  const isCumulative = user.role === "admin" || query.mode === "cumulative";
+  const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
+  return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
-  const isCumulative = req.user.role === "admin" || req.query.mode === "cumulative";
-  const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === req.user.username || l.owner_id === req.user.user_id);
+  const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
   const hydrate = (row) => ({
     ...row,
     full_name: `${row.first_name || ""} ${row.last_name || ""}`.trim(),
@@ -594,9 +664,9 @@ app.get("/api/dashboard", auth, async (req, res) => {
   const rows = visible.map(hydrate);
   const group = (key, sourceRows = rows) => Object.values(sourceRows.reduce((acc, row) => {
     const name = row[key] || "N/A";
-    acc[name] = acc[name] || { name, count: 0, rows: [] };
+    acc[name] = acc[name] || { name, count: 0, rowIds: [] };
     acc[name].count += 1;
-    acc[name].rows.push(row);
+    acc[name].rowIds.push(row.id);
     return acc;
   }, {})).sort((a, b) => b.count - a.count || String(a.name).localeCompare(String(b.name)));
   const only = (predicate) => rows.filter(predicate);
@@ -605,21 +675,24 @@ app.get("/api/dashboard", auth, async (req, res) => {
   const careStart = referrals.filter((l) => l.care_status === "Care Start");
   const notStart = referrals.filter((l) => l.care_status === "Not Start");
   const pendingCare = referrals.filter((l) => !["Care Start", "Not Start"].includes(l.care_status));
-  const approvedUsers = await db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", );
-  const userDashboards = approvedUsers.map((u) => {
-    const userRows = leadRows.map(hydrate).filter((l) => l.staff_name === u.username || l.owner_id === u.id);
+  const [totalUsersRow, approvedUsers] = await Promise.all([
+    db.get("select count(*) as count from users", ),
+    includeUsers ? db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ) : Promise.resolve([])
+  ]);
+  const userDashboards = includeUsers ? approvedUsers.map((u) => {
+    const userRows = rows.filter((l) => l.staff_name === u.username || l.owner_id === u.id);
     return {
       user: u,
       stats: { total_leads: userRows.length, referrals: userRows.filter((l) => Number(l.active_client) === 1).length },
       source: group("source", userRows),
       status: group("last_contact_status", userRows),
-      rows: userRows
+      rowIds: userRows.map((row) => row.id)
     };
-  });
-  res.json({
+  }) : [];
+  return {
     stats: {
       total_leads: rows.length,
-      total_users: (await db.get("select count(*) as count from users", )).count,
+      total_users: totalUsersRow?.count || 0,
       active_clients: referrals.length
     },
     charts: {
@@ -634,13 +707,13 @@ app.get("/api/dashboard", auth, async (req, res) => {
       ccuSent: group("ccu_name", referrals),
       ccuConfirmed: group("ccu_name", referrals.filter((l) => l.care_status === "Care Start" || Number(l.authorization_received) === 1)),
       referralConfirmation: [
-        { name: "Referrals", count: referrals.length, rows: referrals },
-        { name: "Pending", count: pendingLeads.length, rows: pendingLeads }
+        { name: "Referrals", count: referrals.length, rowIds: referrals.map((row) => row.id) },
+        { name: "Pending", count: pendingLeads.length, rowIds: pendingLeads.map((row) => row.id) }
       ],
       leadConversion: [
-        { name: "Care Start", count: careStart.length, rows: careStart },
-        { name: "Not Start", count: notStart.length, rows: notStart },
-        { name: "Pending", count: pendingCare.length, rows: pendingCare }
+        { name: "Care Start", count: careStart.length, rowIds: careStart.map((row) => row.id) },
+        { name: "Not Start", count: notStart.length, rowIds: notStart.map((row) => row.id) },
+        { name: "Pending", count: pendingCare.length, rowIds: pendingCare.map((row) => row.id) }
       ]
     },
     rates: {
@@ -649,7 +722,12 @@ app.get("/api/dashboard", auth, async (req, res) => {
     },
     rows,
     userDashboards
+  };
   });
+}
+
+app.get("/api/dashboard", auth, async (req, res) => {
+  res.json(await dashboardPayload(req.user, req.query));
 });
 
 app.get("/api/reports/export", auth, async (req, res) => {
@@ -797,18 +875,18 @@ app.patch("/api/users/:id", auth, async (req, res, next) => {
   await db.run(`update users set ${keys.map((k) => `${k}=@${k}`).join(",")} where id=@id`, { ...req.body, id: req.params.id });
   const updatedUser = await db.get("select * from users where id=?", req.params.id);
   await logActivity(req.user, req.body.is_approved === 1 && oldUser?.is_approved !== 1 ? "USER_APPROVED" : "UPDATE_USER", "User", Number(req.params.id), updatedUser?.username || "", `Updated user '${updatedUser?.username || req.params.id}'`, publicUser(oldUser), publicUser(updatedUser), "user,update");
-  res.json({ user: publicUser(updatedUser) });
+  res.json({ user: publicUser(updatedUser, { profile: true }) });
 });
 
 app.patch("/api/users/me", auth, async (req, res) => {
   const allowed = ["username", "email", "user_id", "profile_pic"];
   const keys = Object.keys(req.body).filter((k) => allowed.includes(k));
-  if (!keys.length) return res.json({ user: publicUser(await db.get("select * from users where id=?", req.user.user_id)) });
+  if (!keys.length) return res.json({ user: publicUser(await db.get("select * from users where id=?", req.user.user_id), { profile: true }) });
   const oldUser = await db.get("select * from users where id=?", req.user.user_id);
   await db.run(`update users set ${keys.map((k) => `${k}=@${k}`).join(",")} where id=@id`, { ...req.body, id: req.user.user_id });
   const user = await db.get("select * from users where id=?", req.user.user_id);
   await logActivity(req.user, "UPDATE_PROFILE", "User", req.user.user_id, user?.username || req.user.username, `Updated profile for '${user?.username || req.user.username}'`, publicUser(oldUser), publicUser(user), "user,profile,update");
-  res.json({ user: publicUser(user) });
+  res.json({ user: publicUser(user, { profile: true }) });
 });
 
 app.post("/api/users/me/password", auth, async (req, res) => {
@@ -952,7 +1030,14 @@ function spaHtml() {
 }
 
 app.use("/uploads", auth, express.static(uploadsDir));
-app.use(express.static(distDir, { index: false }));
+app.use(express.static(distDir, {
+  index: false,
+  setHeaders(res, filePath) {
+    if (/\.(js|css|png|jpg|jpeg|svg|webp|woff2?)$/i.test(filePath)) {
+      res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+    }
+  }
+}));
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
   res.type("html").send(spaHtml());

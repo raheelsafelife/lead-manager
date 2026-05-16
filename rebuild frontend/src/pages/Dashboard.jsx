@@ -23,19 +23,27 @@ function downloadCsv(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
+function buildRowResolver(data) {
+  const byId = new Map((data?.rows || []).map((row) => [String(row.id), row]));
+  return (item) => {
+    if (item?.rows) return item.rows;
+    return (item?.rowIds || []).map((id) => byId.get(String(id))).filter(Boolean);
+  };
+}
+
 function DrillDown({ drill }) {
   if (!drill) return null;
   return <div className="drilldown"><h3>Drill Down: {drill.title} ({drill.rows.length})</h3><div className="table-wrap"><table><thead><tr>{tableCols.map((col) => <th key={col}>{col.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{drill.rows.slice(0, 100).map((row) => <tr key={row.id}>{tableCols.map((col) => <td key={col}>{row[col] || "N/A"}</td>)}</tr>)}</tbody></table></div></div>;
 }
 
-function ChartBox({ chartKey, title, data = [], type = "bar", filename, onDrill, drill }) {
+function ChartBox({ chartKey, title, data = [], type = "bar", filename, onDrill, drill, resolveRows }) {
   const clean = data.filter((item) => item.count > 0);
-  return <div className="chart-box"><h3>{title}</h3>{clean.length ? <ResponsiveContainer width="100%" height={260}>{type === "line" ? <LineChart data={clean} onClick={(e) => e?.activePayload?.[0]?.payload && onDrill(chartKey, title, e.activePayload[0].payload)}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Line dataKey="count" stroke="#00506b" strokeWidth={3} /></LineChart> : <BarChart data={clean} onClick={(e) => e?.activePayload?.[0]?.payload && onDrill(chartKey, title, e.activePayload[0].payload)}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" interval={0} angle={-12} textAnchor="end" height={58} /><YAxis /><Tooltip /><Bar dataKey="count" fill="#00506b" /></BarChart>}</ResponsiveContainer> : <div className="info">No data</div>}<button className="download-link" onClick={() => downloadCsv(clean.flatMap((item) => item.rows || []), filename)}>Download CSV</button><DrillDown drill={drill?.chartKey === chartKey ? drill : null} /></div>;
+  return <div className="chart-box"><h3>{title}</h3>{clean.length ? <ResponsiveContainer width="100%" height={260}>{type === "line" ? <LineChart data={clean} onClick={(e) => e?.activePayload?.[0]?.payload && onDrill(chartKey, title, e.activePayload[0].payload)}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Line dataKey="count" stroke="#00506b" strokeWidth={3} /></LineChart> : <BarChart data={clean} onClick={(e) => e?.activePayload?.[0]?.payload && onDrill(chartKey, title, e.activePayload[0].payload)}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" interval={0} angle={-12} textAnchor="end" height={58} /><YAxis /><Tooltip /><Bar dataKey="count" fill="#00506b" /></BarChart>}</ResponsiveContainer> : <div className="info">No data</div>}<button className="download-link" onClick={() => downloadCsv(clean.flatMap((item) => resolveRows(item)), filename)}>Download CSV</button><DrillDown drill={drill?.chartKey === chartKey ? drill : null} /></div>;
 }
 
-function PieBox({ chartKey, title, data = [], filename, onDrill, drill }) {
+function PieBox({ chartKey, title, data = [], filename, onDrill, drill, resolveRows }) {
   const clean = data.filter((item) => item.count > 0);
-  return <div className="chart-box"><h3>{title}</h3>{clean.length ? <ResponsiveContainer width="100%" height={300}><PieChart><Tooltip /><Pie data={clean} dataKey="count" nameKey="name" innerRadius={62} outerRadius={105} paddingAngle={2} onClick={(entry) => onDrill(chartKey, title, entry)}>{clean.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}</Pie></PieChart></ResponsiveContainer> : <div className="info">No data</div>}<div className="pie-text-labels">{clean.map((entry, index) => <span key={entry.name} style={{ "--label-color": chartColors[index % chartColors.length] }}>{entry.name}</span>)}</div><button className="download-link" onClick={() => downloadCsv(clean.flatMap((item) => item.rows || []), filename)}>Download CSV</button><DrillDown drill={drill?.chartKey === chartKey ? drill : null} /></div>;
+  return <div className="chart-box"><h3>{title}</h3>{clean.length ? <ResponsiveContainer width="100%" height={300}><PieChart><Tooltip /><Pie data={clean} dataKey="count" nameKey="name" innerRadius={62} outerRadius={105} paddingAngle={2} onClick={(entry) => onDrill(chartKey, title, entry)}>{clean.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}</Pie></PieChart></ResponsiveContainer> : <div className="info">No data</div>}<div className="pie-text-labels">{clean.map((entry, index) => <span key={entry.name} style={{ "--label-color": chartColors[index % chartColors.length] }}>{entry.name}</span>)}</div><button className="download-link" onClick={() => downloadCsv(clean.flatMap((item) => resolveRows(item)), filename)}>Download CSV</button><DrillDown drill={drill?.chartKey === chartKey ? drill : null} /></div>;
 }
 
 function StatCard({ value, label }) {
@@ -49,6 +57,7 @@ export default function Dashboard() {
   const [drill, setDrill] = useState(null);
   const [showUsers, setShowUsers] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const resolveRows = buildRowResolver(data);
 
   useEffect(() => {
     let mounted = true;
@@ -76,11 +85,17 @@ export default function Dashboard() {
       setDrill(null);
       return;
     }
-    setDrill({ chartKey, title: nextTitle, rows: payload.rows || [] });
+    setDrill({ chartKey, title: nextTitle, rows: resolveRows(payload) });
+  }
+  async function showAllUserDashboards() {
+    setShowUsers(true);
+    if (data.userDashboards?.length) return;
+    const res = await api.get("/dashboard", { params: { mode: "cumulative", includeUsers: "true" } });
+    setData(res.data);
   }
   if (loadError) return <div className="error">Lead Manager failed to load: {loadError}</div>;
   if (!data?.stats || !data?.charts) return <div className="page-loader">Loading dashboard...</div>;
-  if (showUsers) return <><PageHeader>ALL USER DASHBOARDS</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button><div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username} Dashboard</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><ChartBox chartKey={`${dash.user.id}-source`} title="Source" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} /><ChartBox chartKey={`${dash.user.id}-status`} title="Status" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} /></div></details>)}</div></>;
+  if (showUsers) return <><PageHeader>ALL USER DASHBOARDS</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button>{data.userDashboards?.length ? <div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username} Dashboard</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><ChartBox chartKey={`${dash.user.id}-source`} title="Source" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /><ChartBox chartKey={`${dash.user.id}-status`} title="Status" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /></div></details>)}</div> : <div className="page-loader">Loading user dashboards...</div>}</>;
   return <div className="dashboard-page">
     <PageHeader>PERFORMANCE METRICS DASHBOARD</PageHeader>
     <section className="dashboard-hero">
@@ -91,7 +106,7 @@ export default function Dashboard() {
       <SmartSearch />
       <div className="dashboard-actions">
         {user.role !== "admin" && <div className="segmented dashboard-mode-toggle"><Button active={mode === "individual"} onClick={() => setMode("individual")}>Individual</Button><Button active={mode === "cumulative"} onClick={() => setMode("cumulative")}>Cumulative</Button></div>}
-        {user.role === "admin" && <Button variant="primary" onClick={() => setShowUsers(true)}>View All User Dashboards</Button>}
+        {user.role === "admin" && <Button variant="primary" onClick={showAllUserDashboards}>View All User Dashboards</Button>}
       </div>
     </section>
     <div className="stats dashboard-stats">
@@ -100,24 +115,24 @@ export default function Dashboard() {
       <StatCard value={data.stats.active_clients} label="Referrals" />
     </div>
     <div className="chart-grid dashboard-primary-grid">
-      <ChartBox chartKey="primary-staff-or-month" title={mode === "cumulative" ? "Leads by Staff" : "Your Monthly Lead Flow"} data={mode === "cumulative" ? data.charts.staff : data.charts.month} type={mode === "cumulative" ? "bar" : "line"} filename={mode === "cumulative" ? "staff_leads_all.csv" : "your_monthly_leads.csv"} onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="primary-source" title={mode === "cumulative" ? "Leads by Source" : "Your Content Sources"} data={data.charts.source} filename={mode === "cumulative" ? "source_leads_all.csv" : "your_source_breakdown.csv"} onDrill={onDrill} drill={drill} />
+      <ChartBox chartKey="primary-staff-or-month" title={mode === "cumulative" ? "Leads by Staff" : "Your Monthly Lead Flow"} data={mode === "cumulative" ? data.charts.staff : data.charts.month} type={mode === "cumulative" ? "bar" : "line"} filename={mode === "cumulative" ? "staff_leads_all.csv" : "your_monthly_leads.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="primary-source" title={mode === "cumulative" ? "Leads by Source" : "Your Content Sources"} data={data.charts.source} filename={mode === "cumulative" ? "source_leads_all.csv" : "your_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <h2 className="section-title">Detailed Referral Distribution</h2>
     <div className="chart-grid">
-      <ChartBox chartKey="ccu-sent" title="Referrals sent by CCU" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="ccu-confirmed" title="Authorizations received from CCUs" data={data.charts.ccuConfirmed} filename="authorizations_received.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="status" title={mode === "cumulative" ? "Leads by Status" : "Your Leads by Status"} data={data.charts.status} filename="status_breakdown.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="month" title={mode === "cumulative" ? "Monthly Leads (All)" : "Your Monthly Flow"} data={data.charts.month} type="line" filename={mode === "cumulative" ? "monthly_leads_all.csv" : "your_monthly_flow.csv"} onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="event" title={mode === "cumulative" ? "Event Leads" : "Your Event Leads"} data={data.charts.event} filename="event_leads_detailed.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="word-of-mouth" title={mode === "cumulative" ? "Word of Mouth Breakdown" : "Your WOM Breakdown"} data={data.charts.wordOfMouth} filename="wom_leads_detailed.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="priority" title={mode === "cumulative" ? "Priority Distribution" : "Your Priority Mix"} data={data.charts.priority} filename="priority_distribution.csv" onDrill={onDrill} drill={drill} />
-      <ChartBox chartKey="auth" title={mode === "cumulative" ? "Authorization Status" : "Your Auth Status"} data={data.charts.auth} filename="auth_status_detailed.csv" onDrill={onDrill} drill={drill} />
+      <ChartBox chartKey="ccu-sent" title="Referrals sent by CCU" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="ccu-confirmed" title="Authorizations received from CCUs" data={data.charts.ccuConfirmed} filename="authorizations_received.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="status" title={mode === "cumulative" ? "Leads by Status" : "Your Leads by Status"} data={data.charts.status} filename="status_breakdown.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="month" title={mode === "cumulative" ? "Monthly Leads (All)" : "Your Monthly Flow"} data={data.charts.month} type="line" filename={mode === "cumulative" ? "monthly_leads_all.csv" : "your_monthly_flow.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="event" title={mode === "cumulative" ? "Event Leads" : "Your Event Leads"} data={data.charts.event} filename="event_leads_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="word-of-mouth" title={mode === "cumulative" ? "Word of Mouth Breakdown" : "Your WOM Breakdown"} data={data.charts.wordOfMouth} filename="wom_leads_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="priority" title={mode === "cumulative" ? "Priority Distribution" : "Your Priority Mix"} data={data.charts.priority} filename="priority_distribution.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="auth" title={mode === "cumulative" ? "Authorization Status" : "Your Auth Status"} data={data.charts.auth} filename="auth_status_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <div className="pipeline-header"><h2>LEAD PIPELINE ANALYTICS</h2></div>
     <div className="chart-grid">
-      <PieBox chartKey="lead-confirmation" title="Lead Confirmation" data={data.charts.referralConfirmation} filename="lead_confirmation_data.csv" onDrill={onDrill} drill={drill} />
-      <PieBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} />
+      <PieBox chartKey="lead-confirmation" title="Lead Confirmation" data={data.charts.referralConfirmation} filename="lead_confirmation_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <PieBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <div className="rate-cards"><div><b>{data.rates.confirmation.toFixed(1)}%</b><span>{mode === "cumulative" ? "Confirmation Rate" : "Your Confirmation Rate"}</span></div><div><b>{data.rates.conversion.toFixed(1)}%</b><span>{mode === "cumulative" ? "Conversion Rate" : "Your Conversion Rate"}</span></div></div>
   </div>;

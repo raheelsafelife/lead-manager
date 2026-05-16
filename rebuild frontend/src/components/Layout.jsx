@@ -55,18 +55,17 @@ export default function Layout({ children }) {
     let mounted = true;
     async function loadMountedSidebarData() {
       try {
-        const [notificationRes, historianRes, lookupRes] = await Promise.all([
-          api.get("/notifications"),
-          api.get("/activity", { params: { limit: 4, offset: 0 } }),
-          api.get("/lookups")
-        ]);
+        const bootstrapRes = await api.get("/bootstrap");
+        const notificationData = bootstrapRes.data.notifications || {};
+        const activityData = bootstrapRes.data.activity || {};
+        const lookupData = bootstrapRes.data.lookups || {};
         if (mounted) {
-          setNotifications(notificationRes.data.notifications || []);
-          setNotificationTotal(notificationRes.data.count || 0);
-          setHistorianRows(historianRes.data.rows || []);
-          setUserDirectory(Object.fromEntries((lookupRes.data.users || []).map((entry) => [entry.username, entry])));
-          const nextCount = notificationRes.data.count || 0;
-          const firstUnread = (notificationRes.data.notifications || []).find((item) => !item.read);
+          setNotifications(notificationData.notifications || []);
+          setNotificationTotal(notificationData.count || 0);
+          setHistorianRows(activityData.rows || []);
+          setUserDirectory(Object.fromEntries((lookupData.users || []).map((entry) => [entry.username, entry])));
+          const nextCount = notificationData.count || 0;
+          const firstUnread = (notificationData.notifications || []).find((item) => !item.read);
           if (notificationReadyRef.current && nextCount > notificationCountRef.current && firstUnread) {
             emitToast({ type: "info", message: `New notification: ${firstUnread.title}` });
           }
