@@ -358,6 +358,16 @@ h3 { color: #111827; margin: 16px 0 8px; font-size: 1.12rem; }
 .chart-box, .form-panel, .lead-detail, .auth-card, .report-card { background: #fff; border: 1px solid #ecf1f5; border-radius: 18px; padding: 20px 22px 18px; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
 .chart-box h3 { margin-top: 0; font-size: 1.12rem; color: #122231; }
 .chart-box .recharts-wrapper { margin-top: 18px; }
+.dashboard-chart-card { overflow: hidden; }
+.chart-card-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+.chart-card-head h3 { margin: 0; }
+.chart-card-head span { color: #667085; font-size: .78rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.donut-layout { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(180px, 1fr); gap: 14px; align-items: center; min-height: 276px; }
+.donut-legend { display: grid; gap: 8px; align-content: center; }
+.donut-legend button { border: 1px solid #edf2f7; background: #fff; border-radius: 8px; min-height: 38px; padding: 8px 10px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 9px; align-items: center; text-align: left; cursor: pointer; }
+.donut-legend span { width: 10px; height: 10px; border-radius: 999px; background: var(--legend-color); }
+.donut-legend b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #344054; font-size: .86rem; }
+.donut-legend em { font-style: normal; color: #00506b; font-weight: 900; }
 .pie-text-labels { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 8px 0 22px; color: var(--deep-blue); font-weight: 900; }
 .pie-text-labels span { display: inline-flex; align-items: center; gap: 8px; }
 .pie-text-labels span::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--label-color); }
