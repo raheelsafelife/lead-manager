@@ -218,6 +218,43 @@ create table if not exists notification_reads (
   primary key (user_id, notification_id)
 );
 
+do $$
+declare
+  column_row record;
+begin
+  for column_row in
+    select table_schema, table_name, column_name
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name in (
+        'users',
+        'events',
+        'agencies',
+        'agency_suboptions',
+        'ccus',
+        'mcos',
+        'leads',
+        'activity_logs',
+        'lead_comments',
+        'attachments',
+        'email_reminders',
+        'email_templates',
+        'session_tokens',
+        'magic_link_tokens',
+        'notifications',
+        'notification_reads'
+      )
+      and data_type = 'character varying'
+  loop
+    execute format(
+      'alter table %I.%I alter column %I type text',
+      column_row.table_schema,
+      column_row.table_name,
+      column_row.column_name
+    );
+  end loop;
+end $$;
+
 create index if not exists idx_leads_owner_id on leads(owner_id);
 create index if not exists idx_leads_staff_name on leads(staff_name);
 create index if not exists idx_leads_active_client on leads(active_client);
