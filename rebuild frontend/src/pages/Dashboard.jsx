@@ -95,13 +95,13 @@ export default function Dashboard() {
   }
   if (loadError) return <div className="error">Lead Manager failed to load: {loadError}</div>;
   if (!data?.stats || !data?.charts) return <div className="page-loader">Loading dashboard...</div>;
-  if (showUsers) return <><PageHeader>ALL USER DASHBOARDS</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button>{data.userDashboards?.length ? <div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username} Dashboard</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><ChartBox chartKey={`${dash.user.id}-source`} title="Source" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /><ChartBox chartKey={`${dash.user.id}-status`} title="Status" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /></div></details>)}</div> : <div className="page-loader">Loading user dashboards...</div>}</>;
+  if (showUsers) return <><PageHeader>User Performance</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button>{data.userDashboards?.length ? <div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username}</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><ChartBox chartKey={`${dash.user.id}-source`} title="Sources" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /><ChartBox chartKey={`${dash.user.id}-status`} title="Statuses" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /></div></details>)}</div> : <div className="page-loader">Loading user dashboards...</div>}</>;
   return <div className="dashboard-page">
-    <PageHeader>PERFORMANCE METRICS DASHBOARD</PageHeader>
+    <PageHeader>Performance Dashboard</PageHeader>
     <section className="dashboard-hero">
       <div className="dashboard-copy">
         <h2>Welcome back, {user.username}</h2>
-        <p>Search, manage and track your leads all in one place.</p>
+        <p>Monitor lead flow, referral progress, and authorization outcomes from one workspace.</p>
       </div>
       <SmartSearch />
       <div className="dashboard-actions">
@@ -116,9 +116,9 @@ export default function Dashboard() {
     </div>
     <div className="chart-grid dashboard-primary-grid">
       <ChartBox chartKey="primary-staff-or-month" title={mode === "cumulative" ? "Leads by Staff" : "Your Monthly Lead Flow"} data={mode === "cumulative" ? data.charts.staff : data.charts.month} type={mode === "cumulative" ? "bar" : "line"} filename={mode === "cumulative" ? "staff_leads_all.csv" : "your_monthly_leads.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
-      <ChartBox chartKey="primary-source" title={mode === "cumulative" ? "Leads by Source" : "Your Content Sources"} data={data.charts.source} filename={mode === "cumulative" ? "source_leads_all.csv" : "your_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <ChartBox chartKey="primary-source" title={mode === "cumulative" ? "Leads by Source" : "Your Lead Sources"} data={data.charts.source} filename={mode === "cumulative" ? "source_leads_all.csv" : "your_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
-    <h2 className="section-title">Detailed Referral Distribution</h2>
+    <h2 className="section-title">Referral and Authorization Breakdown</h2>
     <div className="chart-grid">
       <ChartBox chartKey="ccu-sent" title="Referrals sent by CCU" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <ChartBox chartKey="ccu-confirmed" title="Authorizations received from CCUs" data={data.charts.ccuConfirmed} filename="authorizations_received.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
@@ -129,7 +129,7 @@ export default function Dashboard() {
       <ChartBox chartKey="priority" title={mode === "cumulative" ? "Priority Distribution" : "Your Priority Mix"} data={data.charts.priority} filename="priority_distribution.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <ChartBox chartKey="auth" title={mode === "cumulative" ? "Authorization Status" : "Your Auth Status"} data={data.charts.auth} filename="auth_status_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
-    <div className="pipeline-header"><h2>LEAD PIPELINE ANALYTICS</h2></div>
+    <div className="pipeline-header"><h2>Pipeline Analytics</h2></div>
     <div className="chart-grid">
       <PieBox chartKey="lead-confirmation" title="Lead Confirmation" data={data.charts.referralConfirmation} filename="lead_confirmation_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <PieBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />

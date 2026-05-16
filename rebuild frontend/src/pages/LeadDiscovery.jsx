@@ -69,9 +69,9 @@ export default function LeadDiscovery() {
     return { rows: Object.values(grouped), colorKeys: [...colors] };
   }, [data, xFeature, colorFeature]);
 
-  if (!data) return <div>Loading discovery...</div>;
+  if (!data) return <div className="page-loader">Loading lead discovery...</div>;
   const xKey = featureMap[xFeature];
-  return <><PageHeader>LEAD DISCOVERY TOOL</PageHeader>
+  return <><PageHeader>Lead Discovery</PageHeader>
     <div className="filter-grid">
       <label className="field"><span>Split By (X-Axis):</span><Select value={xFeature} onChange={setXFeature} options={Object.keys(featureMap)} /></label>
       <label className="field"><span>Compare Against (Color):</span><Select value={colorFeature} onChange={setColorFeature} options={["None", ...Object.keys(featureMap)]} /></label>

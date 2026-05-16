@@ -211,27 +211,23 @@ function buildLeadQuery(q = {}, user) {
     const statusSets = {
       lead: {
         column: "last_contact_status",
-        active: ["Initial Call", "No Response"],
-        inactive: ["Not Interested"]
+        active: ["Initial Call", "No Response"]
       },
       referral: {
         column: "last_contact_status",
-        active: ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done"],
-        inactive: ["Not Approved", "Services Refused"]
+        active: ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done"]
       },
       authorization: {
         column: "care_status",
-        active: ["Care Start", "Not Start", "Transfer Received"],
-        inactive: ["Hold", "Terminated", "Deceased"]
+        active: ["Care Start", "Not Start", "Transfer Received"]
       }
     };
     const config = statusSets[q.type] || statusSets.lead;
-    const list = q.active === "Active" ? config.active : config.inactive;
-    if (config.column === "care_status") {
-      where.push(`leads.care_status in (${list.map((_, i) => `@active${i}`).join(",")})`);
-    } else {
-      where.push(`leads.last_contact_status in (${list.map((_, i) => `@active${i}`).join(",")})`);
-    }
+    const list = config.active;
+    const columnSql = config.column === "care_status" ? "leads.care_status" : "leads.last_contact_status";
+    const activeSql = `${columnSql} in (${list.map((_, i) => `@active${i}`).join(",")})`;
+    if (q.active === "Active") where.push(activeSql);
+    else where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${list.map((_, i) => `@active${i}`).join(",")}))`);
     list.forEach((v, i) => { params[`active${i}`] = v; });
   }
   if (q.status && q.status !== "All") {
