@@ -104,7 +104,12 @@ function tableColumns(db, table) {
   return sqliteAll(db, `pragma table_info(${quoteIdent(table)})`).map((row) => row.name);
 }
 
+function tableExists(db, table) {
+  return tableColumns(db, table).length > 0;
+}
+
 function tableCount(db, table) {
+  if (!tableExists(db, table)) return 0;
   return sqliteAll(db, `select count(*) as count from ${quoteIdent(table)}`)[0]?.count || 0;
 }
 
