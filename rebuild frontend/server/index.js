@@ -219,12 +219,16 @@ function buildLeadQuery(q = {}, user) {
       },
       authorization: {
         column: "care_status",
-        active: ["Care Start", "Not Start", "Transfer Received"]
+        active: ["Care Start", "Not Start", "Transfer", "Transfer Received"]
       }
     };
     const config = statusSets[q.type] || statusSets.lead;
     const list = config.active;
-    const columnSql = config.column === "care_status" ? "leads.care_status" : "leads.last_contact_status";
+    const columnSql = q.type === "lead"
+      ? "case when trim(coalesce(leads.care_status,'')) != '' then leads.care_status else leads.last_contact_status end"
+      : config.column === "care_status"
+        ? "leads.care_status"
+        : "leads.last_contact_status";
     const activeSql = `${columnSql} in (${list.map((_, i) => `@active${i}`).join(",")})`;
     if (q.active === "Active") where.push(activeSql);
     else where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${list.map((_, i) => `@active${i}`).join(",")}))`);
