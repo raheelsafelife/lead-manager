@@ -4,6 +4,7 @@ import { PageHeader, Button } from "../components/Controls";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import SmartSearch from "../components/SmartSearch";
+import { DashboardSkeleton, SkeletonTable } from "../components/Skeleton";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -157,8 +158,8 @@ export default function Dashboard() {
     setData(res.data);
   }
   if (loadError) return <div className="error">Lead Manager failed to load: {loadError}</div>;
-  if (!data?.stats || !data?.charts) return <div className="page-loader">Loading dashboard...</div>;
-  if (showUsers) return <><PageHeader>User Performance</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button>{data.userDashboards?.length ? <div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username}</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><HorizontalRankChart chartKey={`${dash.user.id}-source`} title="Sources" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /><DonutChartBox chartKey={`${dash.user.id}-status`} title="Statuses" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /></div></details>)}</div> : <div className="page-loader">Loading user dashboards...</div>}</>;
+  if (!data?.stats || !data?.charts) return <DashboardSkeleton />;
+  if (showUsers) return <><PageHeader>User Performance</PageHeader><Button onClick={() => setShowUsers(false)}>Back to Dashboard</Button>{data.userDashboards?.length ? <div className="user-dashboard-list">{data.userDashboards.map((dash) => <details className="user-dashboard" key={dash.user.id}><summary>{dash.user.username}</summary><div className="stats compact"><div><b>{dash.stats.total_leads}</b><span>Total Leads</span></div><div><b>{dash.stats.referrals}</b><span>Referrals</span></div></div><div className="chart-grid"><HorizontalRankChart chartKey={`${dash.user.id}-source`} title="Sources" data={dash.source} filename={`${dash.user.username}_source.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /><DonutChartBox chartKey={`${dash.user.id}-status`} title="Statuses" data={dash.status} filename={`${dash.user.username}_status.csv`} onDrill={onDrill} drill={drill} resolveRows={resolveRows} /></div></details>)}</div> : <SkeletonTable rows={4} columns={3} />}</>;
   return <div className="dashboard-page">
     <PageHeader>Performance Dashboard</PageHeader>
     <section className="dashboard-hero">

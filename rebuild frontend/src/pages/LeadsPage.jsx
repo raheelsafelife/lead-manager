@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { Button, Select } from "../components/Controls";
 import LeadCard from "../components/LeadCard";
+import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
-import { activeStatuses, caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
+import { caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
@@ -64,9 +65,15 @@ function readUrlFilters(search) {
 
 function pageSubtitle(type, discovery) {
   if (discovery) return "Search and explore matching leads quickly.";
-  if (type === "referral") return "Track, filter and manage all your referrals in one place.";
-  if (type === "authorization") return "Review, filter and manage all authorizations in one place.";
-  return "View, filter and manage all your leads in one place.";
+  if (type === "referral") return "Active referrals stay here. Closed or refused referrals live in Archive.";
+  if (type === "authorization") return "Active authorizations stay here. Hold, terminated and closed cases live in Archive.";
+  return "Active leads stay here. Closed, terminated or uninterested leads live in Archive.";
+}
+
+function folderCopy(active) {
+  if (active === "Inactive") return { title: "Archive Folder", summary: "Archive", empty: "No archived records found for these filters." };
+  if (active === "All") return { title: "All Records", summary: "All", empty: "No matching records found for these filters." };
+  return { title: "Active Folder", summary: "Active", empty: "No active records found for these filters." };
 }
 
 export default function LeadsPage({ title, type, discovery = false }) {
@@ -76,6 +83,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [filters, setFilters] = useState(() => getDefaultFilters(user, initialId, initialOptions));
   const [lookups, setLookups] = useState({ ccus: [], agencies: [] });
   const [data, setData] = useState({ rows: [], total: 0 });
+  const [loadingRows, setLoadingRows] = useState(true);
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -100,6 +108,15 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setPage(0);
   }
 
+  function setFolder(active) {
+    setFilters((current) => ({
+      ...current,
+      active,
+      status: "All"
+    }));
+    setPage(0);
+  }
+
   function resetFilters() {
     setFilters(getDefaultFilters(user, initialId, initialOptions));
     setPage(0);
@@ -109,7 +126,6 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setFilters((current) => ({
       ...current,
       transferView,
-      active: transferView ? "All" : current.active,
       status: "All"
     }));
     setPage(0);
@@ -130,7 +146,10 @@ export default function LeadsPage({ title, type, discovery = false }) {
   }
 
   function load() {
-    api.get("/leads", { params }).then((res) => setData(res.data));
+    setLoadingRows(true);
+    api.get("/leads", { params })
+      .then((res) => setData(res.data))
+      .finally(() => setLoadingRows(false));
   }
 
   useEffect(() => {
@@ -146,6 +165,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
       : ["All", "Initial Call", "No Response", "Not Interested"];
 
   const summaryLabel = type === "referral" ? "referrals" : type === "authorization" ? "authorizations" : "leads";
+  const currentFolder = folderCopy(filters.active);
 
   return (
     <div className="leads-page">
@@ -187,11 +207,6 @@ export default function LeadsPage({ title, type, discovery = false }) {
           <label className="leads-filter">
             <span><CalendarRange size={18} />Date Range</span>
             <Select value={filters.dateRange} onChange={(value) => patch("dateRange", value)} options={dateRangeOptions} />
-          </label>
-
-          <label className="leads-filter">
-            <span><Users size={18} />Active Status</span>
-            <Select value={filters.active} onChange={(value) => patch("active", value)} options={activeStatuses} />
           </label>
 
           <label className="leads-filter">
@@ -241,25 +256,28 @@ export default function LeadsPage({ title, type, discovery = false }) {
           )}
         </div>
 
+        {!discovery && (
+          <div className="archive-folder-switch" aria-label={`${summaryLabel} folder`}>
+            <button className={filters.active === "Active" ? "active" : ""} onClick={() => setFolder("Active")} type="button">
+              <b>Active Folder</b>
+              <span>Open work only</span>
+            </button>
+            <button className={filters.active === "Inactive" ? "active archive" : "archive"} onClick={() => setFolder("Inactive")} type="button">
+              <b>Archive Folder</b>
+              <span>Closed and inactive</span>
+            </button>
+            {initialOptions.globalSearch && (
+              <button className={filters.active === "All" ? "active all" : "all"} onClick={() => setFolder("All")} type="button">
+                <b>All Records</b>
+                <span>Global search result</span>
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="leads-quick-filters">
           <div className="leads-quick-group">
-            <span>Quick Filters</span>
-            <div className="leads-pill-row">
-              {activeStatuses.map((value) => (
-                <button
-                  className={`leads-filter-pill ${filters.active === value ? "active tone-primary" : ""}`}
-                  key={value}
-                  onClick={() => patch("active", value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="leads-pill-divider" />
-
-          <div className="leads-quick-group">
+            <span>Call Filters</span>
             <div className="leads-pill-row">
               {["Not Called", "Pending", "Called", "All"].map((value) => (
                 <button
@@ -312,8 +330,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
       </div>
 
       <p className="leads-summary-line">
-        <b>Showing {data.rows.length} {filters.transferView ? "transfer cases" : summaryLabel} of {data.total} total</b>
-        <span>Active Status: {filters.active} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
+        <b>Showing {data.rows.length} {filters.transferView ? "transfer cases" : summaryLabel} in {currentFolder.summary} of {data.total} total</b>
+        <span>Folder: {currentFolder.title} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
       </p>
 
       {!discovery && (
@@ -328,9 +346,11 @@ export default function LeadsPage({ title, type, discovery = false }) {
         </div>
       )}
 
-      {data.rows.length
+      {loadingRows
+        ? <LeadListSkeleton />
+        : data.rows.length
         ? data.rows.map((lead) => <LeadCard key={lead.id} lead={lead} type={type} onChanged={load} />)
-        : <div className="info">No exact match found. Try a shorter search term, different spelling, phone, or ID.</div>}
+        : <div className="info">{currentFolder.empty} Try a shorter search term, different spelling, phone, or ID.</div>}
 
       <div className="pagination">
         <Button disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>

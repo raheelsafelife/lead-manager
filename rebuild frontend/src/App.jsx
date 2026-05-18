@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
+import { AppRouteSkeleton } from "./components/Skeleton";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const LeadsPage = lazy(() => import("./pages/LeadsPage"));
@@ -19,7 +20,7 @@ export default function App() {
   if (!user) return <Login />;
   return (
     <Layout>
-      <Suspense fallback={<div className="page-loader">Starting workspace...</div>}>
+      <Suspense fallback={<AppRouteSkeleton />}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />

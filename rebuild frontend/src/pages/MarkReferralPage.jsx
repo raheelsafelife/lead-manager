@@ -6,6 +6,7 @@ import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
 import { caregiverTypes } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
+import { WorkflowSkeleton } from "../components/Skeleton";
 
 const referralStatuses = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused", "Inactive"];
 
@@ -213,7 +214,7 @@ export default function MarkReferralPage() {
   }
 
   if (error && !lead) return <div className="error">{error}</div>;
-  if (!lead) return <div className="page-loader">Loading referral workflow...</div>;
+  if (!lead) return <WorkflowSkeleton />;
   if (!canEdit) return <div className="error">You do not have permission to mark this lead as a referral.</div>;
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button, PageHeader, Select } from "../components/Controls";
 import { api } from "../services/api";
+import { DiscoverySkeleton } from "../components/Skeleton";
 
 const featureMap = {
   "Lead Source": "source",
@@ -69,7 +70,7 @@ export default function LeadDiscovery() {
     return { rows: Object.values(grouped), colorKeys: [...colors] };
   }, [data, xFeature, colorFeature]);
 
-  if (!data) return <div className="page-loader">Loading lead discovery...</div>;
+  if (!data) return <DiscoverySkeleton />;
   const xKey = featureMap[xFeature];
   return <><PageHeader>Lead Discovery</PageHeader>
     <div className="filter-grid">

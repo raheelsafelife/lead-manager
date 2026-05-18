@@ -17,6 +17,7 @@ import autoTable from "jspdf-autotable";
 import { Download, FileSpreadsheet, FileText, ShieldCheck, HeartHandshake, Layers3, Sparkles } from "lucide-react";
 import { Button, Select } from "../components/Controls";
 import { api } from "../services/api";
+import { ReportsSkeleton } from "../components/Skeleton";
 
 const topOptions = ["5", "10", "20"];
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
@@ -348,7 +349,7 @@ export default function Reports() {
     }
   }
 
-  if (!dashboard) return <div className="page-loader">Loading reports...</div>;
+  if (!dashboard) return <ReportsSkeleton />;
 
   return (
     <div className="reports-page">
