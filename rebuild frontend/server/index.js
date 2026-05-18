@@ -14,6 +14,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..", "..");
 const dbPath = process.env.LEAD_DB || path.join(rootDir, "backend", "leads.db");
 const uploadsDir = path.join(rootDir, "backend", "uploads");
+const legacyUploadDirs = [
+  uploadsDir,
+  path.join(rootDir, "uploads"),
+  path.join(rootDir, "rebuild frontend", "backend", "uploads"),
+  path.join(rootDir, "rebuild frontend", "uploads")
+];
 const distDir = path.resolve(__dirname, "..", "dist");
 const schemaPath = path.resolve(__dirname, "..", "migrations", "aws", "postgres-schema.sql");
 const jwtSecret = process.env.JWT_SECRET_KEY || "f2f9c7c55bdbe69ea5ac0da9b29fb2c26555a720266bfb4ba936568b27ab7cef";
@@ -74,6 +80,35 @@ async function cached(key, ttlMs, loader) {
 
 function clearDataCaches() {
   cache.clear();
+}
+
+function uniquePaths(paths) {
+  return [...new Set(paths.filter(Boolean).map((item) => path.resolve(item)))];
+}
+
+function resolveAttachmentPath(att) {
+  if (!att) return null;
+  const savedPath = String(att.file_path || "");
+  const savedName = path.basename(savedPath);
+  const safeStoredName = savedName && savedName !== "." ? savedName : "";
+  const currentUploadName = att.lead_id && att.filename ? `${att.lead_id}_${att.filename}` : "";
+  const candidates = [];
+
+  if (savedPath) {
+    candidates.push(savedPath);
+    if (!path.isAbsolute(savedPath)) {
+      candidates.push(path.join(rootDir, savedPath));
+      candidates.push(path.join(uploadsDir, savedPath));
+    }
+  }
+
+  for (const dir of legacyUploadDirs) {
+    if (safeStoredName) candidates.push(path.join(dir, safeStoredName));
+    if (currentUploadName) candidates.push(path.join(dir, currentUploadName));
+    if (att.filename) candidates.push(path.join(dir, att.filename));
+  }
+
+  return uniquePaths(candidates).find((candidate) => fs.existsSync(candidate)) || null;
 }
 
 const originalDbRun = db.run.bind(db);
@@ -617,21 +652,24 @@ app.post("/api/leads/:id/attachment", auth, upload.single("file"), async (req, r
 
 app.get("/api/attachments/:id/preview", auth, async (req, res) => {
   const att = await db.get("select * from attachments where id=?", req.params.id);
-  if (!att || !fs.existsSync(att.file_path)) return res.status(404).json({ error: "File not found" });
+  const filePath = resolveAttachmentPath(att);
+  if (!filePath) return res.status(404).json({ error: "File not found" });
   res.type(att.filename);
   res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(att.filename)}"`);
-  res.sendFile(path.resolve(att.file_path));
+  res.sendFile(filePath);
 });
 
 app.get("/api/attachments/:id/download", auth, async (req, res) => {
   const att = await db.get("select * from attachments where id=?", req.params.id);
-  if (!att || !fs.existsSync(att.file_path)) return res.status(404).json({ error: "File not found" });
-  res.download(att.file_path, att.filename);
+  const filePath = resolveAttachmentPath(att);
+  if (!filePath) return res.status(404).json({ error: "File not found" });
+  res.download(filePath, att.filename);
 });
 
 app.delete("/api/attachments/:id", auth, admin, async (req, res) => {
   const att = await db.get("select * from attachments where id=?", req.params.id);
-  if (att && fs.existsSync(att.file_path)) fs.unlinkSync(att.file_path);
+  const filePath = resolveAttachmentPath(att);
+  if (filePath) fs.unlinkSync(filePath);
   await db.run("delete from attachments where id=?", req.params.id);
   await logActivity(req.user, "DELETE_ATTACHMENT", "Lead", att?.lead_id || null, att?.filename || "", `Deleted attachment '${att?.filename || req.params.id}'`, att, null, "lead,attachment,delete");
   res.json({ success: true });
