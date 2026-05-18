@@ -11,8 +11,11 @@ const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
 const value = (v) => v || "N/A";
 const shortDateTime = (v) => v ? new Date(v).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+const joinAddress = (...parts) => parts.filter(Boolean).join(", ") || "N/A";
 const referralEditStatuses = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused"];
 const standardLeadStatuses = ["Initial Call", "Not Interested", "No Response", "Initial Referral Sent"];
+const leadStatusControls = ["Initial Call", "No Response", "Not Interested"];
+const referralStatusControls = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused"];
 const genderOptions = ["Male", "Female", "Other"];
 
 function DetailLine({ label, children }) {
@@ -289,12 +292,11 @@ export default function LeadCard({ lead, type, onChanged }) {
     ["Care Status", value(lead.care_status)],
     ["SOC Date", dateOnly(lead.soc_date)],
     ["Gender", value(lead.gender)],
-    ["Address", [lead.street, lead.city, lead.state, lead.zip_code].filter(Boolean).join(", ") || "N/A"],
+    ["Address", joinAddress(lead.street, lead.city, lead.state, lead.zip_code)],
     ["Emergency Contact", lead.e_contact_name || "N/A"]
   ];
   const summaryPairsRight = [
     ["Referral No.", value(lead.referral_id)],
-    ["Payer", value(lead.agency_name)],
     ["EC Phone", value(lead.e_contact_phone)],
     ["Relationship", value(lead.e_contact_relation)],
     ["Phone", value(lead.phone)],
@@ -344,6 +346,21 @@ export default function LeadCard({ lead, type, onChanged }) {
             <div><b><CalendarDays size={16} />Assigned Date</b><span>{dateOnly(lead.created_at)}</span></div>
             <div><b><UserRound size={16} />Owner</b><span>{value(lead.updated_by || lead.staff_name)}</span></div>
           </div>
+        </div>
+
+        <div className="lead-context-strip">
+          <article>
+            <b><Building2 size={17} /> Payor</b>
+            <strong>{value(lead.agency_name)}</strong>
+            <span>{value(lead.agency_phone)}</span>
+            <small>{value(lead.agency_address)}</small>
+          </article>
+          <article>
+            <b><Building2 size={17} /> CCU</b>
+            <strong>{value(lead.ccu_name)}</strong>
+            <span>{value(lead.ccu_phone)}</span>
+            <small>{joinAddress(lead.ccu_street, lead.ccu_city, lead.ccu_state, lead.ccu_zip_code)}</small>
+          </article>
         </div>
 
         <div className="lead-card-topline">
@@ -402,7 +419,25 @@ export default function LeadCard({ lead, type, onChanged }) {
           {lead.deleted_at && user.role === "admin" && <Button onClick={askPermanentDelete}>Permanent Delete</Button>}
           <Button onClick={showHistory}><History size={15} />History</Button>
         </div>
-        {type === "authorization" && !lead.deleted_at && <div className="status-controls">
+        {type !== "authorization" && !lead.deleted_at && canModify && (
+          <div className="status-controls">
+            <b>{type === "referral" ? "Referral Status:" : "Lead Status:"}</b>
+            {(type === "referral" ? referralStatusControls : leadStatusControls).map((status) => (
+              <Button
+                key={status}
+                active={lead.last_contact_status === status}
+                onClick={() => askUpdateLead({
+                  title: "Update Status?",
+                  message: `Do you want to set ${fullName}'s status to ${status}?`,
+                  data: { last_contact_status: status }
+                })}
+              >
+                {status}
+              </Button>
+            ))}
+          </div>
+        )}
+        {type === "authorization" && !lead.deleted_at && canModify && <div className="status-controls">
           <b>Manage Status:</b>
           {["Active", "Hold", "Terminated", "Deceased", "Transfer"].map((s) => <Button key={s} active={(s === "Active" && !["Hold", "Terminated", "Deceased", "Transfer Received"].includes(lead.care_status)) || lead.care_status === s || (s === "Transfer" && String(lead.care_status || "").includes("Transfer"))} onClick={() => askUpdateLead({ title: "Update Authorization Status?", message: `Do you want to set authorization status to ${s}?`, data: { care_status: s === "Active" ? null : s === "Transfer" ? "Transfer Received" : s, soc_date: s === "Active" ? lead.soc_date : null } })}>{s}</Button>)}
           <Button active={lead.care_status === "Care Start"} onClick={() => askUpdateLead({ title: "Mark Care Start?", message: `Do you want to mark Care Start for ${fullName}?`, data: { care_status: "Care Start" } })}>Care Start</Button>

@@ -212,6 +212,13 @@ const leadSelect = `select leads.*, agencies.name as agency_name, agencies.addre
   ccus.city as ccu_city, ccus.state as ccu_state, ccus.zip_code as ccu_zip_code, ccus.phone as ccu_phone,
   ccus.fax as ccu_fax, ccus.email as ccu_email, ccus.care_coordinator_name as ccu_care_coordinator_name
   from leads left join agencies on agencies.id = leads.agency_id left join ccus on ccus.id = leads.ccu_id`;
+const leadWriteFields = new Set([
+  "owner_id","staff_name","first_name","last_name","source","event_name","word_of_mouth_type","other_source_type",
+  "active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","care_status","priority",
+  "tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name",
+  "e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state",
+  "send_reminders","caregiver_type","referral_sent_date","deleted_at","deleted_by","call_status_updated_by","call_status_updated_at"
+]);
 
 function buildLeadQuery(q = {}, user) {
   const where = [];
@@ -484,18 +491,23 @@ async function notificationRows(user) {
   const reminderWhere = user.role === "admin"
     ? "deleted_at is null and coalesce(send_reminders,0) = 1"
     : "deleted_at is null and coalesce(send_reminders,0) = 1 and (owner_id = @ownerId or staff_name = @username)";
-  const reminders = await db.all(`select id,first_name,last_name,phone,updated_at,referral_sent_date,referral_type,active_client from leads where ${reminderWhere} order by updated_at desc limit 8`, { ownerId: user.user_id, username: user.username });
-  reminders.forEach((lead) => notifications.push({
-    id: `lead-reminder-${lead.id}`,
-    type: "Lead reminder",
-    title: `ID: ${lead.id} | ${`${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead"}`,
-    message: lead.active_client ? `Referral Sent: Please follow-up with this referral. (${lead.referral_type || "Regular"})${lead.phone ? ` Phone: ${lead.phone}` : ""}` : `Please follow-up with this lead.${lead.phone ? ` Phone: ${lead.phone}` : ""}`,
-    detail: lead.updated_at || lead.referral_sent_date || "",
-    due: lead.referral_sent_date || lead.updated_at || "",
-    icon: "lead",
-    link: `/view-leads?idSearch=${lead.id}`,
-    done: false
-  }));
+  const reminders = await db.all(`select id,first_name,last_name,phone,updated_at,referral_sent_date,referral_type,active_client,authorization_received,source,care_status from leads where ${reminderWhere} order by updated_at desc limit 8`, { ownerId: user.user_id, username: user.username });
+  reminders.forEach((lead) => {
+    const target = searchTargetForLead(lead);
+    const separator = target.targetUrl.includes("?") ? "&" : "?";
+    notifications.push({
+      id: `lead-reminder-${lead.id}`,
+      type: "Lead reminder",
+      title: `ID: ${lead.id} | ${`${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead"}`,
+      message: lead.active_client ? `Referral Sent: Please follow-up with this referral. (${lead.referral_type || "Regular"})${lead.phone ? ` Phone: ${lead.phone}` : ""}` : `Please follow-up with this lead.${lead.phone ? ` Phone: ${lead.phone}` : ""}`,
+      detail: lead.updated_at || lead.referral_sent_date || "",
+      due: lead.referral_sent_date || lead.updated_at || "",
+      icon: "lead",
+      link: `${target.targetUrl}${separator}globalSearch=true`,
+      targetPage: target.targetPage,
+      done: false
+    });
+  });
 
   const recentActivity = await db.all("select id,description,timestamp from activity_logs order by timestamp desc limit 5", );
   recentActivity.forEach((activity) => notifications.push({
@@ -590,9 +602,12 @@ app.post("/api/leads", auth, async (req, res) => {
 app.patch("/api/leads/:id", auth, async (req, res) => {
   const oldLead = await getLead(req.params.id, true);
   if (!oldLead) return res.status(404).json({ error: "Lead not found" });
-  const allowed = Object.keys(req.body).filter((k) => !["id", "created_at"].includes(k));
+  const allowed = Object.keys(req.body).filter((k) => leadWriteFields.has(k));
   if (!allowed.length) return res.json({ lead: oldLead });
-  const data = { ...req.body, id: req.params.id, updated_at: now(), updated_by: req.user.username };
+  const data = Object.fromEntries(allowed.map((key) => [key, req.body[key]]));
+  data.id = req.params.id;
+  data.updated_at = now();
+  data.updated_by = req.user.username;
   const sets = [...allowed, "updated_at", "updated_by"].map((k) => `${k} = @${k}`).join(",");
   await db.run(`update leads set ${sets} where id = @id`, data);
   const lead = await getLead(req.params.id, true);

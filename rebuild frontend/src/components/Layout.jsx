@@ -106,7 +106,7 @@ export default function Layout({ children }) {
 
   async function markOneRead(id) {
     await api.post("/notifications/read", { id });
-    setNotifications((items) => items.map((item) => item.id === id ? { ...item, read: true } : item));
+    setNotifications((items) => items.filter((item) => item.id !== id));
     setNotificationTotal((count) => Math.max(0, count - 1));
     notificationCountRef.current = Math.max(0, notificationCountRef.current - 1);
   }
