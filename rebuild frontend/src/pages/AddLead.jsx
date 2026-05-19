@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Field, PageHeader, Select } from "../components/Controls";
+import { Button, Field, Modal, PageHeader, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
-import { leadSources, leadStatuses, referralStatuses } from "../utils/constants";
+import { leadSources, leadStatuses, referralStatuses, uniqueCcuSuggestions } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast, refreshAppSignals } from "../utils/appEvents";
 
@@ -211,10 +211,29 @@ export default function AddLead() {
   }
 
   const isReferralSource = ["Direct Through CCU", "Transfer"].includes(form.source);
+  const duplicateLead = duplicate?.duplicate || duplicate?.deletedDuplicate;
+  const ccuSuggestions = uniqueCcuSuggestions(lookups.ccus, form.ccu_id);
   return <><PageHeader>Add New Lead</PageHeader>
     {message && <div className="error">{message}</div>}
     {ccuNotice && <div className="info">{ccuNotice}</div>}
-    {duplicate && <div className="warning-box"><b>{duplicate.error}</b><p>{duplicate.duplicate?.first_name || duplicate.deletedDuplicate?.first_name} {duplicate.duplicate?.last_name || duplicate.deletedDuplicate?.last_name} already exists{duplicate.duplicateKind ? ` as ${duplicate.duplicateKind}` : ""}. Duplicate leads are blocked by name and phone number.</p><Button variant="primary" onClick={() => navigate(existingLeadPath(duplicate.duplicate || duplicate.deletedDuplicate))}>Go to Existing Lead</Button></div>}
+    {duplicate && duplicateLead && <Modal title="Duplicate Lead Found" onClose={() => setDuplicate(null)}>
+      <div className="duplicate-lead-modal">
+        <div className="warning-box">
+          <b>{duplicate.error}</b>
+          <p>{duplicateLead.first_name} {duplicateLead.last_name} already exists{duplicate.duplicateKind ? ` as ${duplicate.duplicateKind}` : ""}. Duplicate leads are blocked by name and phone number, no matter the status.</p>
+        </div>
+        <div className="duplicate-lead-summary">
+          <span><b>ID</b>{duplicateLead.id}</span>
+          <span><b>Name</b>{duplicateLead.first_name} {duplicateLead.last_name}</span>
+          <span><b>Phone</b>{duplicateLead.phone || "N/A"}</span>
+          <span><b>Status</b>{duplicateLead.care_status || duplicateLead.last_contact_status || duplicate.duplicateKind || "Lead"}</span>
+        </div>
+        <div className="action-row">
+          <Button onClick={() => setDuplicate(null)}>Stay Here</Button>
+          <Button variant="primary" onClick={() => navigate(existingLeadPath(duplicateLead))}>Go to Existing Lead</Button>
+        </div>
+      </div>
+    </Modal>}
     <div className="form-panel">
       <h3>Lead Source</h3>
       <Field label="Source" required><Select value={form.source} onChange={(v) => patch("source", v)} options={leadSources} /></Field>
@@ -225,7 +244,7 @@ export default function AddLead() {
       {form.source === "Direct Through CCU" && <div className="source-block">
         <div className="two-col">
           <Field label="Payor" required><select value={form.agency_id || ""} onChange={(e) => patch("agency_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
-          <Field label="CCU"><select value={form.ccu_id || ""} onChange={(e) => patch("ccu_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.ccus.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+          <Field label="CCU"><select value={form.ccu_id || ""} onChange={(e) => patch("ccu_id", Number(e.target.value) || null)}><option value="">None</option>{ccuSuggestions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
         </div>
         {form.agency_id && lookups.agencySuboptions.filter((s) => Number(s.agency_id) === Number(form.agency_id)).length > 0 && <Field label="Select Suboption"><select value={form.agency_suboption_id || ""} onChange={(e) => patch("agency_suboption_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.agencySuboptions.filter((s) => Number(s.agency_id) === Number(form.agency_id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
         {form.ccu_id && <details className="inline-details entity-edit-dropdown" open={ccuDetailsOpen}>

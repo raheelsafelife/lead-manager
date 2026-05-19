@@ -589,6 +589,11 @@ textarea { min-height: 96px; resize: vertical; }
   font-size: 0.92rem;
   font-weight: 900;
 }
+.lead-profile-status.chicago {
+  background: #ecfeff;
+  color: #0e7490;
+  border-color: #67e8f9;
+}
 .lead-profile-contact-list {
   display: grid;
   gap: 10px;
@@ -666,6 +671,25 @@ textarea { min-height: 96px; resize: vertical; }
 .lead-context-strip small {
   font-size: .86rem;
   line-height: 1.45;
+}
+.lead-context-detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+.lead-context-detail span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: #26384f;
+  font-size: .9rem;
+  line-height: 1.3;
+}
+.lead-context-detail span b {
+  color: #64748b;
+  font-size: .72rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 .lead-card-topline { min-height: 78px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: center; padding: 2px 0 20px; border-bottom: 1px solid #e4eef4; }
 .card-tag-picker { margin: 0; align-items: center; color: #122231; flex-wrap: wrap; }
@@ -746,6 +770,144 @@ textarea { min-height: 96px; resize: vertical; }
 .two-col p { margin: 7px 0; }
 .warning-box, .error, .info { padding: 12px; border-radius: 6px; margin: 12px 0; font-weight: 700; }
 .warning-box { background: #fef3c7; border: 1px solid #f59e0b; color: #78350f; }
+.duplicate-lead-modal { display: grid; gap: 16px; }
+.duplicate-lead-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.duplicate-lead-summary span {
+  min-width: 0;
+  border: 1px solid #e5edf4;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #122231;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.duplicate-lead-summary b {
+  display: block;
+  color: #64748b;
+  font-size: .72rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.management-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.management-summary-grid div {
+  border: 1px solid #e5edf4;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 18px rgba(15,23,42,.04);
+}
+.management-summary-grid b {
+  display: block;
+  color: var(--primary);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+.management-summary-grid span {
+  display: block;
+  margin-top: 6px;
+  color: #52637c;
+  font-weight: 800;
+}
+.management-tools {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.management-tools h3 { margin: 0; }
+.management-tools input { max-width: 360px; }
+.muted-text {
+  margin: 0 0 12px;
+  color: #64748b;
+  font-weight: 700;
+}
+.ccu-duplicate-row small {
+  display: block;
+  color: #64748b;
+  font-weight: 800;
+  margin: 4px 0;
+}
+.ccu-duplicate-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #d9e6ef;
+  background: #fff;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.ccu-duplicate-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.ccu-duplicate-toolbar label {
+  min-width: 190px;
+  display: grid;
+  gap: 5px;
+}
+.ccu-duplicate-toolbar label span {
+  color: #52637c;
+  font-size: .82rem;
+  font-weight: 900;
+}
+.ccu-duplicate-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ccu-duplicate-head b,
+.ccu-preferred-option b {
+  display: block;
+  color: #122231;
+}
+.ccu-duplicate-head small,
+.ccu-duplicate-head > span,
+.ccu-preferred-option span {
+  display: block;
+  color: #64748b;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.ccu-duplicate-options {
+  display: grid;
+  gap: 8px;
+}
+.ccu-preferred-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e5edf4;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+}
+.ccu-preferred-option.preferred {
+  border-color: #7dd3fc;
+  background: #ecfeff;
+}
+.ccu-preferred-option > strong {
+  color: var(--primary);
+  background: #d7f7fb;
+  border-radius: 999px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
 .error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 .info { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
 .comments, .attachments, .history { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 12px; }
@@ -1366,7 +1528,7 @@ textarea { min-height: 96px; resize: vertical; }
 .leads-input-shell svg { color: #667085; }
 .archive-folder-switch {
   display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   gap: 14px;
   margin-top: 26px;
 }
@@ -1412,6 +1574,13 @@ textarea { min-height: 96px; resize: vertical; }
 .archive-folder-switch button.active.all {
   background: linear-gradient(180deg, #4f46e5 0%, #3730a3 100%);
   border-color: #3730a3;
+}
+.archive-folder-switch button.chicago {
+  border-color: #bae6fd;
+}
+.archive-folder-switch button.active.chicago {
+  background: linear-gradient(180deg, #0e7490 0%, #155e75 100%);
+  border-color: #155e75;
 }
 .leads-quick-filters {
   display: flex;
@@ -2007,6 +2176,7 @@ th { background: #f8fafc; color: var(--deep-blue); }
   }
   .lead-context-strip,
   .lead-information-columns,
+  .management-summary-grid,
   .lead-profile-facts {
     grid-template-columns: 1fr;
   }
@@ -2075,7 +2245,14 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .lead-row { grid-template-columns: 1fr; }
   .lead-card-shell.expanded .inline-status { grid-row: auto; grid-column: auto; justify-self: stretch; width: auto; margin: 8px 12px; }
   .lead-context-strip,
+  .lead-context-detail,
+  .duplicate-lead-summary,
   .lead-card-topline, .lead-info-grid, .lead-card-meta, .professional-lead-card .action-row, .comment-entry { grid-template-columns: 1fr; gap: 12px; }
+  .management-tools { flex-direction: column; align-items: stretch; }
+  .management-tools input { max-width: none; }
+  .ccu-duplicate-toolbar,
+  .ccu-duplicate-head { flex-direction: column; align-items: stretch; }
+  .ccu-preferred-option { grid-template-columns: 1fr; }
   .professional-lead-card { padding: 14px; }
   .lead-summary, .inline-status { border: 2px solid var(--aqua); border-radius: 10px; }
   .inline-status { margin-top: 6px; }

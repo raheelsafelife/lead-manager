@@ -15,7 +15,7 @@ import { Button, Select } from "../components/Controls";
 import LeadCard from "../components/LeadCard";
 import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
-import { caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
+import { caregiverTypes, referralStatuses, tagColors, uniqueCcuSuggestions } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
@@ -65,12 +65,13 @@ function readUrlFilters(search) {
 
 function pageSubtitle(type, discovery) {
   if (discovery) return "Search and explore matching leads quickly.";
-  if (type === "referral") return "Active referrals stay here. Closed or refused referrals live in Archive.";
-  if (type === "authorization") return "Active authorizations stay here. Hold, terminated and closed cases live in Archive.";
-  return "Active leads stay here. Closed, terminated or uninterested leads live in Archive.";
+  if (type === "referral") return "Active referrals stay here. Closed referrals live in Archive. Chicago referrals live in their own folder.";
+  if (type === "authorization") return "Active authorizations stay here. Closed cases live in Archive. Chicago referrals live in their own folder.";
+  return "Active leads stay here. Closed leads live in Archive. Chicago referrals live in their own folder.";
 }
 
 function folderCopy(active) {
+  if (active === "Chicago") return { title: "Chicago Referral Folder", summary: "Chicago Referral", empty: "No Chicago referrals found for these filters." };
   if (active === "Inactive") return { title: "Archive Folder", summary: "Archive", empty: "No archived records found for these filters." };
   if (active === "All") return { title: "All Records", summary: "All", empty: "No matching records found for these filters." };
   return { title: "Active Folder", summary: "Active", empty: "No active records found for these filters." };
@@ -87,6 +88,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const ccuFilterOptions = ["All", ...uniqueCcuSuggestions(lookups.ccus).map((entry) => entry.name)];
 
   const params = useMemo(() => ({
     ...filters,
@@ -246,7 +248,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
             <>
               <label className="leads-filter">
                 <span>CCU</span>
-                <Select value={filters.ccu} onChange={(value) => patch("ccu", value)} options={["All", ...lookups.ccus.map((entry) => entry.name)]} />
+                <Select value={filters.ccu} onChange={(value) => patch("ccu", value)} options={ccuFilterOptions} />
               </label>
               <label className="leads-filter">
                 <span>Payor</span>
@@ -265,6 +267,10 @@ export default function LeadsPage({ title, type, discovery = false }) {
             <button className={filters.active === "Inactive" ? "active archive" : "archive"} onClick={() => setFolder("Inactive")} type="button">
               <b>Archive Folder</b>
               <span>Closed and inactive</span>
+            </button>
+            <button className={filters.active === "Chicago" ? "active chicago" : "chicago"} onClick={() => setFolder("Chicago")} type="button">
+              <b>Chicago Referral</b>
+              <span>Chicago-only records</span>
             </button>
             {initialOptions.globalSearch && (
               <button className={filters.active === "All" ? "active all" : "all"} onClick={() => setFolder("All")} type="button">

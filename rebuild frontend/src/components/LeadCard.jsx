@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, downloadFile, previewUrl } from "../services/api";
 import { Button, Field, Modal, Select, StatusPill } from "./Controls";
 import { useConfirm } from "./ConfirmProvider";
-import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
+import { callStatuses, caregiverTypes, leadSources, uniqueCcuSuggestions } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
@@ -184,6 +184,16 @@ export default function LeadCard({ lead, type, onChanged }) {
     setEdit(true);
   }
 
+  function changeStaffName(username) {
+    const selected = lookups.approvedUsers.find((entry) => entry.username === username);
+    setForm({
+      ...form,
+      staff_name: username,
+      custom_user_id: selected?.user_id || form.custom_user_id || "",
+      owner_id: selected?.id || form.owner_id || null
+    });
+  }
+
   async function saveAgencyDetails() {
     if (!selectedAgencyId) return;
     await api.patch(`/agencies/${selectedAgencyId}`, agencyForm);
@@ -286,6 +296,7 @@ export default function LeadCard({ lead, type, onChanged }) {
   const initials = fullName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "LM";
   const commentRows = detail?.comments || [];
   const attachmentRows = detail?.attachments || [];
+  const ccuSuggestions = uniqueCcuSuggestions(lookups.ccus, selectedCcuId || lead.ccu_id);
   const summaryPairsLeft = [
     ["Employee ID", value(lead.custom_user_id)],
     ["Authorization", lead.authorization_received ? "Received" : "Pending"],
@@ -331,6 +342,7 @@ export default function LeadCard({ lead, type, onChanged }) {
                 <h3>{fullName}</h3>
                 <span className="lead-profile-id">ID: {lead.id}</span>
                 <span className="lead-profile-status">{mainStatus}</span>
+                {Number(lead.is_chicago_referral) === 1 && <span className="lead-profile-status chicago">Chicago Referral</span>}
               </div>
               <div className="lead-profile-contact-list">
                 <span><UserRound size={16} />{value(lead.staff_name)}</span>
@@ -352,14 +364,23 @@ export default function LeadCard({ lead, type, onChanged }) {
           <article>
             <b><Building2 size={17} /> Payor</b>
             <strong>{value(lead.agency_name)}</strong>
-            <span>{value(lead.agency_phone)}</span>
-            <small>{value(lead.agency_address)}</small>
+            <div className="lead-context-detail">
+              <span><b>Phone</b>{value(lead.agency_phone)}</span>
+              <span><b>Fax</b>{value(lead.agency_fax)}</span>
+              <span><b>Email</b>{value(lead.agency_email)}</span>
+              <span><b>Address</b>{value(lead.agency_address)}</span>
+            </div>
           </article>
           <article>
             <b><Building2 size={17} /> CCU</b>
             <strong>{value(lead.ccu_name)}</strong>
-            <span>{value(lead.ccu_phone)}</span>
-            <small>{joinAddress(lead.ccu_street, lead.ccu_city, lead.ccu_state, lead.ccu_zip_code)}</small>
+            <div className="lead-context-detail">
+              <span><b>Coordinator</b>{value(lead.ccu_care_coordinator_name)}</span>
+              <span><b>Phone</b>{value(lead.ccu_phone)}</span>
+              <span><b>Fax</b>{value(lead.ccu_fax)}</span>
+              <span><b>Email</b>{value(lead.ccu_email)}</span>
+              <span><b>Address</b>{joinAddress(lead.ccu_street, lead.ccu_city, lead.ccu_state, lead.ccu_zip_code)}</span>
+            </div>
           </article>
         </div>
 
@@ -411,6 +432,17 @@ export default function LeadCard({ lead, type, onChanged }) {
         </div>
         <div className="action-row">
           {!lead.deleted_at && canModify && <Button onClick={openEdit}>Edit Lead</Button>}
+          {!lead.deleted_at && canModify && (
+            <Button onClick={() => askUpdateLead({
+              title: Number(lead.is_chicago_referral) === 1 ? "Remove Chicago Referral?" : "Mark Chicago Referral?",
+              message: Number(lead.is_chicago_referral) === 1
+                ? `Do you want to remove ${fullName} from the Chicago Referral folder?`
+                : `Do you want to move ${fullName} to the Chicago Referral folder?`,
+              data: { is_chicago_referral: Number(lead.is_chicago_referral) === 1 ? 0 : 1 }
+            })}>
+              {Number(lead.is_chicago_referral) === 1 ? "Remove Chicago Referral" : "Mark Chicago Referral"}
+            </Button>
+          )}
           {!lead.deleted_at && canModify && !lead.active_client && <Button onClick={() => navigate(`/mark-referral/${lead.id}?from=${encodeURIComponent(location.pathname)}`)}>Mark Referral Sent</Button>}
           {!lead.deleted_at && type === "referral" && <Button onClick={() => askUpdateLead({ title: "Mark Authorization?", message: `Do you want to mark authorization for ${fullName}?`, data: { authorization_received: 1, active_client: 1, last_contact_status: "Care Start", care_status: "Care Start" } })}>Mark Authorization</Button>}
           {!lead.deleted_at && type === "authorization" && <Button onClick={() => askUpdateLead({ title: "Unmark Authorization?", message: `Do you want to unmark authorization for ${fullName}?`, data: { authorization_received: 0, care_status: null } })}>Unmark Authorization</Button>}
@@ -509,7 +541,13 @@ export default function LeadCard({ lead, type, onChanged }) {
             <div />
             <Field label="Email"><input value={form.email || ""} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
             <Field label="SSN"><input value={form.ssn || ""} onChange={(e) => setForm({ ...form, ssn: e.target.value })} /></Field>
-            <Field label="Staff Name"><input value={form.staff_name || ""} onChange={(e) => setForm({ ...form, staff_name: e.target.value })} /></Field>
+            <Field label="Staff Name">
+              <Select
+                value={form.staff_name || ""}
+                onChange={changeStaffName}
+                options={["", ...lookups.approvedUsers.map((entry) => entry.username)]}
+              />
+            </Field>
             <Field label="Medicaid #"><input value={form.medicaid_no || ""} onChange={(e) => setForm({ ...form, medicaid_no: e.target.value })} /></Field>
             <Field label="Source"><Select value={form.source || leadSources[0]} onChange={(value) => setForm({ ...form, source: value })} options={leadSources} /></Field>
             <Field label="Emergency Contact"><input value={form.e_contact_name || ""} onChange={(e) => setForm({ ...form, e_contact_name: e.target.value })} /></Field>
@@ -562,7 +600,7 @@ export default function LeadCard({ lead, type, onChanged }) {
                     setCcuDetailsOpen(Boolean(nextValue));
                   }}>
                     <option value="none">None</option>
-                    {lookups.ccus.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                    {ccuSuggestions.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                   </select>
                 </Field>
                 {selectedCcuId && (
