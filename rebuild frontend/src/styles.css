@@ -757,6 +757,47 @@ textarea { min-height: 96px; resize: vertical; }
   display: grid;
   gap: 12px;
 }
+.comments-dropdown {
+  border: 1px solid #dbe8f0;
+  border-radius: 12px;
+  background: #f8fbfd;
+  overflow: hidden;
+}
+.comments-dropdown summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 14px;
+  color: #0b5d73;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.comments-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+.comments-dropdown summary::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .18s ease;
+  flex: 0 0 auto;
+}
+.comments-dropdown[open] summary::after {
+  transform: rotate(225deg);
+}
+.comments-dropdown-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+.comments-dropdown .comment-card {
+  margin: 0;
+}
 .lead-comments-empty {
   min-height: 260px;
   display: grid;

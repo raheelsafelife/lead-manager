@@ -295,6 +295,8 @@ export default function LeadCard({ lead, type, onChanged }) {
   const mainStatus = lead.care_status || lead.last_contact_status || (lead.authorization_received ? "Authorization" : lead.active_client ? "Referral" : "Lead");
   const initials = fullName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "LM";
   const commentRows = detail?.comments || [];
+  const visibleComments = commentRows.slice(0, 2);
+  const olderComments = commentRows.slice(2);
   const attachmentRows = detail?.attachments || [];
   const summaryPairsLeft = [
     ["Employee ID", value(lead.custom_user_id)],
@@ -406,13 +408,27 @@ export default function LeadCard({ lead, type, onChanged }) {
             <h3><MessageSquare size={18} /> Comments</h3>
             {commentRows.length ? (
               <div className="lead-comments-preview">
-                {commentRows.slice(0, 2).map((entry) => (
+                {visibleComments.map((entry) => (
                   <div className="comment-card" key={entry.id}>
                     <b>{entry.username}</b>
                     <time>{fmt(entry.created_at)}</time>
                     <p>{entry.content}</p>
                   </div>
                 ))}
+                {olderComments.length > 0 && (
+                  <details className="comments-dropdown">
+                    <summary>Show {olderComments.length} older comment{olderComments.length === 1 ? "" : "s"}</summary>
+                    <div className="comments-dropdown-list">
+                      {olderComments.map((entry) => (
+                        <div className="comment-card" key={entry.id}>
+                          <b>{entry.username}</b>
+                          <time>{fmt(entry.created_at)}</time>
+                          <p>{entry.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
               </div>
             ) : (
               <div className="lead-comments-empty">
