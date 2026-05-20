@@ -15,7 +15,7 @@ import { Button, Select } from "../components/Controls";
 import LeadCard from "../components/LeadCard";
 import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
-import { caregiverTypes, referralStatuses, tagColors, uniqueCcuSuggestions } from "../utils/constants";
+import { caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
@@ -88,7 +88,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const ccuFilterOptions = ["All", ...uniqueCcuSuggestions(lookups.ccus).map((entry) => entry.name)];
+  const ccuFilterOptions = ["All", ...lookups.ccus.map((entry) => entry.name)];
 
   const params = useMemo(() => ({
     ...filters,

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, downloadFile, previewUrl } from "../services/api";
 import { Button, Field, Modal, Select, StatusPill } from "./Controls";
 import { useConfirm } from "./ConfirmProvider";
-import { callStatuses, caregiverTypes, leadSources, uniqueCcuSuggestions } from "../utils/constants";
+import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
@@ -296,7 +296,6 @@ export default function LeadCard({ lead, type, onChanged }) {
   const initials = fullName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "LM";
   const commentRows = detail?.comments || [];
   const attachmentRows = detail?.attachments || [];
-  const ccuSuggestions = uniqueCcuSuggestions(lookups.ccus, selectedCcuId || lead.ccu_id);
   const summaryPairsLeft = [
     ["Employee ID", value(lead.custom_user_id)],
     ["Authorization", lead.authorization_received ? "Received" : "Pending"],
@@ -600,7 +599,7 @@ export default function LeadCard({ lead, type, onChanged }) {
                     setCcuDetailsOpen(Boolean(nextValue));
                   }}>
                     <option value="none">None</option>
-                    {ccuSuggestions.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                    {lookups.ccus.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                   </select>
                 </Field>
                 {selectedCcuId && (

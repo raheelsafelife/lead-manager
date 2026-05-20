@@ -4,7 +4,7 @@ import { ChevronLeft, Plus, Save } from "lucide-react";
 import { Button, Field, Modal, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
-import { caregiverTypes, uniqueCcuSuggestions } from "../utils/constants";
+import { caregiverTypes } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { WorkflowSkeleton } from "../components/Skeleton";
 
@@ -45,8 +45,6 @@ export default function MarkReferralPage() {
     ccu_id: "",
     send_reminders: true
   });
-  const ccuSuggestions = uniqueCcuSuggestions(lookups.ccus, form.ccu_id);
-
   const canEdit = useMemo(() => lead && (user.role === "admin" || lead.staff_name === user.username), [lead, user]);
 
   useEffect(() => {
@@ -343,7 +341,7 @@ export default function MarkReferralPage() {
               setCcuDetailsOpen(Boolean(nextValue));
             }}>
               <option value="none">None</option>
-              {ccuSuggestions.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+              {lookups.ccus.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
             </select>
             {form.ccu_id && (
               <>

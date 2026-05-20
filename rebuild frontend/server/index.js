@@ -40,10 +40,6 @@ if (db.mode === "sqlite") {
   if (leadColumns.length && !leadColumns.includes("is_chicago_referral")) {
     db.exec("alter table leads add column is_chicago_referral integer not null default 0");
   }
-  const ccuColumns = db.columns("ccus");
-  if (ccuColumns.length && !ccuColumns.includes("is_preferred_suggestion")) {
-    db.exec("alter table ccus add column is_preferred_suggestion integer not null default 0");
-  }
 }
 
 const app = express();
@@ -71,21 +67,6 @@ const publicUser = (u, options = {}) => u && ({
   ...(options.profile ? { profile_pic: u.profile_pic } : {})
 });
 const normalizePhone = (value = "") => String(value || "").replace(/\D/g, "");
-const normalizeNameKey = (value = "") => String(value || "")
-  .toLowerCase()
-  .replace(/\([^)]*\)/g, " ")
-  .replace(/&/g, " and ")
-  .replace(/\b(dept|department)\b/g, "department")
-  .replace(/\b(co|company)\b/g, "company")
-  .replace(/\b(inc|llc|ltd|corp|corporation)\b/g, "")
-  .replace(/[^a-z0-9]+/g, " ")
-  .replace(/\b(area|county|case|coordination|coordinating|program|programs|office|diocese|of|the|and)\b/g, " ")
-  .replace(/\b(north|south|east|west|northern|southern|central|regular|nwss|nenw|oas|ssss|swss|nw|ne|se|sw)\b/g, " ")
-  .replace(/\b(aurora|elgin|kendall|kankakee|joliet|lake|schaumburg|will)\b/g, " ")
-  .replace(/\b(ass|assoc|association)\b/g, " ")
-  .replace(/\b\d+\b/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
 
 const cache = new Map();
 function cacheKey(name, parts = []) {
@@ -1057,46 +1038,6 @@ app.patch("/api/ccus/:id", auth, async (req, res) => {
   const ccu = await db.get("select * from ccus where id=?", req.params.id);
   await logActivity(req.user, "UPDATE_CCU", "CCU", Number(req.params.id), ccu?.name || "", `Updated CCU '${ccu?.name || req.params.id}'`, oldCcu, ccu, "ccu,update");
   res.json({ success: true });
-});
-
-app.get("/api/ccus/duplicates", auth, admin, async (req, res) => {
-  const ccus = await db.all("select * from ccus order by lower(trim(name)), id", );
-  const leadCounts = await db.all("select ccu_id, count(*) as count from leads where ccu_id is not null group by ccu_id", );
-  const countById = Object.fromEntries(leadCounts.map((row) => [String(row.ccu_id), row.count]));
-  const groups = Object.values(ccus.reduce((acc, ccu) => {
-    const key = normalizeNameKey(ccu.name);
-    if (!key) return acc;
-    if (!acc[key]) acc[key] = { key, name: ccu.name, normalizedName: key, items: [] };
-    acc[key].items.push({ ...ccu, lead_count: countById[String(ccu.id)] || 0 });
-    return acc;
-  }, {})).filter((group) => group.items.length > 1);
-  res.json({ groups });
-});
-
-app.post("/api/ccus/:id/preferred-suggestion", auth, admin, async (req, res) => {
-  const preferred = await db.get("select * from ccus where id=?", req.params.id);
-  if (!preferred) return res.status(404).json({ error: "CCU not found" });
-  const key = normalizeNameKey(preferred.name);
-  if (!key) return res.status(400).json({ error: "CCU name is required" });
-  const ccus = await db.all("select * from ccus", );
-  const groupIds = ccus.filter((ccu) => normalizeNameKey(ccu.name) === key).map((ccu) => Number(ccu.id));
-  if (!groupIds.length) return res.status(400).json({ error: "No matching CCU group found" });
-  await db.run(`update ccus set is_preferred_suggestion=0, updated_at=@updated_at, updated_by=@updated_by where id in (${groupIds.map((_, i) => `@id${i}`).join(",")})`, {
-    updated_at: now(),
-    updated_by: req.user.username,
-    ...Object.fromEntries(groupIds.map((id, i) => [`id${i}`, id]))
-  });
-  await db.run("update ccus set is_preferred_suggestion=1, updated_at=@updated_at, updated_by=@updated_by where id=@id", {
-    id: Number(preferred.id),
-    updated_at: now(),
-    updated_by: req.user.username
-  });
-  await logActivity(req.user, "PREFERRED_CCU", "CCU", Number(preferred.id), preferred.name, `Marked '${preferred.name}' as the preferred CCU suggestion for future leads`, null, { preferredId: preferred.id, groupIds }, "ccu,preferred,suggestion");
-  res.json({ success: true, preferredId: Number(preferred.id), groupIds });
-});
-
-app.post("/api/ccus/merge", auth, admin, async (req, res) => {
-  res.status(400).json({ error: "CCU merge is disabled. Duplicate CCUs are cleaned in suggestions only so existing lead, referral, and authorization records keep their saved CCU information." });
 });
 
 app.delete("/api/admin/:type/:id", auth, admin, async (req, res) => {

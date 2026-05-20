@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertOctagon, ExternalLink } from "lucide-react";
 import { Button, Field, Modal, PageHeader, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
-import { leadSources, leadStatuses, referralStatuses, uniqueCcuSuggestions } from "../utils/constants";
+import { leadSources, leadStatuses, referralStatuses } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast, refreshAppSignals } from "../utils/appEvents";
 
@@ -23,6 +24,26 @@ function existingLeadPath(lead) {
   }
   if (Number(lead.active_client) === 1) return `/referrals?${query.toString()}`;
   return `/view-leads?${query.toString()}`;
+}
+
+function duplicateStatus(lead) {
+  if (!lead) return "Lead";
+  if (Number(lead.authorization_received) === 1) return lead.care_status || "Authorization";
+  if (Number(lead.active_client) === 1) return lead.last_contact_status || "Referral";
+  return lead.last_contact_status || "Lead";
+}
+
+function duplicateFolderLabel(lead) {
+  const status = duplicateStatus(lead);
+  if (Number(lead.authorization_received) === 1) return status;
+  if (Number(lead.active_client) === 1) return status;
+  return status;
+}
+
+function duplicateBucket(lead) {
+  const status = duplicateStatus(lead);
+  if (["Initial Call", "No Response", "Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Care Start", "Not Start", "Transfer", "Transfer Received"].includes(status)) return "Active";
+  return "Inactive";
 }
 
 export default function AddLead() {
@@ -212,25 +233,32 @@ export default function AddLead() {
 
   const isReferralSource = ["Direct Through CCU", "Transfer"].includes(form.source);
   const duplicateLead = duplicate?.duplicate || duplicate?.deletedDuplicate;
-  const ccuSuggestions = uniqueCcuSuggestions(lookups.ccus, form.ccu_id);
   return <><PageHeader>Add New Lead</PageHeader>
     {message && <div className="error">{message}</div>}
     {ccuNotice && <div className="info">{ccuNotice}</div>}
-    {duplicate && duplicateLead && <Modal title="Duplicate Lead Found" onClose={() => setDuplicate(null)}>
+    {duplicate && duplicateLead && <Modal onClose={() => setDuplicate(null)}>
       <div className="duplicate-lead-modal">
-        <div className="warning-box">
-          <b>{duplicate.error}</b>
-          <p>{duplicateLead.first_name} {duplicateLead.last_name} already exists{duplicate.duplicateKind ? ` as ${duplicate.duplicateKind}` : ""}. Duplicate leads are blocked by name and phone number, no matter the status.</p>
+        <div className="duplicate-lead-heading">
+          <AlertOctagon size={42} />
+          <h2>Duplicate Lead Detected!</h2>
         </div>
+        <div className="duplicate-lead-alert">
+          <p><b>{duplicateLead.first_name} {duplicateLead.last_name}</b> already exists as {duplicateStatus(duplicateLead)}.</p>
+          <p>Duplicate leads are blocked by the system by default.</p>
+        </div>
+        <h3 className="duplicate-lead-section-title">Information</h3>
         <div className="duplicate-lead-summary">
           <span><b>ID</b>{duplicateLead.id}</span>
           <span><b>Name</b>{duplicateLead.first_name} {duplicateLead.last_name}</span>
-          <span><b>Phone</b>{duplicateLead.phone || "N/A"}</span>
-          <span><b>Status</b>{duplicateLead.care_status || duplicateLead.last_contact_status || duplicate.duplicateKind || "Lead"}</span>
+          <span><b>DOB</b>{duplicateLead.dob || "N/A"}</span>
+          <span><b>Phone Number</b>{duplicateLead.phone || "N/A"}</span>
+          <span><b>State</b>{duplicateLead.state || "N/A"}</span>
+          <span><b>Status</b>{duplicateBucket(duplicateLead)}</span>
         </div>
-        <div className="action-row">
-          <Button onClick={() => setDuplicate(null)}>Stay Here</Button>
-          <Button variant="primary" onClick={() => navigate(existingLeadPath(duplicateLead))}>Go to Existing Lead</Button>
+        <div className="duplicate-lead-actions">
+          <Button variant="primary" onClick={() => navigate(existingLeadPath(duplicateLead))}>
+            <ExternalLink size={20} /> Take me to {duplicateFolderLabel(duplicateLead)}
+          </Button>
         </div>
       </div>
     </Modal>}
@@ -244,7 +272,7 @@ export default function AddLead() {
       {form.source === "Direct Through CCU" && <div className="source-block">
         <div className="two-col">
           <Field label="Payor" required><select value={form.agency_id || ""} onChange={(e) => patch("agency_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.agencies.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
-          <Field label="CCU"><select value={form.ccu_id || ""} onChange={(e) => patch("ccu_id", Number(e.target.value) || null)}><option value="">None</option>{ccuSuggestions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+          <Field label="CCU"><select value={form.ccu_id || ""} onChange={(e) => patch("ccu_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.ccus.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
         </div>
         {form.agency_id && lookups.agencySuboptions.filter((s) => Number(s.agency_id) === Number(form.agency_id)).length > 0 && <Field label="Select Suboption"><select value={form.agency_suboption_id || ""} onChange={(e) => patch("agency_suboption_id", Number(e.target.value) || null)}><option value="">None</option>{lookups.agencySuboptions.filter((s) => Number(s.agency_id) === Number(form.agency_id)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
         {form.ccu_id && <details className="inline-details entity-edit-dropdown" open={ccuDetailsOpen}>
