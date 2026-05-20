@@ -999,6 +999,16 @@ app.delete("/api/users/:id", auth, admin, async (req, res) => {
 app.post("/api/admin/:type", auth, admin, async (req, res) => {
   const table = { event: "events", agency: "agencies", ccu: "ccus" }[req.params.type];
   if (!table) return res.status(400).json({ error: "Bad type" });
+  const name = String(req.body.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Name is required" });
+  const duplicate = table === "events"
+    ? await db.get("select id from events where lower(event_name)=lower(?)", name)
+    : await db.get(`select id from ${table} where lower(name)=lower(?)`, name);
+  if (duplicate) {
+    const label = req.params.type === "agency" ? "Payor" : req.params.type === "ccu" ? "CCU" : "Event";
+    return res.status(409).json({ error: `${label} already exists` });
+  }
+  req.body.name = name;
   if (table === "events") await db.run("insert into events (event_name,created_at,created_by) values (?,?,?)", req.body.name, now(), req.user.username);
   if (table === "agencies") await db.run("insert into agencies (name,address,phone,fax,email,created_at,created_by) values (@name,@address,@phone,@fax,@email,@created_at,@created_by)", { ...req.body, created_at: now(), created_by: req.user.username });
   if (table === "ccus") await db.run("insert into ccus (name,street,city,state,zip_code,phone,fax,email,care_coordinator_name,created_at,created_by) values (@name,@street,@city,@state,@zip_code,@phone,@fax,@email,@care_coordinator_name,@created_at,@created_by)", { ...req.body, created_at: now(), created_by: req.user.username });
