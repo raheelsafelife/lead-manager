@@ -522,18 +522,36 @@ async function notificationRows(user) {
     });
   });
 
-  const recentActivity = await db.all("select id,description,timestamp from activity_logs order by timestamp desc limit 5", );
-  recentActivity.forEach((activity) => notifications.push({
-    id: `activity-${activity.id}`,
-    type: "Activity",
-    title: "Recent activity",
-    message: activity.description || "Recent activity",
-    detail: activity.timestamp || "",
-    due: activity.timestamp || "",
-    icon: "activity",
-    link: "/activity",
-    done: true
-  }));
+  const recentActivity = await db.all("select id,action_type,entity_type,entity_id,entity_name,description,timestamp from activity_logs order by timestamp desc limit 5", );
+  for (const activity of recentActivity) {
+    let link = "/activity";
+    let targetPage = "Activity Logs";
+    let title = activity.entity_id && activity.entity_name
+      ? `ID: ${activity.entity_id} | ${activity.entity_name}`
+      : activity.entity_name || "Recent activity";
+    if (activity.entity_type === "Lead" && activity.entity_id) {
+      const lead = await db.get("select id,first_name,last_name,active_client,authorization_received,source,care_status from leads where id=?", activity.entity_id);
+      if (lead) {
+        const target = searchTargetForLead(lead);
+        const separator = target.targetUrl.includes("?") ? "&" : "?";
+        link = `${target.targetUrl}${separator}globalSearch=true`;
+        targetPage = target.targetPage;
+        title = `ID: ${lead.id} | ${`${lead.first_name || ""} ${lead.last_name || ""}`.trim() || activity.entity_name || "Lead"}`;
+      }
+    }
+    notifications.push({
+      id: `activity-${activity.id}`,
+      type: "Activity",
+      title,
+      message: activity.description || activity.action_type || "Recent activity",
+      detail: activity.timestamp || "",
+      due: activity.timestamp || "",
+      icon: "activity",
+      link,
+      targetPage,
+      done: true
+    });
+  }
 
   return notifications.slice(0, 12);
 }
@@ -663,8 +681,9 @@ app.delete("/api/leads/:id", auth, admin, async (req, res) => {
 });
 
 app.post("/api/leads/:id/comment", auth, async (req, res) => {
+  const lead = await db.get("select id,first_name,last_name from leads where id=?", req.params.id);
   const result = await db.run("insert into lead_comments (lead_id,username,content,created_at) values (?,?,?,?)", req.params.id, req.user.username, req.body.content, now());
-  await logActivity(req.user, "ADD_COMMENT", "Lead", Number(req.params.id), "", "Added comment", null, { content: req.body.content }, "lead,comment");
+  await logActivity(req.user, "ADD_COMMENT", "Lead", Number(req.params.id), lead ? `${lead.first_name || ""} ${lead.last_name || ""}`.trim() : "", "Added comment", null, { content: req.body.content }, "lead,comment");
   res.status(201).json({ comment: await db.get("select * from lead_comments where id=?", result.lastInsertRowid) });
 });
 
