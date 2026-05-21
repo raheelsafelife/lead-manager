@@ -938,6 +938,126 @@ textarea { min-height: 96px; resize: vertical; }
 }
 .management-tools h3 { margin: 0; }
 .management-tools input { max-width: 360px; }
+.management-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.ccu-entry-panel {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dbe8f0;
+  background: linear-gradient(180deg, #f9fdff 0%, #fff 100%);
+  border-radius: 16px;
+  padding: 18px;
+  margin: 14px 0 18px;
+}
+.ccu-entry-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e4eef4;
+  padding-bottom: 14px;
+}
+.ccu-entry-head h4,
+.ccu-directory-head h4 {
+  margin: 0;
+  color: #122231;
+  font-size: 1.15rem;
+}
+.ccu-entry-head p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.ccu-entry-head span,
+.ccu-directory-head span {
+  color: #0b5d73;
+  background: #e6fbff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.ccu-form-section {
+  display: grid;
+  gap: 10px;
+}
+.ccu-form-section h5 {
+  margin: 0;
+  color: #41536f;
+  font-size: .86rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.ccu-form-grid {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  margin: 0;
+}
+.ccu-add-button {
+  justify-self: start;
+  min-width: 180px;
+}
+.ccu-directory-list {
+  display: grid;
+  gap: 12px;
+}
+.ccu-directory-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.ccu-directory-card {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(0, 2fr) auto;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid #e1edf4;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(15,23,42,.04);
+}
+.ccu-directory-main strong {
+  display: block;
+  color: #122231;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.ccu-directory-main span {
+  display: inline-block;
+  margin-top: 8px;
+  color: #64748b;
+  font-weight: 800;
+  font-size: .82rem;
+}
+.ccu-directory-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 10px 14px;
+}
+.ccu-directory-details p {
+  margin: 0;
+  color: #122231;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ccu-directory-details p.wide {
+  grid-column: 1 / -1;
+}
+.ccu-directory-details b {
+  display: block;
+  color: #64748b;
+  font-size: .75rem;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
 .muted-text {
   margin: 0 0 12px;
   color: #64748b;
@@ -2253,8 +2373,12 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .lead-context-strip,
   .lead-information-columns,
   .management-summary-grid,
+  .ccu-directory-card,
   .lead-profile-facts {
     grid-template-columns: 1fr;
+  }
+  .ccu-directory-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .lead-information-list p {
     grid-template-columns: minmax(118px, 34%) minmax(0, 1fr);
@@ -2275,7 +2399,7 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .top-avatar { width: 56px; height: 56px; }
   .profile-copy strong { font-size: 18px; }
   .profile-copy small { font-size: 13px; }
-  .chart-grid, .stats, .two-col, .filter-grid, .form-grid, .edit-grid, .report-grid, .profile-grid, .activity-filters, .activity-log-details-grid, .leads-filter-grid, .reports-generator-grid, .reports-metrics-grid, .reports-analysis-grid, .reports-chart-grid { grid-template-columns: 1fr; }
+  .chart-grid, .stats, .two-col, .filter-grid, .form-grid, .edit-grid, .report-grid, .profile-grid, .activity-filters, .activity-log-details-grid, .leads-filter-grid, .reports-generator-grid, .reports-metrics-grid, .reports-analysis-grid, .reports-chart-grid, .ccu-form-grid, .ccu-directory-details { grid-template-columns: 1fr; }
   .skeleton-stat-grid,
   .skeleton-report-controls,
   .skeleton-donut-layout,
@@ -2326,6 +2450,11 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .lead-card-topline, .lead-info-grid, .lead-card-meta, .professional-lead-card .action-row, .comment-entry { grid-template-columns: 1fr; gap: 12px; }
   .management-tools { flex-direction: column; align-items: stretch; }
   .management-tools input { max-width: none; }
+  .ccu-entry-head,
+  .ccu-directory-head { flex-direction: column; align-items: stretch; }
+  .ccu-entry-head span,
+  .ccu-directory-head span { width: fit-content; }
+  .ccu-directory-card .btn { width: 100%; }
   .professional-lead-card { padding: 14px; }
   .lead-summary, .inline-status { border: 2px solid var(--aqua); border-radius: 10px; }
   .inline-status { margin-top: 6px; }
