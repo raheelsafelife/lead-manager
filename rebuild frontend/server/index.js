@@ -566,9 +566,10 @@ async function notificationsPayload(user) {
     db.all("select notification_id from notification_reads where user_id=?", user.user_id)
   ]);
   const readIds = new Set(readRows.map((row) => row.notification_id));
-  const notifications = all.map((item) => ({ ...item, read: readIds.has(item.id) }));
-  const unreadCount = notifications.filter((item) => !item.read).length;
-  return { count: unreadCount, notifications, total: all.length };
+  const notifications = all
+    .filter((item) => !readIds.has(item.id))
+    .map((item) => ({ ...item, read: false }));
+  return { count: notifications.length, notifications, total: notifications.length };
 }
 
 app.get("/api/bootstrap", auth, async (req, res) => {
