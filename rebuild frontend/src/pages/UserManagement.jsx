@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy } from "lucide-react";
+import { Copy, Pencil } from "lucide-react";
 import { Button, Field, PageHeader, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
@@ -15,10 +15,12 @@ export default function UserManagement() {
   const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("Pending Users");
   const [newItem, setNewItem] = useState({ type: "event", name: "", address: "", phone: "", fax: "", email: "", street: "", city: "", state: "IL", zip_code: "", care_coordinator_name: "" });
-  const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", password: "", confirm: "", role: "user" });
+const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", password: "", confirm: "", role: "user" });
   const [resetPasswords, setResetPasswords] = useState({});
   const [managementSearch, setManagementSearch] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
+  const [editingCcuId, setEditingCcuId] = useState(null);
+  const [ccuEditForm, setCcuEditForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
   function load() {
     api.get("/lookups")
       .then((res) => {
@@ -115,6 +117,39 @@ export default function UserManagement() {
       cancelText: "No",
       variant: "danger",
       onConfirm: () => deleteItem(type, item.id)
+    });
+  }
+  function startEditCcu(item) {
+    setEditingCcuId(item.id);
+    setCcuEditForm({
+      name: item.name || "",
+      street: item.street || "",
+      city: item.city || "",
+      state: item.state || "IL",
+      zip_code: item.zip_code || "",
+      phone: item.phone || "",
+      fax: item.fax || "",
+      email: item.email || "",
+      care_coordinator_name: item.care_coordinator_name || ""
+    });
+  }
+  function cancelEditCcu() {
+    setEditingCcuId(null);
+    setCcuEditForm({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
+  }
+  async function saveCcu(item) {
+    await api.patch(`/ccus/${item.id}`, ccuEditForm);
+    cancelEditCcu();
+    load();
+  }
+  function askSaveCcu(item) {
+    if (!ccuEditForm.name.trim()) return;
+    confirmAction({
+      title: "Update CCU?",
+      message: `Do you want to update ${item.name}?`,
+      confirmText: "Yes",
+      cancelText: "No",
+      onConfirm: () => saveCcu(item)
     });
   }
   async function copyContact(label, text, key) {
@@ -228,22 +263,49 @@ export default function UserManagement() {
               <h4>Saved CCUs</h4>
               <span>Showing {filteredManagedItems.length} of {lookups.ccus.length}</span>
             </div>
-            {filteredManagedItems.length ? filteredManagedItems.map((item) => (
-              <div className="ccu-directory-card" key={item.id}>
+            {filteredManagedItems.length ? filteredManagedItems.map((item) => {
+              const isEditing = editingCcuId === item.id;
+              return (
+              <div className={`ccu-directory-card ${isEditing ? "editing" : ""}`} key={item.id}>
                 <div className="ccu-directory-main">
                   <strong>{item.name}</strong>
                   <span>ID #{item.id}</span>
                 </div>
-                <div className="ccu-directory-details">
-                  <p><b>Coordinator</b><CopyField label="Coordinator" value={item.care_coordinator_name} copyKey={`ccu-${item.id}-coordinator`} /></p>
-                  <p><b>Phone</b><CopyField label="CCU phone" value={item.phone} copyKey={`ccu-${item.id}-phone`} /></p>
-                  <p><b>Fax</b><CopyField label="CCU fax" value={item.fax} copyKey={`ccu-${item.id}-fax`} /></p>
-                  <p><b>Email</b><CopyField label="CCU email" value={item.email} copyKey={`ccu-${item.id}-email`} /></p>
-                  <p className="wide"><b>Address</b><CopyField label="CCU address" value={ccuAddress(item) === "Not added" ? "" : ccuAddress(item)} copyKey={`ccu-${item.id}-address`} /></p>
+                {isEditing ? (
+                  <div className="ccu-edit-grid">
+                    <Field label="CCU Name"><input value={ccuEditForm.name} onChange={(e) => setCcuEditForm({ ...ccuEditForm, name: e.target.value })} /></Field>
+                    <Field label="Coordinator"><input value={ccuEditForm.care_coordinator_name} onChange={(e) => setCcuEditForm({ ...ccuEditForm, care_coordinator_name: e.target.value })} /></Field>
+                    <Field label="Phone"><input value={ccuEditForm.phone} onChange={(e) => setCcuEditForm({ ...ccuEditForm, phone: e.target.value })} /></Field>
+                    <Field label="Fax"><input value={ccuEditForm.fax} onChange={(e) => setCcuEditForm({ ...ccuEditForm, fax: e.target.value })} /></Field>
+                    <Field label="Email"><input value={ccuEditForm.email} onChange={(e) => setCcuEditForm({ ...ccuEditForm, email: e.target.value })} /></Field>
+                    <Field label="Street"><input value={ccuEditForm.street} onChange={(e) => setCcuEditForm({ ...ccuEditForm, street: e.target.value })} /></Field>
+                    <Field label="City"><input value={ccuEditForm.city} onChange={(e) => setCcuEditForm({ ...ccuEditForm, city: e.target.value })} /></Field>
+                    <Field label="State"><input value={ccuEditForm.state} maxLength={2} onChange={(e) => setCcuEditForm({ ...ccuEditForm, state: e.target.value })} /></Field>
+                    <Field label="ZIP Code"><input value={ccuEditForm.zip_code} onChange={(e) => setCcuEditForm({ ...ccuEditForm, zip_code: e.target.value })} /></Field>
+                  </div>
+                ) : (
+                  <div className="ccu-directory-details">
+                    <p><b>Coordinator</b><CopyField label="Coordinator" value={item.care_coordinator_name} copyKey={`ccu-${item.id}-coordinator`} /></p>
+                    <p><b>Phone</b><CopyField label="CCU phone" value={item.phone} copyKey={`ccu-${item.id}-phone`} /></p>
+                    <p><b>Fax</b><CopyField label="CCU fax" value={item.fax} copyKey={`ccu-${item.id}-fax`} /></p>
+                    <p><b>Email</b><CopyField label="CCU email" value={item.email} copyKey={`ccu-${item.id}-email`} /></p>
+                    <p className="wide"><b>Address</b><CopyField label="CCU address" value={ccuAddress(item) === "Not added" ? "" : ccuAddress(item)} copyKey={`ccu-${item.id}-address`} /></p>
+                  </div>
+                )}
+                <div className="ccu-directory-actions">
+                  {isEditing ? (
+                    <>
+                      <Button variant="primary" onClick={() => askSaveCcu(item)}>Save</Button>
+                      <Button onClick={cancelEditCcu}>Cancel</Button>
+                    </>
+                  ) : (
+                    <Button onClick={() => startEditCcu(item)}><Pencil size={15} />Edit</Button>
+                  )}
+                  <Button onClick={() => askDeleteItem("ccu", item)}>Delete</Button>
                 </div>
-                <Button onClick={() => askDeleteItem("ccu", item)}>Delete</Button>
               </div>
-            )) : <div className="info">No CCUs match your search.</div>}
+              );
+            }) : <div className="info">No CCUs match your search.</div>}
           </div>
         </>
       ) : (
