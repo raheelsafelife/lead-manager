@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
+import { Copy } from "lucide-react";
 import { Button, Field, PageHeader, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
+import { emitToast } from "../utils/appEvents";
+
+function canCopy(value) {
+  return Boolean(String(value || "").trim());
+}
 
 export default function UserManagement() {
   const confirmAction = useConfirm();
@@ -12,6 +18,7 @@ export default function UserManagement() {
   const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", password: "", confirm: "", role: "user" });
   const [resetPasswords, setResetPasswords] = useState({});
   const [managementSearch, setManagementSearch] = useState("");
+  const [copiedKey, setCopiedKey] = useState("");
   function load() {
     api.get("/lookups")
       .then((res) => {
@@ -110,6 +117,43 @@ export default function UserManagement() {
       onConfirm: () => deleteItem(type, item.id)
     });
   }
+  async function copyContact(label, text, key) {
+    if (!canCopy(text)) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(text));
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = String(text);
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => current === key ? "" : current), 1600);
+      emitToast({ type: "success", message: `${label} copied` });
+    } catch {
+      emitToast({ type: "error", message: `Unable to copy ${label.toLowerCase()}` });
+    }
+  }
+  function CopyField({ label, value, copyKey }) {
+    const text = valueOrDash(value);
+    return (
+      <span className="copy-value ccu-copy-value">
+        <span>{text}</span>
+        {canCopy(value) && (
+          <button type="button" className="copy-value-btn" onClick={() => copyContact(label, value, copyKey)} aria-label={`Copy ${label}`}>
+            <Copy size={14} />
+            <em>{copiedKey === copyKey ? "Copied" : "Copy"}</em>
+          </button>
+        )}
+      </span>
+    );
+  }
   const pending = lookups.users.filter((u) => !u.is_approved);
   const resets = lookups.users.filter((u) => u.password_reset_requested);
   const approved = lookups.users.filter((u) => u.is_approved);
@@ -120,8 +164,8 @@ export default function UserManagement() {
   const filteredApproved = approved.filter((user) => !searchNeedle || [user.id, user.user_id, user.username, user.email, user.role].some((value) => String(value || "").toLowerCase().includes(searchNeedle)));
   const valueOrDash = (value) => String(value || "").trim() || "Not added";
   const ccuAddress = (item) => [item.street, item.city, item.state, item.zip_code].filter(Boolean).join(", ") || "Not added";
-  return <><PageHeader>User Management</PageHeader>
-    {loadError && <div className="error">User Management could not load: {loadError}</div>}
+  return <><PageHeader>System Management</PageHeader>
+    {loadError && <div className="error">System Management could not load: {loadError}</div>}
     <div className="management-summary-grid">
       <div><b>{pending.length}</b><span>Pending Users</span></div>
       <div><b>{approved.length}</b><span>Approved Users</span></div>
@@ -191,11 +235,11 @@ export default function UserManagement() {
                   <span>ID #{item.id}</span>
                 </div>
                 <div className="ccu-directory-details">
-                  <p><b>Coordinator</b>{valueOrDash(item.care_coordinator_name)}</p>
-                  <p><b>Phone</b>{valueOrDash(item.phone)}</p>
-                  <p><b>Fax</b>{valueOrDash(item.fax)}</p>
-                  <p><b>Email</b>{valueOrDash(item.email)}</p>
-                  <p className="wide"><b>Address</b>{ccuAddress(item)}</p>
+                  <p><b>Coordinator</b><CopyField label="Coordinator" value={item.care_coordinator_name} copyKey={`ccu-${item.id}-coordinator`} /></p>
+                  <p><b>Phone</b><CopyField label="CCU phone" value={item.phone} copyKey={`ccu-${item.id}-phone`} /></p>
+                  <p><b>Fax</b><CopyField label="CCU fax" value={item.fax} copyKey={`ccu-${item.id}-fax`} /></p>
+                  <p><b>Email</b><CopyField label="CCU email" value={item.email} copyKey={`ccu-${item.id}-email`} /></p>
+                  <p className="wide"><b>Address</b><CopyField label="CCU address" value={ccuAddress(item) === "Not added" ? "" : ccuAddress(item)} copyKey={`ccu-${item.id}-address`} /></p>
                 </div>
                 <Button onClick={() => askDeleteItem("ccu", item)}>Delete</Button>
               </div>

@@ -1,4 +1,4 @@
-import { Building2, CalendarDays, Download, Eye, History, Mail, MessageSquare, Paperclip, Phone, Trash2, Upload, UserRound } from "lucide-react";
+import { Building2, CalendarDays, Copy, Download, Eye, History, Mail, MessageSquare, Paperclip, Phone, Trash2, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, downloadFile, previewUrl } from "../services/api";
@@ -6,6 +6,7 @@ import { Button, Field, Modal, Select, StatusPill } from "./Controls";
 import { useConfirm } from "./ConfirmProvider";
 import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
+import { emitToast } from "../utils/appEvents";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
@@ -20,6 +21,10 @@ const genderOptions = ["Male", "Female", "Other"];
 
 function DetailLine({ label, children }) {
   return <p><b>{label}:</b><span>{children}</span></p>;
+}
+
+function isCopyable(value) {
+  return Boolean(value && value !== "N/A");
 }
 
 export default function LeadCard({ lead, type, onChanged }) {
@@ -41,6 +46,7 @@ export default function LeadCard({ lead, type, onChanged }) {
   const [ccuForm, setCcuForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
   const [ccuDetailsOpen, setCcuDetailsOpen] = useState(false);
   const [updateNotice, setUpdateNotice] = useState("");
+  const [copiedKey, setCopiedKey] = useState("");
   const commentInputRef = useRef(null);
   const canModify = user.role === "admin" || lead.staff_name === user.username;
 
@@ -260,6 +266,54 @@ export default function LeadCard({ lead, type, onChanged }) {
     });
   }
 
+  async function copyContact(label, text, key) {
+    if (!isCopyable(text)) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(text));
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = String(text);
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => current === key ? "" : current), 1600);
+      emitToast({ type: "success", message: `${label} copied` });
+    } catch {
+      emitToast({ type: "error", message: `Unable to copy ${label.toLowerCase()}` });
+    }
+  }
+
+  function CopyValue({ label, text, copyKey }) {
+    const canCopy = isCopyable(text);
+    return (
+      <span className="copy-value">
+        <span>{value(text)}</span>
+        {canCopy && (
+          <button type="button" className="copy-value-btn" onClick={() => copyContact(label, text, copyKey)} aria-label={`Copy ${label}`}>
+            <Copy size={14} />
+            <em>{copiedKey === copyKey ? "Copied" : "Copy"}</em>
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  function ProfileContact({ icon: Icon, label, text, copyKey }) {
+    return (
+      <span className="profile-copy-line">
+        <Icon size={16} />
+        <CopyValue label={label} text={text} copyKey={copyKey} />
+      </span>
+    );
+  }
+
   function askPermanentDelete() {
     confirmAction({
       title: "Permanently Delete Lead?",
@@ -309,10 +363,10 @@ export default function LeadCard({ lead, type, onChanged }) {
   ];
   const summaryPairsRight = [
     ["Referral No.", value(lead.referral_id)],
-    ["EC Phone", value(lead.e_contact_phone)],
+    ["EC Phone", <CopyValue label="Emergency phone" text={lead.e_contact_phone} copyKey={`lead-${lead.id}-ec-phone`} />],
     ["Relationship", value(lead.e_contact_relation)],
-    ["Phone", value(lead.phone)],
-    ["Email", value(lead.email)],
+    ["Phone", <CopyValue label="Phone" text={lead.phone} copyKey={`lead-${lead.id}-phone-info`} />],
+    ["Email", <CopyValue label="Email" text={lead.email} copyKey={`lead-${lead.id}-email-info`} />],
     ["Medicaid #", value(lead.medicaid_no)],
     ["SSN", value(lead.ssn)]
   ];
@@ -347,8 +401,8 @@ export default function LeadCard({ lead, type, onChanged }) {
               </div>
               <div className="lead-profile-contact-list">
                 <span><UserRound size={16} />{value(lead.staff_name)}</span>
-                <span><Phone size={16} />{value(lead.phone)}</span>
-                <span><Mail size={16} />{value(lead.email)}</span>
+                <ProfileContact icon={Phone} label="Phone" text={lead.phone} copyKey={`lead-${lead.id}-phone`} />
+                <ProfileContact icon={Mail} label="Email" text={lead.email} copyKey={`lead-${lead.id}-email`} />
                 <span><CalendarDays size={16} />DOB: {dateOnly(lead.dob)} ({value(lead.age)}{lead.age ? " Years" : ""})</span>
               </div>
             </div>
@@ -366,9 +420,9 @@ export default function LeadCard({ lead, type, onChanged }) {
             <b><Building2 size={17} /> Payor</b>
             <strong>{value(lead.agency_name)}</strong>
             <div className="lead-context-detail">
-              <span><b>Phone</b>{value(lead.agency_phone)}</span>
+              <span><b>Phone</b><CopyValue label="Payor phone" text={lead.agency_phone} copyKey={`lead-${lead.id}-agency-phone`} /></span>
               <span><b>Fax</b>{value(lead.agency_fax)}</span>
-              <span><b>Email</b>{value(lead.agency_email)}</span>
+              <span><b>Email</b><CopyValue label="Payor email" text={lead.agency_email} copyKey={`lead-${lead.id}-agency-email`} /></span>
               <span><b>Address</b>{value(lead.agency_address)}</span>
             </div>
           </article>
@@ -377,9 +431,9 @@ export default function LeadCard({ lead, type, onChanged }) {
             <strong>{value(lead.ccu_name)}</strong>
             <div className="lead-context-detail">
               <span><b>Coordinator</b>{value(lead.ccu_care_coordinator_name)}</span>
-              <span><b>Phone</b>{value(lead.ccu_phone)}</span>
+              <span><b>Phone</b><CopyValue label="CCU phone" text={lead.ccu_phone} copyKey={`lead-${lead.id}-ccu-phone`} /></span>
               <span><b>Fax</b>{value(lead.ccu_fax)}</span>
-              <span><b>Email</b>{value(lead.ccu_email)}</span>
+              <span><b>Email</b><CopyValue label="CCU email" text={lead.ccu_email} copyKey={`lead-${lead.id}-ccu-email`} /></span>
               <span><b>Address</b>{joinAddress(lead.ccu_street, lead.ccu_city, lead.ccu_state, lead.ccu_zip_code)}</span>
             </div>
           </article>

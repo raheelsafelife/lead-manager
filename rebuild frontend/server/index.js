@@ -493,7 +493,7 @@ async function notificationRows(user) {
       type: "Password reset",
       title: `ID: ${resetUser.id} | ${resetUser.username}`,
       message: `${resetUser.username} requested a password reset`,
-      detail: "User Management",
+      detail: "System Management",
       due: "",
       icon: "user",
       link: "/users",

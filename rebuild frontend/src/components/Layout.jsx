@@ -30,7 +30,7 @@ const pageTitles = {
   "/reports": "Reports",
   "/activity": "Activity Logs",
   "/settings": "User Settings",
-  "/users": "User Management"
+  "/users": "System Management"
 };
 
 export default function Layout({ children }) {
@@ -253,9 +253,9 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
           {user.role === "admin" && (
-            <NavLink to="/users" title="User Management">
+            <NavLink to="/users" title="System Management">
               <UserCog size={18} />
-              <span className="sidebar-label">User Management</span>
+              <span className="sidebar-label">System Management</span>
             </NavLink>
           )}
         </nav>
