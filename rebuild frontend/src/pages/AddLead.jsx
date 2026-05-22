@@ -322,8 +322,10 @@ export default function AddLead() {
         <Field label="Comments"><textarea value={form.comments || ""} onChange={(e) => patch("comments", e.target.value)} /></Field>
         <label className="check"><input type="checkbox" checked={form.send_reminders !== false} onChange={(e) => patch("send_reminders", e.target.checked)} />Send Auto Email Reminders for this Lead</label>
       </div>
-      <small>Fields marked with * are required</small>
-      <Button variant="primary" onClick={validateBeforeConfirm}>Save Lead</Button>
+      <div className="add-lead-footer">
+        <small>Fields marked with * are required</small>
+        <Button variant="primary" onClick={validateBeforeConfirm}>Save Lead</Button>
+      </div>
     </div>
   </>;
 }

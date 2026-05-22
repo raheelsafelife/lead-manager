@@ -643,19 +643,27 @@ textarea { min-height: 96px; resize: vertical; }
   background: #f5fbfd;
   color: var(--deep-blue);
   border-radius: 999px;
-  min-height: 28px;
-  padding: 4px 8px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 0;
   cursor: pointer;
   font-size: .72rem;
   font-weight: 900;
   line-height: 1;
   transition: background .16s ease, border-color .16s ease, transform .16s ease, box-shadow .16s ease;
 }
+.copy-value-btn svg {
+  width: 15px;
+  height: 15px;
+}
 .copy-value-btn em {
-  font-style: normal;
+  display: none;
 }
 .copy-value-btn:hover {
   background: #e8f7fb;
@@ -746,8 +754,11 @@ textarea { min-height: 96px; resize: vertical; }
   justify-content: flex-start;
 }
 .lead-context-detail .copy-value-btn {
-  min-height: 26px;
-  padding: 3px 7px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
 }
 .lead-context-detail > span > b {
   color: #64748b;
@@ -1132,8 +1143,11 @@ textarea { min-height: 96px; resize: vertical; }
 }
 .ccu-directory-details .copy-value-btn {
   align-self: flex-start;
-  min-height: 26px;
-  padding: 3px 7px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
 }
 .ccu-directory-details p.wide {
   grid-column: 1 / -1;
@@ -1172,6 +1186,27 @@ textarea { min-height: 96px; resize: vertical; }
   align-items: center;
   justify-content: center;
   gap: 7px;
+}
+.table-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.table-action-group .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.event-edit-input {
+  width: min(360px, 100%);
+  min-height: 42px;
+  border: 1px solid #d6e0e8;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+  font-weight: 800;
 }
 .muted-text {
   margin: 0 0 12px;
@@ -1216,9 +1251,12 @@ textarea { min-height: 96px; resize: vertical; }
 .upload svg { flex: 0 0 auto; width: 18px; height: 18px; }
 .professional-lead-card .upload { border: 0; color: #122231; padding-left: 0; }
 .lead-upload-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 52px;
   border-radius: 14px;
-  padding: 0 22px;
+  padding: 0 28px !important;
   background: linear-gradient(135deg, #075f75 0%, #1496a0 100%);
   color: #fff !important;
   border: 1px solid rgba(7,95,117,.85) !important;
@@ -1226,6 +1264,7 @@ textarea { min-height: 96px; resize: vertical; }
   white-space: nowrap;
   text-align: center;
   font-size: 1rem;
+  line-height: 1;
   letter-spacing: 0;
   gap: 10px;
   transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
@@ -1239,12 +1278,23 @@ textarea { min-height: 96px; resize: vertical; }
 .lead-upload-card svg {
   width: 18px;
   height: 18px;
-  padding: 5px;
-  box-sizing: content-box;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(255,255,255,.18);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+  flex: 0 0 auto;
+  display: block;
+}
+.add-lead-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.add-lead-footer small {
+  color: #64748b;
+  font-weight: 800;
+}
+.add-lead-footer .btn {
+  min-width: 180px;
 }
 .upload input { display: none; }
 .attachment { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }

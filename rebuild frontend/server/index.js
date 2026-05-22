@@ -129,12 +129,13 @@ function duplicateKind(lead) {
 }
 
 function searchTargetForLead(lead) {
+  const folderQuery = Number(lead.is_chicago_referral) === 1 ? "active=Chicago&" : "";
   if (Number(lead.authorization_received) === 1) {
-    if (lead.source === "Transfer" && lead.care_status !== "Care Start") return { targetPage: "Transfer Cases", targetUrl: `/authorizations?idSearch=${lead.id}&transferView=true` };
-    return { targetPage: "Authorizations", targetUrl: `/authorizations?idSearch=${lead.id}` };
+    if (lead.source === "Transfer" && lead.care_status !== "Care Start") return { targetPage: "Transfer Cases", targetUrl: `/authorizations?${folderQuery}idSearch=${lead.id}&transferView=true` };
+    return { targetPage: "Authorizations", targetUrl: `/authorizations?${folderQuery}idSearch=${lead.id}` };
   }
-  if (Number(lead.active_client) === 1) return { targetPage: "Referrals Sent", targetUrl: `/referrals?idSearch=${lead.id}` };
-  return { targetPage: "View Leads", targetUrl: `/view-leads?idSearch=${lead.id}` };
+  if (Number(lead.active_client) === 1) return { targetPage: "Referrals Sent", targetUrl: `/referrals?${folderQuery}idSearch=${lead.id}` };
+  return { targetPage: "View Leads", targetUrl: `/view-leads?${folderQuery}idSearch=${lead.id}` };
 }
 
 async function findDuplicateLead(body) {
@@ -255,7 +256,7 @@ function buildLeadQuery(q = {}, user) {
   }
   if (q.active === "Chicago") {
     where.push("coalesce(leads.is_chicago_referral,0) = 1");
-  } else {
+  } else if (q.active !== "All") {
     where.push("coalesce(leads.is_chicago_referral,0) = 0");
   }
   if (q.active && q.active !== "All") {
@@ -606,7 +607,7 @@ app.get("/api/leads/:id", auth, async (req, res) => {
 });
 
 app.get("/api/search/suggestions", auth, async (req, res) => {
-  const { rows } = await listLeads({ search: req.query.q, includeDeleted: false, limit: 10 }, req.user);
+  const { rows } = await listLeads({ search: req.query.q, includeDeleted: false, active: "All", limit: 10 }, req.user);
   res.json({ clients: rows.map((l) => {
     const target = searchTargetForLead(l);
     const separator = target.targetUrl.includes("?") ? "&" : "?";
@@ -1067,6 +1068,18 @@ app.patch("/api/ccus/:id", auth, async (req, res) => {
   await db.run(`update ccus set ${keys.map((key) => `${key}=@${key}`).join(",")} where id=@id`, { ...req.body, id: req.params.id });
   const ccu = await db.get("select * from ccus where id=?", req.params.id);
   await logActivity(req.user, "UPDATE_CCU", "CCU", Number(req.params.id), ccu?.name || "", `Updated CCU '${ccu?.name || req.params.id}'`, oldCcu, ccu, "ccu,update");
+  res.json({ success: true });
+});
+
+app.patch("/api/admin/event/:id", auth, admin, async (req, res) => {
+  const eventName = String(req.body.name || req.body.event_name || "").trim();
+  if (!eventName) return res.status(400).json({ error: "Event name is required" });
+  const duplicate = await db.get("select id from events where lower(event_name)=lower(?) and id != ?", eventName, req.params.id);
+  if (duplicate) return res.status(409).json({ error: "Event already exists" });
+  const oldEvent = await db.get("select * from events where id=?", req.params.id);
+  await db.run("update events set event_name=? where id=?", eventName, req.params.id);
+  const event = await db.get("select * from events where id=?", req.params.id);
+  await logActivity(req.user, "UPDATE_EVENT", "EVENT", Number(req.params.id), event?.event_name || "", `Updated event '${event?.event_name || req.params.id}'`, oldEvent, event, "event,update");
   res.json({ success: true });
 });
 

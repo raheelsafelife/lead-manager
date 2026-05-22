@@ -31,7 +31,7 @@ function startForDateFilter(filter) {
 
 function getDefaultFilters(user, initialId, initialOptions = {}) {
   return {
-    active: initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active",
+    active: initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
     status: "All",
     callStatus: "All",
     tagColor: "All",
@@ -58,7 +58,8 @@ function readUrlFilters(search) {
     options: {
       transferView: searchParams.get("transferView") === "true",
       includeDeleted: searchParams.get("includeDeleted") === "true",
-      globalSearch: searchParams.get("globalSearch") === "true"
+      globalSearch: searchParams.get("globalSearch") === "true",
+      active: searchParams.get("active") || ""
     }
   };
 }

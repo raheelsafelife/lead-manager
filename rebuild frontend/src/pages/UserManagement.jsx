@@ -21,6 +21,8 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   const [copiedKey, setCopiedKey] = useState("");
   const [editingCcuId, setEditingCcuId] = useState(null);
   const [ccuEditForm, setCcuEditForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [eventEditName, setEventEditName] = useState("");
   function load() {
     api.get("/lookups")
       .then((res) => {
@@ -152,6 +154,29 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
       onConfirm: () => saveCcu(item)
     });
   }
+  function startEditEvent(item) {
+    setEditingEventId(item.id);
+    setEventEditName(item.event_name || "");
+  }
+  function cancelEditEvent() {
+    setEditingEventId(null);
+    setEventEditName("");
+  }
+  async function saveEvent(item) {
+    await api.patch(`/admin/event/${item.id}`, { name: eventEditName.trim() });
+    cancelEditEvent();
+    load();
+  }
+  function askSaveEvent(item) {
+    if (!eventEditName.trim()) return;
+    confirmAction({
+      title: "Update Event?",
+      message: `Do you want to update event ${item.event_name}?`,
+      confirmText: "Yes",
+      cancelText: "No",
+      onConfirm: () => saveEvent(item)
+    });
+  }
   async function copyContact(label, text, key) {
     if (!canCopy(text)) return;
     try {
@@ -183,7 +208,6 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
         {canCopy(value) && (
           <button type="button" className="copy-value-btn" onClick={() => copyContact(label, value, copyKey)} aria-label={`Copy ${label}`}>
             <Copy size={14} />
-            <em>{copiedKey === copyKey ? "Copied" : "Copy"}</em>
           </button>
         )}
       </span>
@@ -312,7 +336,36 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
         <>
           <div className="form-grid"><Field label="Name"><input value={newItem.name} onChange={(e) => setNewItem({ ...newItem, type: tab === "Payor" ? "agency" : "event", name: e.target.value })} /></Field>{tab === "Payor" && ["address","phone","fax","email"].map((key) => <Field key={key} label={key}><input value={newItem[key] || ""} onChange={(e) => setNewItem({ ...newItem, [key]: e.target.value })} /></Field>)}</div>
           <Button variant="primary" onClick={askCreateItem}>Add {tab}</Button>
-          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Complete Details</th><th>Action</th></tr></thead><tbody>{filteredManagedItems.map((item) => <tr key={item.id}><td>{item.name || item.event_name}</td><td>{tab === "Payor" ? [item.phone, item.fax, item.email, item.address].filter(Boolean).join(" | ") : item.event_name}</td><td><Button onClick={() => askDeleteItem(tab === "Payor" ? "agency" : "event", item)}>Delete</Button></td></tr>)}</tbody></table></div>
+          <div className="table-wrap"><table><thead><tr><th>Name</th><th>Complete Details</th><th>Action</th></tr></thead><tbody>{filteredManagedItems.map((item) => {
+            const isEditingEvent = tab === "Events" && editingEventId === item.id;
+            return (
+              <tr key={item.id}>
+                <td>
+                  {isEditingEvent
+                    ? <input className="event-edit-input" value={eventEditName} onChange={(e) => setEventEditName(e.target.value)} />
+                    : item.name || item.event_name}
+                </td>
+                <td>{tab === "Payor" ? [item.phone, item.fax, item.email, item.address].filter(Boolean).join(" | ") : item.event_name}</td>
+                <td>
+                  {tab === "Events" ? (
+                    <div className="table-action-group">
+                      {isEditingEvent ? (
+                        <>
+                          <Button variant="primary" onClick={() => askSaveEvent(item)}>Save</Button>
+                          <Button onClick={cancelEditEvent}>Cancel</Button>
+                        </>
+                      ) : (
+                        <Button onClick={() => startEditEvent(item)}><Pencil size={15} />Edit</Button>
+                      )}
+                      <Button onClick={() => askDeleteItem("event", item)}>Delete</Button>
+                    </div>
+                  ) : (
+                    <Button onClick={() => askDeleteItem("agency", item)}>Delete</Button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}</tbody></table></div>
         </>
       )}
     </div>}

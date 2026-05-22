@@ -298,7 +298,6 @@ export default function LeadCard({ lead, type, onChanged }) {
         {canCopy && (
           <button type="button" className="copy-value-btn" onClick={() => copyContact(label, text, copyKey)} aria-label={`Copy ${label}`}>
             <Copy size={14} />
-            <em>{copiedKey === copyKey ? "Copied" : "Copy"}</em>
           </button>
         )}
       </span>
@@ -550,14 +549,14 @@ export default function LeadCard({ lead, type, onChanged }) {
             <h3>Add a Comment</h3>
             <div className="comment-entry">
               <textarea ref={commentInputRef} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Type your comment here..." />
-              <Button onClick={askAddComment}><MessageSquare size={15} />Comment</Button>
+              <Button variant="primary" onClick={askAddComment}><MessageSquare size={15} />Comment</Button>
             </div>
           </section>
 
           <section className="lead-panel attachments lead-attachments-panel">
             <h3><Paperclip size={16} /> Attachments</h3>
             <div className="lead-attachments-toolbar">
-              <label className="upload lead-upload-card"><Upload size={18} />Upload Attachment<input type="file" onChange={uploadFile} /></label>
+              <label className="upload lead-upload-card">Upload Attachment<input type="file" onChange={uploadFile} /></label>
               <small>Allowed: PDF, DOC, DOCX, JPG, PNG</small>
             </div>
             {attachmentRows.length ? (
