@@ -15,3 +15,8 @@ ENV/
 backend/leads.db
 *.db-shm
 *.db-wal
+webapp/frontend/node_modules/
+webapp/frontend/dist/
+webapp/server/node_modules/
+*.md
+*.txt

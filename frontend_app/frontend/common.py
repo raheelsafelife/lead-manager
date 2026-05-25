@@ -3227,57 +3227,6 @@ div.notif-modal-root button:active, div.notif-modal-root button:focus {
         st.markdown('<div id="topbar-anchor"></div>', unsafe_allow_html=True)
         
         with st.container():
-            st.markdown('<div id="topbar-content-marker" style="display:none;"></div>', unsafe_allow_html=True)
-            html("""
-            <script>
-                const pDoc = window.parent.document;
-                function applySticky() {
-                    const marker = pDoc.getElementById('topbar-content-marker');
-                    if (marker && !marker.dataset.stickyApplied) {
-                        marker.dataset.stickyApplied = "true";
-                        const stContainerBlock = marker.closest('div[data-testid="stVerticalBlock"]');
-                        if (stContainerBlock) {
-                            const topLevelElementContainer = stContainerBlock.parentElement;
-                            if (topLevelElementContainer && topLevelElementContainer.classList.contains('element-container')) {
-                                topLevelElementContainer.style.position = '-webkit-sticky';
-                                topLevelElementContainer.style.position = 'sticky';
-                                topLevelElementContainer.style.top = '0';
-                                topLevelElementContainer.style.zIndex = '999999';
-                                topLevelElementContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-                                topLevelElementContainer.style.backdropFilter = 'blur(10px)';
-                                topLevelElementContainer.style.paddingTop = '10px';
-                                topLevelElementContainer.style.paddingBottom = '10px';
-                                topLevelElementContainer.style.borderBottom = '1px solid #f1f5f9';
-                                topLevelElementContainer.style.transition = 'box-shadow 0.2s';
-                                
-                                const scrollArea = pDoc.querySelector('.main .stApp') || pDoc.querySelector('.main') || pDoc.documentElement;
-                                if (scrollArea) {
-                                    scrollArea.addEventListener('scroll', () => {
-                                        if (scrollArea.scrollTop > 10 || window.scrollY > 10 || window.parent.scrollY > 10) {
-                                            topLevelElementContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.05)';
-                                        } else {
-                                            topLevelElementContainer.style.boxShadow = 'none';
-                                        }
-                                    });
-                                    // Handle window scroll as well (Streamlit structural changes fallback)
-                                    window.parent.addEventListener('scroll', () => {
-                                        if (window.parent.scrollY > 10 || scrollArea.scrollTop > 10) {
-                                            topLevelElementContainer.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.05)';
-                                        } else {
-                                            topLevelElementContainer.style.boxShadow = 'none';
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                setTimeout(applySticky, 100);
-                setTimeout(applySticky, 500);
-                setInterval(applySticky, 2000); // Re-apply if Streamlit redraws the DOM
-            </script>
-            """, height=0)
-
             # --- TOP BAR ROW (native Streamlit columns) ---
             col_left, col_search, col_right = st.columns([2, 5, 3])
 
