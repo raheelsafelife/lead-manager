@@ -20,6 +20,7 @@ import {
 import { Button } from "../components/Controls";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
 
 const dateOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days", "Custom Range"];
 const pageSizeOptions = [10, 20, 50, 100];
@@ -34,23 +35,22 @@ function startForDateFilter(filter) {
 }
 
 function exportCsv(rows) {
-  const cols = ["timestamp", "username", "action_type", "entity_type", "entity_name", "description", "new_value"];
-  const csv = [cols.join(","), ...rows.map((row) => cols.map((col) => `"${String(row[col] || "").replaceAll('"', '""')}"`).join(","))].join("\n");
+  const cols = ["timestamp", "username", "action", "entity_type", "entity_name", "summary"];
+  const csvRows = rows.map((row) => ({
+    timestamp: row.timestamp,
+    username: row.username,
+    action: friendlyActionTitle(row.action_type),
+    entity_type: row.entity_type,
+    entity_name: row.entity_name,
+    summary: friendlyActivitySummary(row)
+  }));
+  const csv = [cols.join(","), ...csvRows.map((row) => cols.map((col) => `"${String(row[col] || "").replaceAll('"', '""')}"`).join(","))].join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
   link.href = url;
   link.download = `activity_logs_${Date.now()}.csv`;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function parseJsonMaybe(value) {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
 }
 
 function iconForAction(actionType) {
@@ -262,10 +262,9 @@ export default function ActivityLogs() {
         {rows.length ? rows.map((row) => {
           const Icon = iconForAction(row.action_type || "");
           const expandedRow = expanded.has(row.id);
-          const parsedOld = parseJsonMaybe(row.old_value);
-          const parsedNew = parseJsonMaybe(row.new_value);
-          const commentText = parsedNew?.comments || parsedNew?.comment || parsedOld?.comments || "";
-          const hasDetails = Boolean(row.old_value || row.new_value || commentText);
+          const changes = changedFields(row);
+          const commentText = commentFromActivity(row);
+          const hasDetails = changes.length > 0 || Boolean(commentText);
 
           return (
             <article className={`activity-log-card activity-${accentForAction(row.action_type || "")}`} key={row.id}>
@@ -277,7 +276,7 @@ export default function ActivityLogs() {
                 <div className="activity-log-copy">
                   <div className="activity-log-top">
                     <div className="activity-log-title-row">
-                      <h3>{row.action_type}</h3>
+                      <h3>{friendlyActionTitle(row.action_type)}</h3>
                       <span className={`activity-entity-pill ${entityTone(row.entity_type)}`}>{row.entity_type}</span>
                     </div>
                     <div className="activity-log-time">
@@ -289,7 +288,7 @@ export default function ActivityLogs() {
                   <div className="activity-log-meta">
                     <span><b>By:</b> {row.username}</span>
                     <span><b>Entity:</b> {row.entity_type}</span>
-                    <span><b>Details:</b> {row.description}</span>
+                    <span><b>Details:</b> {friendlyActivitySummary(row)}</span>
                   </div>
 
                   {expandedRow && commentText && (
@@ -299,20 +298,16 @@ export default function ActivityLogs() {
                     </div>
                   )}
 
-                  {expandedRow && (parsedOld || parsedNew) && (
-                    <div className="activity-log-details-grid">
-                      {parsedOld && (
-                        <div className="activity-log-json">
-                          <b>Previous Value</b>
-                          <pre>{JSON.stringify(parsedOld, null, 2)}</pre>
+                  {expandedRow && changes.length > 0 && (
+                    <div className="activity-change-list">
+                      {changes.map((change) => (
+                        <div className="activity-change-row" key={change.key}>
+                          <b>{change.label}</b>
+                          <span>{change.before}</span>
+                          <strong>changed to</strong>
+                          <span>{change.after}</span>
                         </div>
-                      )}
-                      {parsedNew && (
-                        <div className="activity-log-json">
-                          <b>Updated Value</b>
-                          <pre>{JSON.stringify(parsedNew, null, 2)}</pre>
-                        </div>
-                      )}
+                      ))}
                     </div>
                   )}
                 </div>

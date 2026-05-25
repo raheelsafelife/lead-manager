@@ -1,4 +1,4 @@
-import { Building2, CalendarDays, Copy, Download, Eye, History, Mail, MessageSquare, Paperclip, Phone, Trash2, Upload, UserRound } from "lucide-react";
+import { Building2, CalendarDays, Copy, Download, Eye, History, Mail, MessageSquare, Paperclip, Phone, Trash2, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { api, downloadFile, previewUrl } from "../services/api";
@@ -7,6 +7,7 @@ import { useConfirm } from "./ConfirmProvider";
 import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast } from "../utils/appEvents";
+import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
@@ -18,6 +19,7 @@ const standardLeadStatuses = ["Initial Call", "Not Interested", "No Response", "
 const leadStatusControls = ["Initial Call", "No Response", "Not Interested"];
 const referralStatusControls = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused"];
 const genderOptions = ["Male", "Female", "Other"];
+const emptyLookups = { agencies: [], ccus: [], approvedUsers: [], leadSources: [] };
 
 function DetailLine({ label, children }) {
   return <p><b>{label}:</b><span>{children}</span></p>;
@@ -38,7 +40,7 @@ export default function LeadCard({ lead, type, onChanged }) {
   const [comment, setComment] = useState("");
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState(lead);
-  const [lookups, setLookups] = useState({ agencies: [], ccus: [], approvedUsers: [] });
+  const [lookups, setLookups] = useState(emptyLookups);
   const [manageEntities, setManageEntities] = useState(false);
   const [selectedAgencyId, setSelectedAgencyId] = useState("");
   const [selectedCcuId, setSelectedCcuId] = useState("");
@@ -49,6 +51,8 @@ export default function LeadCard({ lead, type, onChanged }) {
   const [copiedKey, setCopiedKey] = useState("");
   const commentInputRef = useRef(null);
   const canModify = user.role === "admin" || lead.staff_name === user.username;
+  const managedSourceOptions = (lookups.leadSources || []).length ? lookups.leadSources.map((source) => source.name) : leadSources;
+  const sourceOptions = [...new Set([...managedSourceOptions, form.source, lead.source].filter(Boolean))];
 
   useEffect(() => { if (open) api.get(`/leads/${lead.id}`).then((res) => setDetail(res.data)); }, [open, lead.id]);
   useEffect(() => {
@@ -186,7 +190,7 @@ export default function LeadCard({ lead, type, onChanged }) {
     setCcuDetailsOpen(Boolean(lead.ccu_id));
     setUpdateNotice("");
     const res = await api.get("/lookups");
-    setLookups(res.data);
+    setLookups({ ...emptyLookups, ...res.data });
     setEdit(true);
   }
 
@@ -204,7 +208,7 @@ export default function LeadCard({ lead, type, onChanged }) {
     if (!selectedAgencyId) return;
     await api.patch(`/agencies/${selectedAgencyId}`, agencyForm);
     const res = await api.get("/lookups");
-    setLookups(res.data);
+    setLookups({ ...emptyLookups, ...res.data });
   }
 
   function askSaveAgencyDetails() {
@@ -222,7 +226,7 @@ export default function LeadCard({ lead, type, onChanged }) {
     if (!selectedCcuId) return;
     await api.patch(`/ccus/${selectedCcuId}`, ccuForm);
     const res = await api.get("/lookups");
-    setLookups(res.data);
+    setLookups({ ...emptyLookups, ...res.data });
     setCcuDetailsOpen(false);
     setUpdateNotice("CCU details updated successfully.");
   }
@@ -591,7 +595,33 @@ export default function LeadCard({ lead, type, onChanged }) {
           </section>
         </div>
 
-        {history.length > 0 && <div className="history"><h3>Updates / Comments History</h3>{history.map((h) => <div className="history-card" key={h.id}><b>{h.username}</b><time>{fmt(h.timestamp)}</time><p>{h.action_type}: {h.description}</p></div>)}</div>}
+        {history.length > 0 && (
+          <div className="history">
+            <h3>Updates / Comments History</h3>
+            {history.map((h) => {
+              const changes = changedFields(h);
+              const commentText = commentFromActivity(h);
+              return (
+                <div className="history-card" key={h.id}>
+                  <b>{h.username}</b>
+                  <time>{fmt(h.timestamp)}</time>
+                  <p><strong>{friendlyActionTitle(h.action_type)}:</strong> {friendlyActivitySummary(h)}</p>
+                  {commentText && <p className="history-comment-line">Comment: {commentText}</p>}
+                  {changes.length > 0 && (
+                    <ul className="history-change-list">
+                      {changes.slice(0, 4).map((change) => (
+                        <li key={change.key}>
+                          <b>{change.label}</b>: {change.before} <span>changed to</span> {change.after}
+                        </li>
+                      ))}
+                      {changes.length > 4 && <li>{changes.length - 4} more change{changes.length - 4 === 1 ? "" : "s"}</li>}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>}
       {edit && <Modal title="" onClose={() => setEdit(false)}>
         <div className="edit-lead-dialog">
@@ -617,7 +647,7 @@ export default function LeadCard({ lead, type, onChanged }) {
               />
             </Field>
             <Field label="Medicaid #"><input value={form.medicaid_no || ""} onChange={(e) => setForm({ ...form, medicaid_no: e.target.value })} /></Field>
-            <Field label="Source"><Select value={form.source || leadSources[0]} onChange={(value) => setForm({ ...form, source: value })} options={leadSources} /></Field>
+            <Field label="Source"><Select value={form.source || leadSources[0]} onChange={(value) => setForm({ ...form, source: value })} options={sourceOptions} /></Field>
             <Field label="Emergency Contact"><input value={form.e_contact_name || ""} onChange={(e) => setForm({ ...form, e_contact_name: e.target.value })} /></Field>
             <Field label="Street"><input value={form.street || ""} onChange={(e) => setForm({ ...form, street: e.target.value })} /></Field>
             <Field label="Relation"><input value={form.e_contact_relation || ""} onChange={(e) => setForm({ ...form, e_contact_relation: e.target.value })} /></Field>

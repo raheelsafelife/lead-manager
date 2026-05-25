@@ -9,9 +9,11 @@ function canCopy(value) {
   return Boolean(String(value || "").trim());
 }
 
+const emptyLookups = { users: [], agencies: [], ccus: [], events: [], leadSources: [] };
+
 export default function UserManagement() {
   const confirmAction = useConfirm();
-  const [lookups, setLookups] = useState({ users: [], agencies: [], ccus: [], events: [] });
+  const [lookups, setLookups] = useState(emptyLookups);
   const [loadError, setLoadError] = useState("");
   const [tab, setTab] = useState("Pending Users");
   const [newItem, setNewItem] = useState({ type: "event", name: "", address: "", phone: "", fax: "", email: "", street: "", city: "", state: "IL", zip_code: "", care_coordinator_name: "" });
@@ -23,14 +25,18 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   const [ccuEditForm, setCcuEditForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
   const [editingEventId, setEditingEventId] = useState(null);
   const [eventEditName, setEventEditName] = useState("");
+  const [editingSourceId, setEditingSourceId] = useState(null);
+  const [sourceEditName, setSourceEditName] = useState("");
   function load() {
     api.get("/lookups")
       .then((res) => {
         setLookups({
+          ...emptyLookups,
           users: res.data.users || [],
           agencies: res.data.agencies || [],
           ccus: res.data.ccus || [],
-          events: res.data.events || []
+          events: res.data.events || [],
+          leadSources: res.data.leadSources || []
         });
         setLoadError("");
       })
@@ -40,10 +46,17 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   }
   useEffect(load, []);
   async function updateUser(id, patch) { await api.patch(`/users/${id}`, patch); load(); }
+  function managedTypeForTab() {
+    if (tab === "Payor") return "agency";
+    if (tab === "CCU") return "ccu";
+    if (tab === "Lead Sources") return "source";
+    return "event";
+  }
   async function createItem() {
     if (!newItem.name) return;
-    await api.post(`/admin/${newItem.type}`, newItem);
-    setNewItem({ type: newItem.type, name: "", address: "", phone: "", fax: "", email: "", street: "", city: "", state: "IL", zip_code: "", care_coordinator_name: "" });
+    const type = managedTypeForTab();
+    await api.post(`/admin/${type}`, { ...newItem, type });
+    setNewItem({ type, name: "", address: "", phone: "", fax: "", email: "", street: "", city: "", state: "IL", zip_code: "", care_coordinator_name: "" });
     load();
   }
   async function deleteItem(type, id) { await api.delete(`/admin/${type}/${id}`); load(); }
@@ -177,6 +190,29 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
       onConfirm: () => saveEvent(item)
     });
   }
+  function startEditSource(item) {
+    setEditingSourceId(item.id);
+    setSourceEditName(item.name || "");
+  }
+  function cancelEditSource() {
+    setEditingSourceId(null);
+    setSourceEditName("");
+  }
+  async function saveSource(item) {
+    await api.patch(`/admin/source/${item.id}`, { name: sourceEditName.trim() });
+    cancelEditSource();
+    load();
+  }
+  function askSaveSource(item) {
+    if (!sourceEditName.trim()) return;
+    confirmAction({
+      title: "Update Source?",
+      message: `Do you want to update source ${item.name}?`,
+      confirmText: "Yes",
+      cancelText: "No",
+      onConfirm: () => saveSource(item)
+    });
+  }
   async function copyContact(label, text, key) {
     if (!canCopy(text)) return;
     try {
@@ -216,8 +252,8 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   const pending = lookups.users.filter((u) => !u.is_approved);
   const resets = lookups.users.filter((u) => u.password_reset_requested);
   const approved = lookups.users.filter((u) => u.is_approved);
-  const tabs = ["Pending Users", "Password Resets", "Approved Users", "Create User", "Payor", "CCU", "Events"];
-  const managedItems = tab === "Payor" ? lookups.agencies : tab === "CCU" ? lookups.ccus : lookups.events;
+  const tabs = ["Pending Users", "Password Resets", "Approved Users", "Create User", "Payor", "CCU", "Events", "Lead Sources"];
+  const managedItems = tab === "Payor" ? lookups.agencies : tab === "CCU" ? lookups.ccus : tab === "Lead Sources" ? (lookups.leadSources || []) : lookups.events;
   const searchNeedle = managementSearch.trim().toLowerCase();
   const filteredManagedItems = managedItems.filter((item) => !searchNeedle || Object.values(item).some((value) => String(value || "").toLowerCase().includes(searchNeedle)));
   const filteredApproved = approved.filter((user) => !searchNeedle || [user.id, user.user_id, user.username, user.email, user.role].some((value) => String(value || "").toLowerCase().includes(searchNeedle)));
@@ -230,17 +266,19 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
       <div><b>{approved.length}</b><span>Approved Users</span></div>
       <div><b>{lookups.agencies.length}</b><span>Payors</span></div>
       <div><b>{lookups.ccus.length}</b><span>CCUs</span></div>
+      <div><b>{(lookups.leadSources || []).length}</b><span>Sources</span></div>
     </div>
     <div className="tabs">{tabs.map((name) => <button key={name} className={tab === name ? "active" : ""} onClick={() => setTab(name)}>{name}</button>)}</div>
     {tab === "Pending Users" && <div className="form-panel"><h3>Pending User Approvals</h3>{pending.length ? pending.map((u) => <div className="admin-row" key={u.id}><div><b>Username:</b> {u.username}<br /><b>Email:</b> {u.email}<br /><b>Requested:</b> {new Date(u.created_at).toLocaleString()}</div><Button variant="primary" onClick={() => askUpdateUser(u.id, { is_approved: 1 }, `Do you want to approve ${u.username}?`)}>Approve</Button><Button onClick={() => askRejectUser(u)}>Reject</Button></div>) : <div className="info">No pending user approvals</div>}</div>}
     {tab === "Password Resets" && <div className="form-panel"><h3>Password Reset Requests</h3>{resets.length ? resets.map((u) => <div className="admin-row" key={u.id}><div><b>{u.username}</b><br />{u.email}</div><input type="password" placeholder="New Password" value={resetPasswords[u.id] || ""} onChange={(e) => setResetPasswords({ ...resetPasswords, [u.id]: e.target.value })} /><Button variant="primary" onClick={() => askResetPassword(u.id, u.username)}>Reset Password</Button></div>) : <div className="info">No password reset requests</div>}</div>}
     {tab === "Approved Users" && <div className="form-panel"><div className="management-tools"><h3>Approved Users</h3><input value={managementSearch} onChange={(e) => setManagementSearch(e.target.value)} placeholder="Search users..." /></div><div className="table-wrap"><table><thead><tr><th>ID</th><th>User ID</th><th>Username</th><th>Email</th><th>Role</th><th>Approved</th><th>Reset</th></tr></thead><tbody>{filteredApproved.map((u) => <tr key={u.id}><td>{u.id}</td><td><input defaultValue={u.user_id || ""} onBlur={(e) => e.target.value !== (u.user_id || "") && askUpdateUser(u.id, { user_id: e.target.value })} /></td><td><input defaultValue={u.username} onBlur={(e) => e.target.value !== u.username && askUpdateUser(u.id, { username: e.target.value })} /></td><td><input defaultValue={u.email} onBlur={(e) => e.target.value !== u.email && askUpdateUser(u.id, { email: e.target.value })} /></td><td><Select value={u.role} onChange={(v) => askUpdateUser(u.id, { role: v }, `Do you want to change ${u.username}'s role to ${v}?`)} options={["user", "admin"]} /></td><td><input type="checkbox" checked={!!u.is_approved} onChange={(e) => askUpdateUser(u.id, { is_approved: e.target.checked ? 1 : 0 }, `Do you want to ${e.target.checked ? "approve" : "unapprove"} ${u.username}?`)} /></td><td><input type="checkbox" checked={!!u.password_reset_requested} onChange={(e) => askUpdateUser(u.id, { password_reset_requested: e.target.checked ? 1 : 0 }, `Do you want to update password reset flag for ${u.username}?`)} /></td></tr>)}</tbody></table></div></div>}
     {tab === "Create User" && <div className="form-panel"><h3>Create New User</h3><div className="form-grid"><Field label="Username"><input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} /></Field><Field label="User ID"><input value={newUser.user_id} onChange={(e) => setNewUser({ ...newUser, user_id: e.target.value })} /></Field><Field label="Email"><input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} /></Field><Field label="Password"><input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} /></Field><Field label="Confirm Password"><input type="password" value={newUser.confirm} onChange={(e) => setNewUser({ ...newUser, confirm: e.target.value })} /></Field><Field label="Role"><Select value={newUser.role} onChange={(v) => setNewUser({ ...newUser, role: v })} options={["user", "admin"]} /></Field></div><Button variant="primary" onClick={askCreateUser}>Create User</Button></div>}
-    {["Payor", "CCU", "Events"].includes(tab) && <div className="form-panel">
+    {["Payor", "CCU", "Events", "Lead Sources"].includes(tab) && <div className="form-panel">
       <div className="management-tools">
         <div>
           <h3>{tab === "CCU" ? "CCU Directory" : `Manage ${tab}`}</h3>
           {tab === "CCU" && <p className="management-subtitle">Add and review Case Coordination Units. These CCUs appear in lead, referral, and authorization dropdowns.</p>}
+          {tab === "Lead Sources" && <p className="management-subtitle">Add, edit, or remove the source choices shown on the Add Lead form.</p>}
         </div>
         <input value={managementSearch} onChange={(e) => setManagementSearch(e.target.value)} placeholder={`Search ${tab.toLowerCase()}...`} />
       </div>
@@ -334,30 +372,33 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
         </>
       ) : (
         <>
-          <div className="form-grid"><Field label="Name"><input value={newItem.name} onChange={(e) => setNewItem({ ...newItem, type: tab === "Payor" ? "agency" : "event", name: e.target.value })} /></Field>{tab === "Payor" && ["address","phone","fax","email"].map((key) => <Field key={key} label={key}><input value={newItem[key] || ""} onChange={(e) => setNewItem({ ...newItem, [key]: e.target.value })} /></Field>)}</div>
+          <div className="form-grid"><Field label="Name"><input value={newItem.name} onChange={(e) => setNewItem({ ...newItem, type: tab === "Payor" ? "agency" : tab === "Lead Sources" ? "source" : "event", name: e.target.value })} /></Field>{tab === "Payor" && ["address","phone","fax","email"].map((key) => <Field key={key} label={key}><input value={newItem[key] || ""} onChange={(e) => setNewItem({ ...newItem, [key]: e.target.value })} /></Field>)}</div>
           <Button variant="primary" onClick={askCreateItem}>Add {tab}</Button>
           <div className="table-wrap"><table><thead><tr><th>Name</th><th>Complete Details</th><th>Action</th></tr></thead><tbody>{filteredManagedItems.map((item) => {
             const isEditingEvent = tab === "Events" && editingEventId === item.id;
+            const isEditingSource = tab === "Lead Sources" && editingSourceId === item.id;
             return (
               <tr key={item.id}>
                 <td>
                   {isEditingEvent
                     ? <input className="event-edit-input" value={eventEditName} onChange={(e) => setEventEditName(e.target.value)} />
+                    : isEditingSource
+                      ? <input className="event-edit-input" value={sourceEditName} onChange={(e) => setSourceEditName(e.target.value)} />
                     : item.name || item.event_name}
                 </td>
-                <td>{tab === "Payor" ? [item.phone, item.fax, item.email, item.address].filter(Boolean).join(" | ") : item.event_name}</td>
+                <td>{tab === "Payor" ? [item.phone, item.fax, item.email, item.address].filter(Boolean).join(" | ") : tab === "Lead Sources" ? item.name : item.event_name}</td>
                 <td>
-                  {tab === "Events" ? (
+                  {tab === "Events" || tab === "Lead Sources" ? (
                     <div className="table-action-group">
-                      {isEditingEvent ? (
+                      {isEditingEvent || isEditingSource ? (
                         <>
-                          <Button variant="primary" onClick={() => askSaveEvent(item)}>Save</Button>
-                          <Button onClick={cancelEditEvent}>Cancel</Button>
+                          <Button variant="primary" onClick={() => tab === "Lead Sources" ? askSaveSource(item) : askSaveEvent(item)}>Save</Button>
+                          <Button onClick={tab === "Lead Sources" ? cancelEditSource : cancelEditEvent}>Cancel</Button>
                         </>
                       ) : (
-                        <Button onClick={() => startEditEvent(item)}><Pencil size={15} />Edit</Button>
+                        <Button onClick={() => tab === "Lead Sources" ? startEditSource(item) : startEditEvent(item)}><Pencil size={15} />Edit</Button>
                       )}
-                      <Button onClick={() => askDeleteItem("event", item)}>Delete</Button>
+                      <Button onClick={() => askDeleteItem(tab === "Lead Sources" ? "source" : "event", item)}>Delete</Button>
                     </div>
                   ) : (
                     <Button onClick={() => askDeleteItem("agency", item)}>Delete</Button>

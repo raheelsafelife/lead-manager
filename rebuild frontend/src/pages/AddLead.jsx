@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { emitToast, refreshAppSignals } from "../utils/appEvents";
 
 const blank = { source: "Home Health Notify", staff_name: "", custom_user_id: "", first_name: "", last_name: "", phone: "", email: "", gender: "", state: "IL", last_contact_status: "Initial Call", priority: "Not Called" };
+const emptyLookups = { approvedUsers: [], agencies: [], agencySuboptions: [], ccus: [], events: [], leadSources: [] };
 const genderOptions = ["Male", "Female", "Other"];
 
 function existingLeadPath(lead) {
@@ -50,7 +51,7 @@ export default function AddLead() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const confirmAction = useConfirm();
-  const [lookups, setLookups] = useState({ approvedUsers: [], agencies: [], agencySuboptions: [], ccus: [], events: [] });
+  const [lookups, setLookups] = useState(emptyLookups);
   const [form, setForm] = useState(blank);
   const [message, setMessage] = useState("");
   const [ccuNotice, setCcuNotice] = useState("");
@@ -60,7 +61,7 @@ export default function AddLead() {
   const [newCcu, setNewCcu] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
   const [ccuDetailsOpen, setCcuDetailsOpen] = useState(false);
   const [ccuEditForm, setCcuEditForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
-  useEffect(() => { api.get("/lookups").then((res) => { setLookups(res.data); if (user.role !== "admin") setForm((f) => ({ ...f, staff_name: user.username, custom_user_id: user.user_id || "", owner_id: user.id })); }); }, []);
+  useEffect(() => { api.get("/lookups").then((res) => { setLookups({ ...emptyLookups, ...res.data }); if (user.role !== "admin") setForm((f) => ({ ...f, staff_name: user.username, custom_user_id: user.user_id || "", owner_id: user.id })); }); }, []);
   useEffect(() => {
     const selected = lookups.approvedUsers.find((u) => u.username === form.staff_name);
     if (selected) setForm((f) => ({ ...f, custom_user_id: selected.user_id || "", owner_id: selected.id }));
@@ -148,7 +149,7 @@ export default function AddLead() {
 
   async function refreshLookups() {
     const res = await api.get("/lookups");
-    setLookups(res.data);
+    setLookups({ ...emptyLookups, ...res.data });
   }
 
   async function addEvent() {
@@ -233,6 +234,8 @@ export default function AddLead() {
 
   const isReferralSource = ["Direct Through CCU", "Transfer"].includes(form.source);
   const duplicateLead = duplicate?.duplicate || duplicate?.deletedDuplicate;
+  const managedSourceOptions = (lookups.leadSources || []).length ? lookups.leadSources.map((source) => source.name) : leadSources;
+  const sourceOptions = [...new Set([...managedSourceOptions, form.source].filter(Boolean))];
   return <><PageHeader>Add New Lead</PageHeader>
     {message && <div className="error">{message}</div>}
     {ccuNotice && <div className="info">{ccuNotice}</div>}
@@ -264,7 +267,7 @@ export default function AddLead() {
     </Modal>}
     <div className="form-panel">
       <h3>Lead Source</h3>
-      <Field label="Source" required><Select value={form.source} onChange={(v) => patch("source", v)} options={leadSources} /></Field>
+      <Field label="Source" required><Select value={form.source} onChange={(v) => patch("source", v)} options={sourceOptions} /></Field>
       {form.source === "Transfer" && <Field label="SOC Date" required><input type="date" value={form.soc_date || ""} onChange={(e) => patch("soc_date", e.target.value)} /></Field>}
       {form.source === "Event" && <><Field label="Select Event" required><Select value={form.event_name || ""} onChange={(v) => patch("event_name", v)} options={["", ...lookups.events.map((e) => e.event_name)]} /></Field>{user.role === "admin" && <div className="inline-add"><Field label="Add New Event"><input value={newEvent} onChange={(e) => setNewEvent(e.target.value)} placeholder="e.g. Health Fair 2026" /></Field><Button onClick={confirmAddEvent}>Add Event</Button></div>}</>}
       {form.source === "Word of Mouth" && <Field label="Word of Mouth Type" required><Select value={form.word_of_mouth_type || "Caregiver"} onChange={(v) => patch("word_of_mouth_type", v)} options={["Caregiver", "Community", "Client"]} /></Field>}

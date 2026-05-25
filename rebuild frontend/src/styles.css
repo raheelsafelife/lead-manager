@@ -1244,6 +1244,31 @@ textarea { min-height: 96px; resize: vertical; }
 .comment-card b, .history-card b { display: inline-block; margin-right: 10px; }
 .comment-card time, .history-card time { float: right; color: #475569; font-size: 12px; font-weight: 800; }
 .comment-card p, .history-card p { margin: 8px 0 0; }
+.history-card p strong { color: #122231; }
+.history-comment-line {
+  color: #41536f;
+  font-weight: 700;
+}
+.history-change-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+.history-change-list li {
+  background: #f8fbfd;
+  border: 1px solid #e4eef4;
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #344054;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.history-change-list li span {
+  color: #64748b;
+  font-weight: 800;
+}
 .empty-inline { color: var(--muted); font-weight: 800; margin: 8px 0; }
 .comment-entry { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; align-items: end; margin-top: 12px; }
 .comment-entry textarea { min-height: 170px; border-radius: 12px; }
@@ -1755,6 +1780,37 @@ textarea { min-height: 96px; resize: vertical; }
   color: #6b7280;
 }
 .activity-log-comment b { color: #344054; }
+.activity-change-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+.activity-change-row {
+  display: grid;
+  grid-template-columns: minmax(140px, .8fr) minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e4eef4;
+  background: #f8fbfd;
+  border-radius: 12px;
+  padding: 13px 14px;
+  color: #344054;
+  font-weight: 800;
+}
+.activity-change-row b {
+  color: #122231;
+}
+.activity-change-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-change-row strong {
+  color: #007c89;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
 .activity-log-details-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2608,6 +2664,7 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .activity-log-meta { gap: 10px; flex-direction: column; align-items: start; }
   .activity-log-top { flex-direction: column; align-items: start; }
   .activity-log-comment { grid-template-columns: 1fr; }
+  .activity-change-row { grid-template-columns: 1fr; gap: 7px; }
   .activity-pagination-card { justify-items: center; }
   .activity-page-size { width: 100%; justify-content: center; flex-wrap: wrap; }
   .lead-row { grid-template-columns: 1fr; }

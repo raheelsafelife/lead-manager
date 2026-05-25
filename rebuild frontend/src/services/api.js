@@ -57,9 +57,13 @@ function successMessage(config = {}) {
   if (method === "post" && url === "/users/me/password") return "Password changed successfully";
   if (method === "post" && url === "/users/me/request-reset") return "Password reset request sent successfully";
   if (method === "post" && /^\/admin\/event$/.test(url)) return "Event created successfully";
+  if (method === "post" && /^\/admin\/source$/.test(url)) return "Source created successfully";
   if (method === "post" && /^\/admin\/agency$/.test(url)) return "Payor created successfully";
   if (method === "post" && /^\/admin\/ccu$/.test(url)) return "CCU created successfully";
+  if (method === "patch" && /^\/admin\/source\//.test(url)) return "Source updated successfully";
+  if (method === "patch" && /^\/admin\/event\//.test(url)) return "Event updated successfully";
   if (method === "delete" && /^\/admin\/event\//.test(url)) return "Event deleted successfully";
+  if (method === "delete" && /^\/admin\/source\//.test(url)) return "Source deleted successfully";
   if (method === "delete" && /^\/admin\/agency\//.test(url)) return "Payor deleted successfully";
   if (method === "delete" && /^\/admin\/ccu\//.test(url)) return "CCU deleted successfully";
   if (method === "post" && url === "/ccus") return "CCU created successfully";
