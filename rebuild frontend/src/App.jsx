@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { isAdminRole } from "./utils/roles";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import { AppRouteSkeleton } from "./components/Skeleton";
@@ -33,7 +34,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/activity" element={<ActivityLogs />} />
           <Route path="/settings" element={<UserSettings />} />
-          <Route path="/users" element={user.role === "admin" ? <UserManagement /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/users" element={isAdminRole(user.role) ? <UserManagement /> : <Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>
     </Layout>

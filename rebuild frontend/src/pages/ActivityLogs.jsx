@@ -21,6 +21,7 @@ import { Button } from "../components/Controls";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
+import { isAdminRole } from "../utils/roles";
 
 const dateOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days", "Custom Range"];
 const pageSizeOptions = [10, 20, 50, 100];
@@ -108,6 +109,7 @@ function buildPageNumbers(currentPage, totalPages) {
 
 export default function ActivityLogs() {
   const { user } = useAuth();
+  const canAdmin = isAdminRole(user.role);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [lookups, setLookups] = useState({ users: [] });
@@ -125,7 +127,7 @@ export default function ActivityLogs() {
   const [pageSize, setPageSize] = useState(10);
 
   const params = useMemo(() => ({
-    username: user.role === "admin" ? filters.username : undefined,
+    username: canAdmin ? filters.username : undefined,
     actionType: filters.actionType,
     entityType: filters.entityType,
     startDate: filters.dateRange === "Custom Range" ? filters.startDate : startForDateFilter(filters.dateRange),
@@ -133,7 +135,7 @@ export default function ActivityLogs() {
     search: filters.search,
     limit: pageSize,
     offset: (page - 1) * pageSize
-  }), [filters, page, pageSize, user.role]);
+  }), [canAdmin, filters, page, pageSize]);
 
   useEffect(() => {
     api.get("/lookups").then((res) => setLookups(res.data));
@@ -206,7 +208,7 @@ export default function ActivityLogs() {
             </select>
           </label>
 
-          {user.role === "admin" && (
+          {canAdmin && (
             <label className="activity-filter">
               <span><UserRound size={18} />User</span>
               <select value={filters.username} onChange={(e) => patch("username", e.target.value)}>

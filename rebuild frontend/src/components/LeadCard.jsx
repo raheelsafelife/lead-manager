@@ -8,6 +8,7 @@ import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast } from "../utils/appEvents";
 import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
+import { isAdminRole } from "../utils/roles";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
@@ -34,6 +35,7 @@ export default function LeadCard({ lead, type, onChanged }) {
   const navigate = useNavigate();
   const location = useLocation();
   const confirmAction = useConfirm();
+  const canAdmin = isAdminRole(user.role);
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [history, setHistory] = useState([]);
@@ -50,7 +52,7 @@ export default function LeadCard({ lead, type, onChanged }) {
   const [updateNotice, setUpdateNotice] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
   const commentInputRef = useRef(null);
-  const canModify = user.role === "admin" || lead.staff_name === user.username;
+  const canModify = canAdmin || lead.staff_name === user.username;
   const managedSourceOptions = (lookups.leadSources || []).length ? lookups.leadSources.map((source) => source.name) : leadSources;
   const sourceOptions = [...new Set([...managedSourceOptions, form.source, lead.source].filter(Boolean))];
 
@@ -520,7 +522,7 @@ export default function LeadCard({ lead, type, onChanged }) {
           {!lead.deleted_at && type === "authorization" && <Button onClick={() => askUpdateLead({ title: "Unmark Authorization?", message: `Do you want to unmark authorization for ${fullName}?`, data: { authorization_received: 0, care_status: null } })}>Unmark Authorization</Button>}
           {!lead.deleted_at && canModify && <Button onClick={askSoftDelete}><Trash2 size={15} />Delete Lead</Button>}
           {lead.deleted_at && <Button variant="primary" onClick={askRestore}>Restore</Button>}
-          {lead.deleted_at && user.role === "admin" && <Button onClick={askPermanentDelete}>Permanent Delete</Button>}
+          {lead.deleted_at && canAdmin && <Button onClick={askPermanentDelete}>Permanent Delete</Button>}
           <Button onClick={showHistory}><History size={15} />History</Button>
         </div>
         {type !== "authorization" && !lead.deleted_at && canModify && (
@@ -574,7 +576,7 @@ export default function LeadCard({ lead, type, onChanged }) {
                     <button type="button" aria-label={`Download ${a.filename}`} onClick={() => downloadAttachment(a)}>
                       <Download size={16} />
                     </button>
-                    {user.role === "admin" && (
+                    {canAdmin && (
                       <button
                         type="button"
                         aria-label={`Delete ${a.filename}`}

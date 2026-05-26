@@ -205,22 +205,45 @@ function hashPassword(password) {
   return `$pbkdf2-sha256$${rounds}$${passlibB64(salt)}$${passlibB64(key)}`;
 }
 
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const header = req.headers.authorization || "";
   const tokenFromHeader = header.startsWith("Bearer ") ? header.slice(7) : null;
   const tokenFromQuery = typeof req.query.token === "string" ? req.query.token : null;
   const token = tokenFromHeader || tokenFromQuery;
   if (!token) return res.status(401).json({ error: "Missing token" });
   try {
-    req.user = jwt.verify(token, jwtSecret);
+    const payload = jwt.verify(token, jwtSecret);
+    const currentUser = await db.get("select id,user_id,username,role,is_approved from users where id = ?", payload.user_id || payload.sub);
+    if (!currentUser || !currentUser.is_approved) return res.status(401).json({ error: "Invalid user" });
+    req.user = {
+      ...payload,
+      sub: currentUser.username,
+      username: currentUser.username,
+      role: currentUser.role,
+      user_id: currentUser.id,
+      employee_id: currentUser.user_id
+    };
     next();
   } catch {
     res.status(401).json({ error: "Invalid token" });
   }
 }
 
+function isAdminRole(role) {
+  return role === "admin" || role === "super_admin";
+}
+
+function isSuperAdminRole(role) {
+  return role === "super_admin";
+}
+
 function admin(req, res, next) {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (!isAdminRole(req.user.role)) return res.status(403).json({ error: "Admin only" });
+  next();
+}
+
+function superAdmin(req, res, next) {
+  if (!isSuperAdminRole(req.user.role)) return res.status(403).json({ error: "Super admin only" });
   next();
 }
 
@@ -438,7 +461,7 @@ async function activityPayload(user, query = {}) {
   const offset = Math.max(Number(query.offset || 0), 0);
   const where = [];
   const params = { limit, offset };
-  if (user.role !== "admin") {
+  if (!isAdminRole(user.role)) {
     where.push("username = @username");
     params.username = user.username;
   } else if (query.username) {
@@ -501,13 +524,14 @@ app.post("/api/auth/forgot", async (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/api/lookups", auth, async (_req, res) => {
-  res.json(await lookupPayload());
+app.get("/api/lookups", auth, async (req, res) => {
+  const payload = await lookupPayload();
+  res.json(isSuperAdminRole(req.user.role) ? payload : { ...payload, users: [] });
 });
 
 async function notificationRows(user) {
   const notifications = [];
-  if (user.role === "admin") {
+  if (isSuperAdminRole(user.role)) {
     const pendingUsers = await db.all("select id,username,created_at from users where is_approved = 0 order by created_at desc limit 5", );
     pendingUsers.forEach((pendingUser) => notifications.push({
       id: `pending-user-${pendingUser.id}`,
@@ -534,7 +558,7 @@ async function notificationRows(user) {
     }));
   }
 
-  const reminderWhere = user.role === "admin"
+  const reminderWhere = isAdminRole(user.role)
     ? "deleted_at is null and coalesce(send_reminders,0) = 1"
     : "deleted_at is null and coalesce(send_reminders,0) = 1 and (owner_id = @ownerId or staff_name = @username)";
   const reminders = await db.all(`select id,first_name,last_name,phone,updated_at,referral_sent_date,referral_type,active_client,authorization_received,source,care_status from leads where ${reminderWhere} order by updated_at desc limit 8`, { ownerId: user.user_id, username: user.username });
@@ -766,7 +790,7 @@ app.get("/api/leads/:id/history", auth, async (req, res) => {
 
 async function dashboardPayload(user, query = {}) {
   const includeUsers = query.includeUsers === "true" || query.includeUsers === true;
-  const isCumulative = user.role === "admin" || query.mode === "cumulative";
+  const isCumulative = isAdminRole(user.role) || query.mode === "cumulative";
   const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
   return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
@@ -986,11 +1010,19 @@ app.post("/api/reports/word", auth, async (req, res) => {
 
 app.patch("/api/users/:id", auth, async (req, res, next) => {
   if (req.params.id === "me") return next();
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (!isSuperAdminRole(req.user.role)) return res.status(403).json({ error: "Super admin only" });
   const oldUser = await db.get("select * from users where id=?", req.params.id);
+  if (!oldUser) return res.status(404).json({ error: "User not found" });
   const allowed = ["username", "role", "is_approved", "password_reset_requested", "email", "user_id", "profile_pic"];
   const keys = Object.keys(req.body).filter((k) => allowed.includes(k));
   if (!keys.length) return res.json({ success: true });
+  if (Object.prototype.hasOwnProperty.call(req.body, "role") && !["user", "admin", "super_admin"].includes(req.body.role)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
+  if (oldUser.role === "super_admin" && req.body.role && req.body.role !== "super_admin") {
+    const superCount = await db.get("select count(*) as count from users where role='super_admin'");
+    if (Number(superCount?.count || 0) <= 1) return res.status(400).json({ error: "At least one super admin is required" });
+  }
   await db.run(`update users set ${keys.map((k) => `${k}=@${k}`).join(",")} where id=@id`, { ...req.body, id: req.params.id });
   const updatedUser = await db.get("select * from users where id=?", req.params.id);
   await logActivity(req.user, req.body.is_approved === 1 && oldUser?.is_approved !== 1 ? "USER_APPROVED" : "UPDATE_USER", "User", Number(req.params.id), updatedUser?.username || "", `Updated user '${updatedUser?.username || req.params.id}'`, publicUser(oldUser), publicUser(updatedUser), "user,update");
@@ -1024,17 +1056,19 @@ app.post("/api/users/me/request-reset", auth, async (req, res) => {
   res.json({ success: true });
 });
 
-app.post("/api/users", auth, admin, async (req, res) => {
+app.post("/api/users", auth, superAdmin, async (req, res) => {
   const { user_id, username, email, password, role } = req.body;
   if (!user_id || !username || !email || !password) return res.status(400).json({ error: "Please fill in all required fields" });
+  const nextRole = role || "user";
+  if (!["user", "admin", "super_admin"].includes(nextRole)) return res.status(400).json({ error: "Invalid role" });
   if (await db.get("select id from users where user_id=? or username=? or email=?", user_id, username, email)) return res.status(409).json({ error: "User ID, username, or email already exists" });
-  const result = await db.run("insert into users (user_id,username,email,hashed_password,role,is_approved,password_reset_requested,created_at) values (?,?,?,?,?,?,?,?)", user_id, username, email, hashPassword(password), role || "user", 1, 0, now());
+  const result = await db.run("insert into users (user_id,username,email,hashed_password,role,is_approved,password_reset_requested,created_at) values (?,?,?,?,?,?,?,?)", user_id, username, email, hashPassword(password), nextRole, 1, 0, now());
   const createdUser = await db.get("select * from users where id=?", result.lastInsertRowid);
   await logActivity(req.user, "CREATE_USER", "User", createdUser.id, createdUser.username, `Created user '${createdUser.username}'`, null, publicUser(createdUser), "user,create");
   res.status(201).json({ user: publicUser(createdUser) });
 });
 
-app.post("/api/users/:id/reset-password", auth, admin, async (req, res) => {
+app.post("/api/users/:id/reset-password", auth, superAdmin, async (req, res) => {
   if (!req.body.password || String(req.body.password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
   const targetUser = await db.get("select * from users where id=?", req.params.id);
   await db.run("update users set hashed_password=?, password_reset_requested=0 where id=?", hashPassword(req.body.password), req.params.id);
@@ -1042,8 +1076,14 @@ app.post("/api/users/:id/reset-password", auth, admin, async (req, res) => {
   res.json({ success: true });
 });
 
-app.delete("/api/users/:id", auth, admin, async (req, res) => {
+app.delete("/api/users/:id", auth, superAdmin, async (req, res) => {
   const deletedUser = await db.get("select * from users where id=?", req.params.id);
+  if (!deletedUser) return res.status(404).json({ error: "User not found" });
+  if (Number(req.params.id) === Number(req.user.user_id)) return res.status(400).json({ error: "You cannot delete your own account" });
+  if (deletedUser.role === "super_admin") {
+    const superCount = await db.get("select count(*) as count from users where role='super_admin'");
+    if (Number(superCount?.count || 0) <= 1) return res.status(400).json({ error: "At least one super admin is required" });
+  }
   await db.run("delete from users where id=?", req.params.id);
   await logActivity(req.user, "DELETE_USER", "User", Number(req.params.id), deletedUser?.username || "", `Deleted user '${deletedUser?.username || req.params.id}'`, publicUser(deletedUser), null, "user,delete");
   res.json({ success: true });

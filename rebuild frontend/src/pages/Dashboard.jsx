@@ -5,6 +5,7 @@ import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import SmartSearch from "../components/SmartSearch";
 import { DashboardSkeleton, SkeletonTable } from "../components/Skeleton";
+import { isAdminRole } from "../utils/roles";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -116,7 +117,8 @@ function StatCard({ value, label }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [mode, setMode] = useState(user.role === "admin" ? "cumulative" : "individual");
+  const canAdmin = isAdminRole(user.role);
+  const [mode, setMode] = useState(canAdmin ? "cumulative" : "individual");
   const [data, setData] = useState(null);
   const [drill, setDrill] = useState(null);
   const [showUsers, setShowUsers] = useState(false);
@@ -169,8 +171,8 @@ export default function Dashboard() {
       </div>
       <SmartSearch />
       <div className="dashboard-actions">
-        {user.role !== "admin" && <div className="segmented dashboard-mode-toggle"><Button active={mode === "individual"} onClick={() => setMode("individual")}>Individual</Button><Button active={mode === "cumulative"} onClick={() => setMode("cumulative")}>Cumulative</Button></div>}
-        {user.role === "admin" && <Button variant="primary" onClick={showAllUserDashboards}>View All User Dashboards</Button>}
+        {!canAdmin && <div className="segmented dashboard-mode-toggle"><Button active={mode === "individual"} onClick={() => setMode("individual")}>Individual</Button><Button active={mode === "cumulative"} onClick={() => setMode("cumulative")}>Cumulative</Button></div>}
+        {canAdmin && <Button variant="primary" onClick={showAllUserDashboards}>View All User Dashboards</Button>}
       </div>
     </section>
     <div className="stats dashboard-stats">

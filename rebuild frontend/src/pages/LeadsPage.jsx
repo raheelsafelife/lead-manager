@@ -17,6 +17,7 @@ import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
 import { caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
+import { isAdminRole } from "../utils/roles";
 
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
 
@@ -45,7 +46,7 @@ function getDefaultFilters(user, initialId, initialOptions = {}) {
     idSearch: initialId,
     sort: "Newest Added",
     includeDeleted: Boolean(initialOptions.includeDeleted),
-    onlyMine: user.role !== "admin",
+    onlyMine: !isAdminRole(user.role),
     dateRange: "All Time",
     transferView: Boolean(initialOptions.transferView)
   };
@@ -80,6 +81,7 @@ function folderCopy(active) {
 
 export default function LeadsPage({ title, type, discovery = false }) {
   const { user } = useAuth();
+  const canAdmin = isAdminRole(user.role);
   const location = useLocation();
   const { idSearch: initialId, options: initialOptions } = readUrlFilters(location.search);
   const [filters, setFilters] = useState(() => getDefaultFilters(user, initialId, initialOptions));
@@ -344,7 +346,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
       {!discovery && (
         <div className="leads-inline-options">
           <label className="check"><input type="checkbox" checked={filters.includeDeleted} onChange={(e) => patch("includeDeleted", e.target.checked)} />Show Deleted Leads</label>
-          {user.role !== "admin" && (
+          {!canAdmin && (
             <div className="segmented leads-view-toggle">
               <Button active={filters.onlyMine} onClick={() => patch("onlyMine", true)}>My {type === "referral" ? "Referrals" : "Leads"}</Button>
               <Button active={!filters.onlyMine} onClick={() => patch("onlyMine", false)}>All {type === "referral" ? "Referrals" : "Leads"}</Button>

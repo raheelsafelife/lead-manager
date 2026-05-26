@@ -5,6 +5,7 @@ import sidebarLogo from "../../sidebar_logo.png";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { isAdminRole } from "../utils/roles";
 import SmartSearch from "./SmartSearch";
 import { emitToast } from "../utils/appEvents";
 
@@ -252,7 +253,7 @@ export default function Layout({ children }) {
               <span className="sidebar-label">{label}</span>
             </NavLink>
           ))}
-          {user.role === "admin" && (
+          {isAdminRole(user.role) && (
             <NavLink to="/users" title="System Management">
               <UserCog size={18} />
               <span className="sidebar-label">System Management</span>

@@ -1,0 +1,7 @@
+export function isAdminRole(role) {
+  return role === "admin" || role === "super_admin";
+}
+
+export function isSuperAdminRole(role) {
+  return role === "super_admin";
+}

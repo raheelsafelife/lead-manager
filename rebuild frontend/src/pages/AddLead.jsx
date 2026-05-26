@@ -7,6 +7,7 @@ import { api } from "../services/api";
 import { leadSources, leadStatuses, referralStatuses } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast, refreshAppSignals } from "../utils/appEvents";
+import { isAdminRole } from "../utils/roles";
 
 const blank = { source: "Home Health Notify", staff_name: "", custom_user_id: "", first_name: "", last_name: "", phone: "", email: "", gender: "", state: "IL", last_contact_status: "Initial Call", priority: "Not Called" };
 const emptyLookups = { approvedUsers: [], agencies: [], agencySuboptions: [], ccus: [], events: [], leadSources: [] };
@@ -49,6 +50,7 @@ function duplicateBucket(lead) {
 
 export default function AddLead() {
   const { user } = useAuth();
+  const canAdmin = isAdminRole(user.role);
   const navigate = useNavigate();
   const confirmAction = useConfirm();
   const [lookups, setLookups] = useState(emptyLookups);
@@ -61,7 +63,7 @@ export default function AddLead() {
   const [newCcu, setNewCcu] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
   const [ccuDetailsOpen, setCcuDetailsOpen] = useState(false);
   const [ccuEditForm, setCcuEditForm] = useState({ name: "", street: "", city: "", state: "IL", zip_code: "", phone: "", fax: "", email: "", care_coordinator_name: "" });
-  useEffect(() => { api.get("/lookups").then((res) => { setLookups({ ...emptyLookups, ...res.data }); if (user.role !== "admin") setForm((f) => ({ ...f, staff_name: user.username, custom_user_id: user.user_id || "", owner_id: user.id })); }); }, []);
+  useEffect(() => { api.get("/lookups").then((res) => { setLookups({ ...emptyLookups, ...res.data }); if (!canAdmin) setForm((f) => ({ ...f, staff_name: user.username, custom_user_id: user.user_id || "", owner_id: user.id })); }); }, []);
   useEffect(() => {
     const selected = lookups.approvedUsers.find((u) => u.username === form.staff_name);
     if (selected) setForm((f) => ({ ...f, custom_user_id: selected.user_id || "", owner_id: selected.id }));
@@ -269,7 +271,7 @@ export default function AddLead() {
       <h3>Lead Source</h3>
       <Field label="Source" required><Select value={form.source} onChange={(v) => patch("source", v)} options={sourceOptions} /></Field>
       {form.source === "Transfer" && <Field label="SOC Date" required><input type="date" value={form.soc_date || ""} onChange={(e) => patch("soc_date", e.target.value)} /></Field>}
-      {form.source === "Event" && <><Field label="Select Event" required><Select value={form.event_name || ""} onChange={(v) => patch("event_name", v)} options={["", ...lookups.events.map((e) => e.event_name)]} /></Field>{user.role === "admin" && <div className="inline-add"><Field label="Add New Event"><input value={newEvent} onChange={(e) => setNewEvent(e.target.value)} placeholder="e.g. Health Fair 2026" /></Field><Button onClick={confirmAddEvent}>Add Event</Button></div>}</>}
+      {form.source === "Event" && <><Field label="Select Event" required><Select value={form.event_name || ""} onChange={(v) => patch("event_name", v)} options={["", ...lookups.events.map((e) => e.event_name)]} /></Field>{canAdmin && <div className="inline-add"><Field label="Add New Event"><input value={newEvent} onChange={(e) => setNewEvent(e.target.value)} placeholder="e.g. Health Fair 2026" /></Field><Button onClick={confirmAddEvent}>Add Event</Button></div>}</>}
       {form.source === "Word of Mouth" && <Field label="Word of Mouth Type" required><Select value={form.word_of_mouth_type || "Caregiver"} onChange={(v) => patch("word_of_mouth_type", v)} options={["Caregiver", "Community", "Client"]} /></Field>}
       {form.source === "Other" && <Field label="Specify Source Type" required><input value={form.other_source_type || ""} onChange={(e) => patch("other_source_type", e.target.value)} /></Field>}
       {form.source === "Direct Through CCU" && <div className="source-block">
@@ -296,12 +298,12 @@ export default function AddLead() {
           </div>
           <Button variant="primary" onClick={confirmUpdateSelectedCcu}>Update CCU Details</Button>
         </details>}
-        {user.role === "admin" && <details className="inline-details"><summary>Add New Payor</summary><div className="form-grid">{["name","address","phone","fax","email"].map((key) => <Field key={key} label={key}><input value={newPayor[key]} onChange={(e) => setNewPayor({ ...newPayor, [key]: e.target.value })} /></Field>)}</div><Button onClick={confirmAddPayor}>Add Payor</Button></details>}
+        {canAdmin && <details className="inline-details"><summary>Add New Payor</summary><div className="form-grid">{["name","address","phone","fax","email"].map((key) => <Field key={key} label={key}><input value={newPayor[key]} onChange={(e) => setNewPayor({ ...newPayor, [key]: e.target.value })} /></Field>)}</div><Button onClick={confirmAddPayor}>Add Payor</Button></details>}
         <details className="inline-details"><summary>Add New CCU</summary><div className="form-grid">{["name","street","city","state","zip_code","phone","fax","email","care_coordinator_name"].map((key) => <Field key={key} label={key.replaceAll("_", " ")}><input value={newCcu[key]} onChange={(e) => setNewCcu({ ...newCcu, [key]: e.target.value })} /></Field>)}</div><Button onClick={confirmAddCcu}>Add CCU</Button></details>
       </div>}
       <h3>Lead Details</h3>
       <div className="form-grid">
-        {user.role === "admin" ? <Field label="Staff Name" required><Select value={form.staff_name} onChange={(v) => patch("staff_name", v)} options={["", ...lookups.approvedUsers.map((u) => u.username)]} /></Field> : <div className="info">Lead will be created by: <b>{user.username}</b></div>}
+        {canAdmin ? <Field label="Staff Name" required><Select value={form.staff_name} onChange={(v) => patch("staff_name", v)} options={["", ...lookups.approvedUsers.map((u) => u.username)]} /></Field> : <div className="info">Lead will be created by: <b>{user.username}</b></div>}
         <Field label="User ID" required><input value={form.custom_user_id || ""} onChange={(e) => patch("custom_user_id", e.target.value)} disabled={!!form.owner_id} /></Field>
         <Field label="First Name" required><input value={form.first_name} onChange={(e) => patch("first_name", e.target.value)} /></Field>
         <Field label="Last Name" required><input value={form.last_name} onChange={(e) => patch("last_name", e.target.value)} /></Field>

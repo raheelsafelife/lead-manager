@@ -4,6 +4,8 @@ import { Button, Field, PageHeader, Select } from "../components/Controls";
 import { useConfirm } from "../components/ConfirmProvider";
 import { api } from "../services/api";
 import { emitToast } from "../utils/appEvents";
+import { useAuth } from "../context/AuthContext";
+import { isSuperAdminRole } from "../utils/roles";
 
 function canCopy(value) {
   return Boolean(String(value || "").trim());
@@ -12,10 +14,12 @@ function canCopy(value) {
 const emptyLookups = { users: [], agencies: [], ccus: [], events: [], leadSources: [] };
 
 export default function UserManagement() {
+  const { user } = useAuth();
   const confirmAction = useConfirm();
+  const canManageUsers = isSuperAdminRole(user.role);
   const [lookups, setLookups] = useState(emptyLookups);
   const [loadError, setLoadError] = useState("");
-  const [tab, setTab] = useState("Pending Users");
+  const [tab, setTab] = useState(canManageUsers ? "Pending Users" : "Payor");
   const [newItem, setNewItem] = useState({ type: "event", name: "", address: "", phone: "", fax: "", email: "", street: "", city: "", state: "IL", zip_code: "", care_coordinator_name: "" });
 const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", password: "", confirm: "", role: "user" });
   const [resetPasswords, setResetPasswords] = useState({});
@@ -45,6 +49,11 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
       });
   }
   useEffect(load, []);
+  useEffect(() => {
+    if (!canManageUsers && ["Pending Users", "Password Resets", "Approved Users", "Create User"].includes(tab)) {
+      setTab("Payor");
+    }
+  }, [canManageUsers, tab]);
   async function updateUser(id, patch) { await api.patch(`/users/${id}`, patch); load(); }
   function managedTypeForTab() {
     if (tab === "Payor") return "agency";
@@ -252,7 +261,9 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   const pending = lookups.users.filter((u) => !u.is_approved);
   const resets = lookups.users.filter((u) => u.password_reset_requested);
   const approved = lookups.users.filter((u) => u.is_approved);
-  const tabs = ["Pending Users", "Password Resets", "Approved Users", "Create User", "Payor", "CCU", "Events", "Lead Sources"];
+  const userTabs = ["Pending Users", "Password Resets", "Approved Users", "Create User"];
+  const managementTabs = ["Payor", "CCU", "Events", "Lead Sources"];
+  const tabs = canManageUsers ? [...userTabs, ...managementTabs] : managementTabs;
   const managedItems = tab === "Payor" ? lookups.agencies : tab === "CCU" ? lookups.ccus : tab === "Lead Sources" ? (lookups.leadSources || []) : lookups.events;
   const searchNeedle = managementSearch.trim().toLowerCase();
   const filteredManagedItems = managedItems.filter((item) => !searchNeedle || Object.values(item).some((value) => String(value || "").toLowerCase().includes(searchNeedle)));
@@ -262,17 +273,17 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
   return <><PageHeader>System Management</PageHeader>
     {loadError && <div className="error">System Management could not load: {loadError}</div>}
     <div className="management-summary-grid">
-      <div><b>{pending.length}</b><span>Pending Users</span></div>
-      <div><b>{approved.length}</b><span>Approved Users</span></div>
+      {canManageUsers && <div><b>{pending.length}</b><span>Pending Users</span></div>}
+      {canManageUsers && <div><b>{approved.length}</b><span>Approved Users</span></div>}
       <div><b>{lookups.agencies.length}</b><span>Payors</span></div>
       <div><b>{lookups.ccus.length}</b><span>CCUs</span></div>
       <div><b>{(lookups.leadSources || []).length}</b><span>Sources</span></div>
     </div>
     <div className="tabs">{tabs.map((name) => <button key={name} className={tab === name ? "active" : ""} onClick={() => setTab(name)}>{name}</button>)}</div>
-    {tab === "Pending Users" && <div className="form-panel"><h3>Pending User Approvals</h3>{pending.length ? pending.map((u) => <div className="admin-row" key={u.id}><div><b>Username:</b> {u.username}<br /><b>Email:</b> {u.email}<br /><b>Requested:</b> {new Date(u.created_at).toLocaleString()}</div><Button variant="primary" onClick={() => askUpdateUser(u.id, { is_approved: 1 }, `Do you want to approve ${u.username}?`)}>Approve</Button><Button onClick={() => askRejectUser(u)}>Reject</Button></div>) : <div className="info">No pending user approvals</div>}</div>}
-    {tab === "Password Resets" && <div className="form-panel"><h3>Password Reset Requests</h3>{resets.length ? resets.map((u) => <div className="admin-row" key={u.id}><div><b>{u.username}</b><br />{u.email}</div><input type="password" placeholder="New Password" value={resetPasswords[u.id] || ""} onChange={(e) => setResetPasswords({ ...resetPasswords, [u.id]: e.target.value })} /><Button variant="primary" onClick={() => askResetPassword(u.id, u.username)}>Reset Password</Button></div>) : <div className="info">No password reset requests</div>}</div>}
-    {tab === "Approved Users" && <div className="form-panel"><div className="management-tools"><h3>Approved Users</h3><input value={managementSearch} onChange={(e) => setManagementSearch(e.target.value)} placeholder="Search users..." /></div><div className="table-wrap"><table><thead><tr><th>ID</th><th>User ID</th><th>Username</th><th>Email</th><th>Role</th><th>Approved</th><th>Reset</th></tr></thead><tbody>{filteredApproved.map((u) => <tr key={u.id}><td>{u.id}</td><td><input defaultValue={u.user_id || ""} onBlur={(e) => e.target.value !== (u.user_id || "") && askUpdateUser(u.id, { user_id: e.target.value })} /></td><td><input defaultValue={u.username} onBlur={(e) => e.target.value !== u.username && askUpdateUser(u.id, { username: e.target.value })} /></td><td><input defaultValue={u.email} onBlur={(e) => e.target.value !== u.email && askUpdateUser(u.id, { email: e.target.value })} /></td><td><Select value={u.role} onChange={(v) => askUpdateUser(u.id, { role: v }, `Do you want to change ${u.username}'s role to ${v}?`)} options={["user", "admin"]} /></td><td><input type="checkbox" checked={!!u.is_approved} onChange={(e) => askUpdateUser(u.id, { is_approved: e.target.checked ? 1 : 0 }, `Do you want to ${e.target.checked ? "approve" : "unapprove"} ${u.username}?`)} /></td><td><input type="checkbox" checked={!!u.password_reset_requested} onChange={(e) => askUpdateUser(u.id, { password_reset_requested: e.target.checked ? 1 : 0 }, `Do you want to update password reset flag for ${u.username}?`)} /></td></tr>)}</tbody></table></div></div>}
-    {tab === "Create User" && <div className="form-panel"><h3>Create New User</h3><div className="form-grid"><Field label="Username"><input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} /></Field><Field label="User ID"><input value={newUser.user_id} onChange={(e) => setNewUser({ ...newUser, user_id: e.target.value })} /></Field><Field label="Email"><input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} /></Field><Field label="Password"><input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} /></Field><Field label="Confirm Password"><input type="password" value={newUser.confirm} onChange={(e) => setNewUser({ ...newUser, confirm: e.target.value })} /></Field><Field label="Role"><Select value={newUser.role} onChange={(v) => setNewUser({ ...newUser, role: v })} options={["user", "admin"]} /></Field></div><Button variant="primary" onClick={askCreateUser}>Create User</Button></div>}
+    {canManageUsers && tab === "Pending Users" && <div className="form-panel"><h3>Pending User Approvals</h3>{pending.length ? pending.map((u) => <div className="admin-row" key={u.id}><div><b>Username:</b> {u.username}<br /><b>Email:</b> {u.email}<br /><b>Requested:</b> {new Date(u.created_at).toLocaleString()}</div><Button variant="primary" onClick={() => askUpdateUser(u.id, { is_approved: 1 }, `Do you want to approve ${u.username}?`)}>Approve</Button><Button onClick={() => askRejectUser(u)}>Reject</Button></div>) : <div className="info">No pending user approvals</div>}</div>}
+    {canManageUsers && tab === "Password Resets" && <div className="form-panel"><h3>Password Reset Requests</h3>{resets.length ? resets.map((u) => <div className="admin-row" key={u.id}><div><b>{u.username}</b><br />{u.email}</div><input type="password" placeholder="New Password" value={resetPasswords[u.id] || ""} onChange={(e) => setResetPasswords({ ...resetPasswords, [u.id]: e.target.value })} /><Button variant="primary" onClick={() => askResetPassword(u.id, u.username)}>Reset Password</Button></div>) : <div className="info">No password reset requests</div>}</div>}
+    {canManageUsers && tab === "Approved Users" && <div className="form-panel"><div className="management-tools"><h3>Approved Users</h3><input value={managementSearch} onChange={(e) => setManagementSearch(e.target.value)} placeholder="Search users..." /></div><div className="table-wrap"><table><thead><tr><th>ID</th><th>User ID</th><th>Username</th><th>Email</th><th>Role</th><th>Approved</th><th>Reset</th></tr></thead><tbody>{filteredApproved.map((u) => <tr key={u.id}><td>{u.id}</td><td><input defaultValue={u.user_id || ""} onBlur={(e) => e.target.value !== (u.user_id || "") && askUpdateUser(u.id, { user_id: e.target.value })} /></td><td><input defaultValue={u.username} onBlur={(e) => e.target.value !== u.username && askUpdateUser(u.id, { username: e.target.value })} /></td><td><input defaultValue={u.email} onBlur={(e) => e.target.value !== u.email && askUpdateUser(u.id, { email: e.target.value })} /></td><td><Select value={u.role} onChange={(v) => askUpdateUser(u.id, { role: v }, `Do you want to change ${u.username}'s role to ${v}?`)} options={["user", "admin", "super_admin"]} /></td><td><input type="checkbox" checked={!!u.is_approved} onChange={(e) => askUpdateUser(u.id, { is_approved: e.target.checked ? 1 : 0 }, `Do you want to ${e.target.checked ? "approve" : "unapprove"} ${u.username}?`)} /></td><td><input type="checkbox" checked={!!u.password_reset_requested} onChange={(e) => askUpdateUser(u.id, { password_reset_requested: e.target.checked ? 1 : 0 }, `Do you want to update password reset flag for ${u.username}?`)} /></td></tr>)}</tbody></table></div></div>}
+    {canManageUsers && tab === "Create User" && <div className="form-panel"><h3>Create New User</h3><div className="form-grid"><Field label="Username"><input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} /></Field><Field label="User ID"><input value={newUser.user_id} onChange={(e) => setNewUser({ ...newUser, user_id: e.target.value })} /></Field><Field label="Email"><input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} /></Field><Field label="Password"><input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} /></Field><Field label="Confirm Password"><input type="password" value={newUser.confirm} onChange={(e) => setNewUser({ ...newUser, confirm: e.target.value })} /></Field><Field label="Role"><Select value={newUser.role} onChange={(v) => setNewUser({ ...newUser, role: v })} options={["user", "admin", "super_admin"]} /></Field></div><Button variant="primary" onClick={askCreateUser}>Create User</Button></div>}
     {["Payor", "CCU", "Events", "Lead Sources"].includes(tab) && <div className="form-panel">
       <div className="management-tools">
         <div>

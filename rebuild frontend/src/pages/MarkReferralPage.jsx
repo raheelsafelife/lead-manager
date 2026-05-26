@@ -7,6 +7,7 @@ import { api } from "../services/api";
 import { caregiverTypes } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { WorkflowSkeleton } from "../components/Skeleton";
+import { isAdminRole } from "../utils/roles";
 
 const referralStatuses = ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused", "Inactive"];
 
@@ -23,6 +24,7 @@ export default function MarkReferralPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const canAdmin = isAdminRole(user.role);
   const confirmAction = useConfirm();
   const backTo = searchParams.get("from") || "/view-leads";
   const [lead, setLead] = useState(null);
@@ -45,7 +47,7 @@ export default function MarkReferralPage() {
     ccu_id: "",
     send_reminders: true
   });
-  const canEdit = useMemo(() => lead && (user.role === "admin" || lead.staff_name === user.username), [lead, user]);
+  const canEdit = useMemo(() => lead && (canAdmin || lead.staff_name === user.username), [canAdmin, lead, user.username]);
 
   useEffect(() => {
     let mounted = true;
@@ -288,7 +290,7 @@ export default function MarkReferralPage() {
 
           <section className="mark-referral-section">
             <h4>Payor:</h4>
-            {user.role === "admin" && (
+            {canAdmin && (
               <div className="mark-referral-inline-add">
                 <button className="mark-referral-inline-toggle" onClick={() => setShowAgencyForm((current) => !current)}>
                   <Plus size={15} />
