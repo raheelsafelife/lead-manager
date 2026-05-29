@@ -81,7 +81,7 @@ function folderCopy(active) {
 
 function callTone(status) {
   if (status === "Not Called") return "danger";
-  if (status === "Not Interested" || status === "No Response") return "soft-danger";
+  if (status === "Not Interested" || status === "Not Answering" || status === "No Response") return "soft-danger";
   if (status === "Interested" || status === "Called") return "success";
   if (status === "Supervisor Followup" || status === "Pending") return "warning";
   return "primary";
