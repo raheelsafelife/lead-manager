@@ -15,7 +15,7 @@ import { Button, Select } from "../components/Controls";
 import LeadCard from "../components/LeadCard";
 import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
-import { caregiverTypes, referralStatuses, tagColors } from "../utils/constants";
+import { caregiverTypes, leadCallStatuses, referralCallStatuses, referralStatuses, tagColors } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { isAdminRole } from "../utils/roles";
 
@@ -77,6 +77,14 @@ function folderCopy(active) {
   if (active === "Inactive") return { title: "Archive Folder", summary: "Archive", empty: "No archived records found for these filters." };
   if (active === "All") return { title: "All Records", summary: "All", empty: "No matching records found for these filters." };
   return { title: "Active Folder", summary: "Active", empty: "No active records found for these filters." };
+}
+
+function callTone(status) {
+  if (status === "Not Called") return "danger";
+  if (status === "Not Interested" || status === "No Response") return "soft-danger";
+  if (status === "Interested" || status === "Called") return "success";
+  if (status === "Supervisor Followup" || status === "Pending") return "warning";
+  return "primary";
 }
 
 export default function LeadsPage({ title, type, discovery = false }) {
@@ -168,6 +176,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
     : type === "authorization"
       ? ["All", "Care Start", "Not Start", "Hold", "Terminated", "Deceased", "Transfer Received"]
       : ["All", "Initial Call", "No Response", "Not Interested"];
+  const callStatusOptions = type === "lead" ? leadCallStatuses : type === "referral" ? referralCallStatuses : [...new Set([...leadCallStatuses, ...referralCallStatuses])];
+  const callFilterOptions = ["All", ...callStatusOptions];
 
   const summaryLabel = type === "referral" ? "referrals" : type === "authorization" ? "authorizations" : "leads";
   const currentFolder = folderCopy(filters.active);
@@ -216,7 +226,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
           <label className="leads-filter">
             <span><PhoneCall size={18} />Call Status</span>
-            <Select value={filters.callStatus} onChange={(value) => patch("callStatus", value)} options={["All", "Not Called", "Pending", "Called"]} />
+            <Select value={filters.callStatus} onChange={(value) => patch("callStatus", value)} options={callFilterOptions} />
           </label>
 
           <label className="leads-filter">
@@ -288,15 +298,18 @@ export default function LeadsPage({ title, type, discovery = false }) {
           <div className="leads-quick-group">
             <span>Call Filters</span>
             <div className="leads-pill-row">
-              {["Not Called", "Pending", "Called", "All"].map((value) => (
-                <button
-                  className={`leads-filter-pill ${filters.callStatus === value ? `active ${value === "Not Called" ? "tone-danger" : value === "Pending" ? "tone-warning" : value === "Called" ? "tone-success" : "tone-primary"}` : value === "Not Called" ? "outline-danger" : value === "Pending" ? "outline-warning" : value === "Called" ? "outline-success" : ""}`}
-                  key={value}
-                  onClick={() => patch("callStatus", value)}
-                >
-                  {value}
-                </button>
-              ))}
+              {[...callStatusOptions, "All"].map((value) => {
+                const tone = callTone(value);
+                return (
+                  <button
+                    className={`leads-filter-pill ${filters.callStatus === value ? `active tone-${tone}` : tone === "soft-danger" ? "outline-soft-danger" : tone === "danger" ? "outline-danger" : tone === "warning" ? "outline-warning" : tone === "success" ? "outline-success" : ""}`}
+                    key={value}
+                    onClick={() => patch("callStatus", value)}
+                  >
+                    {value}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, downloadFile, previewUrl } from "../services/api";
 import { Button, Field, Modal, Select, StatusPill } from "./Controls";
 import { useConfirm } from "./ConfirmProvider";
-import { callStatuses, caregiverTypes, leadSources } from "../utils/constants";
+import { callStatuses, caregiverTypes, leadCallStatuses, leadSources, referralCallStatuses } from "../utils/constants";
 import { useAuth } from "../context/AuthContext";
 import { emitToast } from "../utils/appEvents";
 import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
@@ -351,6 +351,8 @@ export default function LeadCard({ lead, type, onChanged }) {
   const fullName = `${lead.first_name} ${lead.last_name}`;
   const priority = lead.priority || "Not Called";
   const priorityClass = priority.toLowerCase().replaceAll(" ", "-");
+  const typeCallStatuses = type === "lead" ? leadCallStatuses : type === "referral" ? referralCallStatuses : callStatuses;
+  const callStatusOptions = [...new Set([...typeCallStatuses, priority].filter(Boolean))];
   const mainStatus = lead.care_status || lead.last_contact_status || (lead.authorization_received ? "Authorization" : lead.active_client ? "Referral" : "Lead");
   const initials = fullName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "LM";
   const commentRows = detail?.comments || [];
@@ -387,7 +389,7 @@ export default function LeadCard({ lead, type, onChanged }) {
         {lead.caregiver_type && lead.caregiver_type !== "None" && <em>{lead.caregiver_type}</em>}
       </button>
       <div className="inline-status">
-        <Select value={lead.priority || "Not Called"} options={callStatuses} onChange={(value) => askUpdateLead({ title: "Update Call Status?", message: `Do you want to set call status to ${value}?`, data: { priority: value, call_status_updated_by: user.username, call_status_updated_at: new Date().toISOString() } })} />
+        <Select value={lead.priority || "Not Called"} options={callStatusOptions} onChange={(value) => askUpdateLead({ title: "Update Call Status?", message: `Do you want to set call status to ${value}?`, data: { priority: value, call_status_updated_by: user.username, call_status_updated_at: new Date().toISOString() } })} />
         <div className={`header-status-card ${priorityClass}`}>
           <div><StatusPill value={priority} /></div>
           <small>{lead.call_status_updated_by || lead.updated_by || lead.staff_name || "N/A"}{shortDateTime(lead.call_status_updated_at || lead.updated_at) ? ` • ${shortDateTime(lead.call_status_updated_at || lead.updated_at)}` : ""}</small>

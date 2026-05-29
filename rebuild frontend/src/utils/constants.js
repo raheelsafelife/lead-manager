@@ -1,5 +1,7 @@
 export const leadSources = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"];
-export const callStatuses = ["Not Called", "Pending", "Called"];
+export const leadCallStatuses = ["Not Called", "Not Interested", "Interested", "Supervisor Followup"];
+export const referralCallStatuses = ["Not Called", "No Response", "Called", "Supervisor Followup"];
+export const callStatuses = [...new Set([...leadCallStatuses, ...referralCallStatuses, "Pending"])];
 export const activeStatuses = ["Active", "Inactive", "All"];
 export const tagColors = ["All", "Blue", "Purple"];
 export const caregiverTypes = ["None", "FHCA", "PHCA", "HCA"];
