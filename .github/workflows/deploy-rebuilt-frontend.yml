@@ -1,0 +1,47 @@
+name: Deploy rebuilt Lead Manager
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "rebuild frontend/**"
+      - ".github/workflows/deploy-rebuilt-frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-rebuilt-lead-manager
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_SSH_PRIVATE_KEY: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$AWS_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$AWS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy rebuilt frontend and API
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+          LEAD_MANAGER_API_KEY: ${{ secrets.LEAD_MANAGER_API_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" \
+            "cd ~/lead-manager && \
+             git pull --ff-only origin main && \
+             cd 'rebuild frontend' && \
+             npm ci && \
+             npm run build && \
+             LEAD_MANAGER_API_KEY='$LEAD_MANAGER_API_KEY' \
+             JWT_SECRET_KEY='$JWT_SECRET_KEY' \
+             pm2 restart lead-manager-react --update-env && \
+             pm2 save"
+
