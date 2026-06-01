@@ -20,22 +20,25 @@ jobs:
       - name: Configure SSH
         env:
           AWS_HOST: ${{ secrets.AWS_HOST }}
-          AWS_SSH_PRIVATE_KEY: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$AWS_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$AWS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$AWS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy rebuilt frontend and API
         env:
+          APP_DIR: ${{ secrets.APP_DIR }}
           AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
           AWS_USER: ${{ secrets.AWS_USER }}
           LEAD_MANAGER_API_KEY: ${{ secrets.LEAD_MANAGER_API_KEY }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
-          ssh -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" \
-            "cd ~/lead-manager && \
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" \
+            "cd '$APP_DIR' && \
              git pull --ff-only origin main && \
              cd 'rebuild frontend' && \
              npm ci && \
@@ -44,4 +47,3 @@ jobs:
              JWT_SECRET_KEY='$JWT_SECRET_KEY' \
              pm2 restart lead-manager-react --update-env && \
              pm2 save"
-
