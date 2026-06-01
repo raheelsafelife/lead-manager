@@ -23,6 +23,7 @@ const legacyUploadDirs = [
 const distDir = path.resolve(__dirname, "..", "dist");
 const schemaPath = path.resolve(__dirname, "..", "migrations", "aws", "postgres-schema.sql");
 const jwtSecret = process.env.JWT_SECRET_KEY || "f2f9c7c55bdbe69ea5ac0da9b29fb2c26555a720266bfb4ba936568b27ab7cef";
+const externalLeadApiKey = process.env.LEAD_MANAGER_API_KEY;
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 const db = await createDatabase({ dbPath, schemaPath });
@@ -660,6 +661,69 @@ app.get("/api/leads/:id", auth, async (req, res) => {
   const comments = await db.all("select * from lead_comments where lead_id = ? order by created_at desc", req.params.id);
   const attachments = await db.all("select * from attachments where lead_id = ? order by uploaded_at desc", req.params.id);
   res.json({ lead, comments, attachments });
+});
+
+app.post("/api/external-lead", async (req, res) => {
+  if (!externalLeadApiKey) return res.status(503).json({ error: "External lead form is not configured" });
+  if (req.headers["x-api-key"] !== externalLeadApiKey) return res.status(401).json({ error: "Invalid API key" });
+
+  const body = req.body || {};
+  const required = ["staff_name", "user_id", "name", "relation", "medicaid", "source", "phone"];
+  const missing = required.filter((field) => !String(body[field] || "").trim());
+  if (missing.length) return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
+
+  const user = await db.get("select id,user_id,username from users where user_id = ?", String(body.user_id).trim());
+  if (!user) return res.status(400).json({ error: `Staff ID '${body.user_id}' was not found` });
+  if (user.username !== String(body.staff_name).trim()) {
+    return res.status(400).json({ error: "Staff name does not match Staff ID" });
+  }
+
+  const nameParts = String(body.name).trim().split(/\s+/);
+  if (nameParts.length < 2) return res.status(400).json({ error: "Please enter the client's first and last name" });
+
+  const fullAddress = [body.address_line1, body.address_line2].map((value) => String(value || "").trim()).filter(Boolean).join(", ");
+  const isTransfer = body.source === "Transfer";
+  const data = {
+    created_at: now(),
+    updated_at: now(),
+    created_by: user.username,
+    updated_by: user.username,
+    owner_id: user.id,
+    staff_name: user.username,
+    first_name: nameParts[0],
+    last_name: nameParts.slice(1).join(" "),
+    source: String(body.source).trim(),
+    active_client: bool(isTransfer),
+    authorization_received: bool(isTransfer),
+    care_status: isTransfer ? "Transfer Received" : null,
+    soc_date: body.soc_date || null,
+    phone: String(body.phone).trim(),
+    street: fullAddress || null,
+    address: fullAddress || null,
+    city: body.city || null,
+    state: body.state || null,
+    zip_code: body.zip || null,
+    dob: body.birthdate || null,
+    age: body.age || null,
+    medicaid_status: body.medicaid,
+    medicaid_no: body.medicaid_number || null,
+    relation_to_client: body.relation,
+    comments: body.info || null,
+    email: body.email || null,
+    custom_user_id: user.user_id,
+    last_contact_status: "Initial Call",
+    priority: "Not Called",
+    send_reminders: 1
+  };
+
+  const duplicate = await findDuplicateLead(data);
+  if (duplicate) return res.status(409).json({ error: "Duplicate lead detected", duplicate });
+
+  const fields = Object.keys(data);
+  const result = await db.run(`insert into leads (${fields.join(",")}) values (${fields.map((field) => `@${field}`).join(",")})`, data);
+  const lead = await getLead(result.lastInsertRowid, true);
+  await logActivity(user, "CREATE_LEAD", "Lead", lead.id, `${lead.first_name} ${lead.last_name}`, `Created lead '${lead.first_name} ${lead.last_name}' from external form`, null, lead, "lead,create,external-form");
+  res.status(201).json({ success: true, lead_id: lead.id, lead });
 });
 
 app.get("/api/search/suggestions", auth, async (req, res) => {

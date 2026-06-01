@@ -8,6 +8,7 @@
     "client": "vite --host 0.0.0.0 --port 5173",
     "api": "node server/index.js",
     "build": "vite build",
+    "test:external-lead": "node scripts/test-external-lead.mjs",
     "migrate:aws": "node migrations/aws/migrate-sqlite-to-postgres.mjs",
     "migrate:aws:check": "node migrations/aws/migrate-sqlite-to-postgres.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
