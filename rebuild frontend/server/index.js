@@ -663,12 +663,29 @@ app.get("/api/leads/:id", auth, async (req, res) => {
   res.json({ lead, comments, attachments });
 });
 
+function requireExternalLeadApiKey(req, res) {
+  if (!externalLeadApiKey) {
+    res.status(503).json({ error: "External lead form is not configured" });
+    return false;
+  }
+  if (req.headers["x-api-key"] !== externalLeadApiKey) {
+    res.status(401).json({ error: "Invalid API key" });
+    return false;
+  }
+  return true;
+}
+
+app.get("/api/external-lead/staff", async (req, res) => {
+  if (!requireExternalLeadApiKey(req, res)) return;
+  const staff = await db.all("select user_id,username from users where is_approved = 1 and user_id is not null order by username");
+  res.json({ staff });
+});
+
 app.post("/api/external-lead", async (req, res) => {
-  if (!externalLeadApiKey) return res.status(503).json({ error: "External lead form is not configured" });
-  if (req.headers["x-api-key"] !== externalLeadApiKey) return res.status(401).json({ error: "Invalid API key" });
+  if (!requireExternalLeadApiKey(req, res)) return;
 
   const body = req.body || {};
-  const required = ["staff_name", "user_id", "name", "relation", "medicaid", "source", "phone"];
+  const required = ["staff_name", "user_id", "first_name", "last_name", "gender", "medicaid", "source", "phone"];
   const missing = required.filter((field) => !String(body[field] || "").trim());
   if (missing.length) return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
 
@@ -677,9 +694,6 @@ app.post("/api/external-lead", async (req, res) => {
   if (user.username !== String(body.staff_name).trim()) {
     return res.status(400).json({ error: "Staff name does not match Staff ID" });
   }
-
-  const nameParts = String(body.name).trim().split(/\s+/);
-  if (nameParts.length < 2) return res.status(400).json({ error: "Please enter the client's first and last name" });
 
   const fullAddress = [body.address_line1, body.address_line2].map((value) => String(value || "").trim()).filter(Boolean).join(", ");
   const isTransfer = body.source === "Transfer";
@@ -690,8 +704,8 @@ app.post("/api/external-lead", async (req, res) => {
     updated_by: user.username,
     owner_id: user.id,
     staff_name: user.username,
-    first_name: nameParts[0],
-    last_name: nameParts.slice(1).join(" "),
+    first_name: String(body.first_name).trim(),
+    last_name: String(body.last_name).trim(),
     source: String(body.source).trim(),
     active_client: bool(isTransfer),
     authorization_received: bool(isTransfer),
@@ -707,7 +721,7 @@ app.post("/api/external-lead", async (req, res) => {
     age: body.age || null,
     medicaid_status: body.medicaid,
     medicaid_no: body.medicaid_number || null,
-    relation_to_client: body.relation,
+    gender: String(body.gender).trim(),
     comments: body.info || null,
     email: body.email || null,
     custom_user_id: user.user_id,

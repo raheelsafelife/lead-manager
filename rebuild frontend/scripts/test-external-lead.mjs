@@ -58,7 +58,7 @@ function verifySavedLead(SQL, phone, user) {
   const db = new SQL.Database(fs.readFileSync(tempDb));
   try {
     const statement = db.prepare(`select first_name,last_name,owner_id,staff_name,custom_user_id,source,phone,street,address,
-      city,state,zip_code,medicaid_status,medicaid_no,relation_to_client,comments,last_contact_status
+      city,state,zip_code,medicaid_status,medicaid_no,gender,comments,last_contact_status
       from leads where phone=?`);
     statement.bind([phone]);
     assert(statement.step(), "Expected the external lead to be saved");
@@ -70,7 +70,7 @@ function verifySavedLead(SQL, phone, user) {
     assert(lead.staff_name === user.username && lead.custom_user_id === user.userId, "Staff mapping failed");
     assert(lead.street === "101 Test Ave, Unit 2" && lead.address === "101 Test Ave, Unit 2", "Address mapping failed");
     assert(lead.medicaid_status === "yes" && lead.medicaid_no === "MED-TEST-1", "Medicaid mapping failed");
-    assert(lead.relation_to_client === "Self" && lead.comments === "Temporary integration test", "Details mapping failed");
+    assert(lead.gender === "Female" && lead.comments === "Temporary integration test", "Details mapping failed");
     assert(lead.last_contact_status === "Initial Call", "Default lead status mapping failed");
   } finally {
     db.close();
@@ -87,8 +87,9 @@ const payload = {
   staff_name: user.username,
   user_id: user.userId,
   source: "Web",
-  name: "External Form Test",
-  relation: "Self",
+  first_name: "External",
+  last_name: "Form Test",
+  gender: "Female",
   birthdate: "01/15/1980",
   medicaid: "yes",
   medicaid_number: "MED-TEST-1",
@@ -118,6 +119,11 @@ try {
   });
   assert(unauthorized.status === 401, `Expected missing API key to return 401, got ${unauthorized.status}`);
 
+  const staffResponse = await fetch(`${url}/staff`, { headers: { "X-API-Key": apiKey } });
+  assert(staffResponse.status === 200, `Expected staff lookup to return 200, got ${staffResponse.status}`);
+  const { staff } = await staffResponse.json();
+  assert(staff.some((entry) => entry.username === user.username && entry.user_id === user.userId), "Expected staff lookup to include the approved test user");
+
   const created = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
@@ -133,9 +139,8 @@ try {
   assert(duplicate.status === 409, `Expected duplicate submission to return 409, got ${duplicate.status}`);
 
   verifySavedLead(SQL, phone, user);
-  console.log("External lead integration passed: auth, insert, field mapping, and duplicate blocking");
+  console.log("External lead integration passed: auth, staff lookup, insert, field mapping, and duplicate blocking");
 } finally {
   child.kill("SIGTERM");
   fs.rmSync(tempDir, { recursive: true, force: true });
 }
-
