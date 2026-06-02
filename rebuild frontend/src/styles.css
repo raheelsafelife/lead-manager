@@ -834,6 +834,11 @@ textarea { min-height: 96px; resize: vertical; }
 .lead-information-list .copy-value {
   align-items: flex-start;
 }
+.lead-information-list .copy-value > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .lead-comments-preview {
   display: grid;
   gap: 12px;

@@ -9,6 +9,7 @@ import ExcelJS from "exceljs";
 import { AlignmentType, Document, PageOrientation, Packer, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType } from "docx";
 import { fileURLToPath } from "url";
 import { createDatabase } from "./db.js";
+import { searchSuggestionRelevance } from "./suggestionRank.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..", "..");
@@ -741,8 +742,10 @@ app.post("/api/external-lead", async (req, res) => {
 });
 
 app.get("/api/search/suggestions", auth, async (req, res) => {
-  const { rows } = await listLeads({ search: req.query.q, includeDeleted: false, active: "All", limit: 10 }, req.user);
-  res.json({ clients: rows.map((l) => {
+  const query = String(req.query.q || "").trim().toLowerCase();
+  const { rows } = await listLeads({ search: query, includeDeleted: false, active: "All", limit: 50 }, req.user);
+  rows.sort((left, right) => searchSuggestionRelevance(left, query) - searchSuggestionRelevance(right, query) || String(right.created_at || "").localeCompare(String(left.created_at || "")));
+  res.json({ clients: rows.slice(0, 10).map((l) => {
     const target = searchTargetForLead(l);
     const separator = target.targetUrl.includes("?") ? "&" : "?";
     return { id: l.id, name: `${l.first_name} ${l.last_name}`, phone: l.phone, ...target, targetUrl: `${target.targetUrl}${separator}globalSearch=true` };
