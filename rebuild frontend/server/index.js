@@ -429,7 +429,8 @@ async function listLeads(q, user) {
 
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
-  const user = await db.get("select * from users where username = ?", username);
+  const identifier = String(username || "").trim();
+  const user = await db.get("select * from users where username = ? or lower(email) = lower(?)", identifier, identifier);
   if (!user || !verifyPassword(password || "", user.hashed_password)) return res.status(401).json({ error: "Invalid credentials" });
   if (!user.is_approved) return res.status(403).json({ error: "Account pending approval" });
   const payload = { sub: user.username, username: user.username, role: user.role, user_id: user.id, employee_id: user.user_id };
