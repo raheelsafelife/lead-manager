@@ -9,6 +9,8 @@ from __future__ import annotations
 from datetime import date, datetime, time, timezone
 from html import escape
 import json
+import os
+import time as sleep_time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from sqlalchemy import desc
@@ -26,6 +28,7 @@ except ImportError:
 
 
 DIGEST_TIMEZONE = "America/Chicago"
+DIGEST_SEND_DELAY_SECONDS = 3
 DIGEST_ACTIONS = {
     "LEAD_CREATED",
     "LEAD_UPDATED",
@@ -89,6 +92,13 @@ def _local_day_window(digest_date: date) -> Tuple[datetime, datetime]:
     start_utc = local_start.astimezone(timezone.utc).replace(tzinfo=None)
     end_utc = local_end.astimezone(timezone.utc).replace(tzinfo=None)
     return start_utc, end_utc
+
+
+def _digest_send_delay_seconds() -> float:
+    try:
+        return max(0.0, float(os.getenv("DAILY_DIGEST_SEND_DELAY_SECONDS", DIGEST_SEND_DELAY_SECONDS)))
+    except ValueError:
+        return float(DIGEST_SEND_DELAY_SECONDS)
 
 
 def _parse_json(value: Optional[str]) -> Dict[str, Any]:
@@ -478,6 +488,7 @@ def send_digest_for_user(db: Session, user: User, digest_date: Optional[date] = 
 
 def send_daily_digests(db: Session, digest_date: Optional[date] = None) -> Dict[str, int]:
     users = db.query(User).filter(User.is_approved == True).order_by(User.id.asc()).all()
+    delay_seconds = _digest_send_delay_seconds()
     result = {
         "sent": 0,
         "failed": 0,
@@ -490,6 +501,9 @@ def send_daily_digests(db: Session, digest_date: Optional[date] = None) -> Dict[
         try:
             status = send_digest_for_user(db, user, digest_date=digest_date)
             result[status] = result.get(status, 0) + 1
+            if status in ("sent", "failed") and delay_seconds > 0:
+                print(f"[INFO] Waiting {delay_seconds:g}s before next digest email...")
+                sleep_time.sleep(delay_seconds)
         except Exception as exc:
             print(f"[ERROR] Daily digest failed for user {getattr(user, 'username', 'unknown')}: {exc}")
             result["failed"] += 1
