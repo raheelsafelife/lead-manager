@@ -29,7 +29,13 @@ def get_template_content(slug: str, default_subject: str, default_body: str, dat
     return default_subject.format(**data), default_body.format(**data)
 
 
-def send_email(to_email: str, subject: str, body: str, html_body: str = None) -> bool:
+def send_email(
+    to_email: str,
+    subject: str,
+    body: str,
+    html_body: str = None,
+    include_admin_bcc: bool = True
+) -> bool:
     """
     Core SMTP sending function. 
     Consolidated to handle all email communications in the system.
@@ -61,9 +67,9 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
         if html_body:
             msg.attach(MIMEText(html_body, "html"))
         
-        # Prepare recipients (Primary + Admin BCC)
+        # Prepare recipients (primary plus optional admin BCC)
         recipients = [to_email]
-        if ADMIN_EMAIL and ADMIN_EMAIL.lower() != to_email.lower():
+        if include_admin_bcc and ADMIN_EMAIL and ADMIN_EMAIL.lower() != to_email.lower():
             recipients.append(ADMIN_EMAIL)
             
         # Connect and send
@@ -79,7 +85,8 @@ def send_email(to_email: str, subject: str, body: str, html_body: str = None) ->
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, recipients, msg.as_string())
             
-        logger.info(f"Email sent successfully to {to_email} (BCC: {ADMIN_EMAIL})")
+        bcc_note = f" (BCC: {ADMIN_EMAIL})" if include_admin_bcc and ADMIN_EMAIL else ""
+        logger.info(f"Email sent successfully to {to_email}{bcc_note}")
         print(f"[SUCCESS] Email sent successfully to {to_email}")
         return True
         

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Text,
     Date,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from .db import Base
@@ -287,6 +288,27 @@ class EmailReminder(Base):
     lead_name = Column(String(300), nullable=False)
     lead_status = Column(String(50), nullable=False)
     lead_source = Column(String(150), nullable=False)
+
+
+class DailyDigestEmail(Base):
+    """
+    Tracks daily digest emails so each user receives at most one digest per day.
+    """
+    __tablename__ = "daily_digest_emails"
+    __table_args__ = (
+        UniqueConstraint("user_id", "digest_date", name="uq_daily_digest_user_date"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    recipient_email = Column(String(255), nullable=False)
+    digest_date = Column(Date, nullable=False, index=True)
+    activity_count = Column(Integer, nullable=False, default=0)
+    status = Column(String(50), nullable=False, default="sent")
+    sent_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
+
+    user = relationship("User")
 
 
 class SessionToken(Base):

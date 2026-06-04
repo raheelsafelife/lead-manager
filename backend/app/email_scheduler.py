@@ -11,9 +11,55 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.crud import crud_leads, crud_users, crud_email_reminders, crud_notifications
 from app.crud.crud_email_reminders import create_care_start_reminder, get_care_start_reminders_by_lead
-from app.utils.email_service import send_simple_lead_email, send_referral_reminder_email
 import time
 import threading
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
+
+
+_last_digest_attempt_date = None
+
+
+def _digest_enabled():
+    return os.getenv("DAILY_DIGEST_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+
+
+def _digest_send_hour():
+    try:
+        return int(os.getenv("DAILY_DIGEST_SEND_HOUR", "18"))
+    except ValueError:
+        return 18
+
+
+def send_daily_digest_if_due():
+    """Send daily digest emails once per day after the configured local hour."""
+    global _last_digest_attempt_date
+
+    if not _digest_enabled():
+        return
+
+    now_local = datetime.now(ZoneInfo("America/Chicago"))
+    digest_date = now_local.date()
+    if now_local.hour < _digest_send_hour():
+        return
+    if _last_digest_attempt_date == digest_date:
+        return
+
+    _last_digest_attempt_date = digest_date
+    db = SessionLocal()
+    try:
+        from app.services.daily_digest_service import send_daily_digests
+
+        print(f"[{datetime.now()}] Starting daily digest scan for {digest_date}...")
+        result = send_daily_digests(db, digest_date=digest_date)
+        print(f"[SUCCESS] Daily digest complete: {result}")
+    except Exception as e:
+        print(f"[ERROR] Daily digest scan failed: {e}")
+    finally:
+        db.close()
 
 
 def should_send_reminder(lead, last_reminder_time):
@@ -26,7 +72,7 @@ def should_send_reminder(lead, last_reminder_time):
     if lead.last_contact_status == "Inactive":
         return False
 
-    # If no reminder sent yet, send immediately (first email)
+    # If no reminder sent yet, notify immediately (first reminder)
     if not last_reminder_time:
         return True
 
@@ -64,7 +110,7 @@ def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time
     if lead.last_contact_status == "Inactive":
         return False
 
-    # If no reminder sent yet, send immediately (first email)
+    # If no reminder sent yet, notify immediately (first reminder)
     if not last_reminder_time:
         return True
 
@@ -78,7 +124,7 @@ def should_send_care_start_reminder(lead, last_reminder_time, auth_received_time
 
 
 def send_lead_reminders():
-    """Check all active leads and send reminders if needed"""
+    """Check all active leads and create in-app reminder notifications if needed."""
     db = SessionLocal()
     print(f"[{datetime.now()}] Starting lead reminder scan...")
     try:
@@ -98,11 +144,11 @@ def send_lead_reminders():
                 last_reminder_time = reminders[0].sent_at if reminders else None
                 
                 if should_send_reminder(lead, last_reminder_time):
-                    # Get the lead creator's email
+                    # Get the lead creator for in-app notifications.
                     if lead.created_by:
                         user = crud_users.get_user_by_username(db, lead.created_by)
-                        if user and user.email:
-                            print(f"[DEBUG] Condition met for Lead ID {lead.id} ({lead.first_name}). Sending email to {user.email}...")
+                        if user:
+                            print(f"[DEBUG] Reminder condition met for Lead ID {lead.id} ({lead.first_name}). Creating notification for {user.username}...")
                             
                             # Check if this is a referral or regular lead
                             if lead.active_client:  # Is a referral
@@ -160,36 +206,20 @@ def send_lead_reminders():
                                     'priority': lead.priority if lead.priority else 'Medium'
                                 }
                                 
-                                # Send referral email
-                                success = send_referral_reminder_email(referral_info, user.email)
                                 subject = f"Referral Reminder [{referral_info['referral_type']}]: {lead.first_name} {lead.last_name}"
                                 
                             else:  # Regular non-referral lead
-                                # Prepare simple lead data
-                                lead_info = {
-                                    'name': f"{lead.first_name} {lead.last_name}",
-                                    'phone': lead.phone,
-                                    'creator': lead.created_by,
-                                    'dob': str(lead.dob) if lead.dob else 'N/A',
-                                    'source': lead.source,
-                                    'status': lead.last_contact_status,
-                                    'created_date': lead.created_at.strftime('%m/%d/%Y')
-                                }
-                                
-                                # Send simple email
-                                success = send_simple_lead_email(lead_info, user.email)
                                 subject = f"Lead Reminder: {lead.first_name} {lead.last_name}"
                             
-                            # Record the reminder
-                            status = "sent" if success else "failed"
+                            # Record the reminder for scheduler timing/history only.
                             crud_email_reminders.create_reminder(
                                 db=db,
                                 lead_id=lead.id,
-                                recipient_email=user.email,
+                                recipient_email=user.email or "",
                                 subject=subject,
                                 sent_by="system",
-                                status=status,
-                                error_message=None if success else "Email service error"
+                                status="notification_only",
+                                error_message=None
                             )
                             
                             # CREATE IN-APP NOTIFICATION
@@ -213,19 +243,13 @@ def send_lead_reminders():
                             except Exception as notif_e:
                                 print(f"[ERROR] Failed to create in-app notification: {notif_e}")
                             
-                            if success:
-                                if lead.active_client:
-                                    reminder_type = f"[{referral_info['referral_type']}]"
-                                else:
-                                    reminder_type = "[Lead]"
-                                print(f"[SUCCESS] Sent {reminder_type} reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
+                            if lead.active_client:
+                                reminder_type = f"[{referral_info['referral_type']}]"
                             else:
-                                print(f"[ERROR] Failed to send reminder for lead {lead.id}")
-                            
-                            # Small delay to avoid overwhelming email server
-                            time.sleep(1)
+                                reminder_type = "[Lead]"
+                            print(f"[SUCCESS] Created {reminder_type} notification reminder for lead {lead.id}: {lead.first_name} {lead.last_name}")
                         else:
-                            print(f"[WARN] No user email found for lead creator: {lead.created_by} (Lead ID: {lead.id})")
+                            print(f"[WARN] No user found for lead creator: {lead.created_by} (Lead ID: {lead.id})")
                 else:
                     # Optional tracking of why skipped
                     pass
@@ -271,11 +295,11 @@ def send_lead_reminders():
                 last_care_reminder_time = care_start_reminders[0].sent_at if care_start_reminders else None
 
                 if should_send_care_start_reminder(lead, last_care_reminder_time, auth_received_time):
-                    # Get the lead creator's email
+                    # Get the lead creator for in-app notifications.
                     if lead.created_by:
                         user = crud_users.get_user_by_username(db, lead.created_by)
-                        if user and user.email:
-                            print(f"[DEBUG] Care Start condition met for authorized Lead ID {lead.id}. Sending...")
+                        if user:
+                            print(f"[DEBUG] Care Start condition met for authorized Lead ID {lead.id}. Creating notification...")
                             
                             # Get agency (payor) information
                             agency_name = "N/A"
@@ -333,20 +357,17 @@ def send_lead_reminders():
                                 'priority': lead.priority if lead.priority else 'Medium'
                             }
 
-                            # Send care start reminder email
-                            success = send_referral_reminder_email(care_start_info, user.email)
                             subject = f"Care Start Reminder [{care_start_info['referral_type']}]: {lead.first_name} {lead.last_name} - {care_start_info['days_since_auth']} days since authorization"
 
-                            # Record the care start reminder
-                            status = "sent" if success else "failed"
+                            # Record the care start reminder for scheduler timing/history only.
                             create_care_start_reminder(
                                 db=db,
                                 lead_id=lead.id,
-                                recipient_email=user.email,
+                                recipient_email=user.email or "",
                                 subject=subject,
                                 sent_by="system",
-                                status=status,
-                                error_message=None if success else "Email service error"
+                                status="notification_only",
+                                error_message=None
                             )
 
                             # CREATE IN-APP NOTIFICATION (CARE START)
@@ -365,13 +386,9 @@ def send_lead_reminders():
                             except Exception as notif_e:
                                 print(f"[ERROR] Failed to create care start notification: {notif_e}")
 
-                            if success:
-                                print(f"[SUCCESS] Sent Care Start reminder for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
-                            else:
-                                print(f"[ERROR] Failed to send Care Start reminder for lead {lead.id}")
-
-                            # Small delay to avoid overwhelming email server
-                            time.sleep(1)
+                            print(f"[SUCCESS] Created Care Start notification for authorized referral {lead.id}: {lead.first_name} {lead.last_name} ({care_start_info['days_since_auth']} days since auth)")
+                        else:
+                            print(f"[WARN] No user found for lead creator: {lead.created_by} (Lead ID: {lead.id})")
             except Exception as inner_e:
                  print(f"[ERROR] Error processing Care Start reminder for Lead ID {lead.id}: {inner_e}")
 
@@ -383,12 +400,13 @@ def send_lead_reminders():
 
 
 def run_scheduler():
-    """Run the scheduler in background - checks every hour"""
+    """Run the scheduler in background."""
     print(f"[{datetime.now()}] Scheduler continuous loop started.")
     while True:
         try:
             send_lead_reminders()
-            print(f"[{datetime.now()}] Waiting 1 hour for next check...")
+            send_daily_digest_if_due()
+            print(f"[{datetime.now()}] Waiting 10 minutes for next check...")
         except Exception as e:
             print(f"[CRITICAL] Error in scheduler loop: {e}")
         
@@ -401,6 +419,6 @@ def start_scheduler():
     try:
         scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
         scheduler_thread.start()
-        print("[SUCCESS] Email reminder background thread spawned.")
+        print("[SUCCESS] Notification reminder background thread spawned.")
     except Exception as e:
         print(f"[ERROR] Failed to spawn scheduler thread: {e}")
