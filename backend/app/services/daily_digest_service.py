@@ -518,7 +518,7 @@ def send_digest_for_user(db: Session, user: User, digest_date: Optional[date] = 
 
 
 def send_daily_digests(db: Session, digest_date: Optional[date] = None) -> Dict[str, int]:
-    users = db.query(User).filter(User.is_approved == True).order_by(User.id.asc()).all()
+    users = db.query(User).filter(User.is_approved == 1).order_by(User.id.asc()).all()
     delay_seconds = _digest_send_delay_seconds()
     result = {
         "sent": 0,
