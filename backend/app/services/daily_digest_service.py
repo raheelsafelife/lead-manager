@@ -104,6 +104,10 @@ def _local_day_window(digest_date: date) -> Tuple[datetime, datetime]:
     return start_utc, end_utc
 
 
+def _timestamp_query_value(value: datetime) -> str:
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def _digest_send_delay_seconds() -> float:
     try:
         return max(0.0, float(os.getenv("DAILY_DIGEST_SEND_DELAY_SECONDS", DIGEST_SEND_DELAY_SECONDS)))
@@ -230,6 +234,11 @@ def _action_color(section: str, action_label: str) -> str:
 
 
 def _local_time(timestamp: datetime) -> str:
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            return timestamp
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(ZoneInfo(DIGEST_TIMEZONE)).strftime("%I:%M %p")
@@ -279,8 +288,8 @@ def _build_digest_items(db: Session, logs: Iterable[ActivityLog]) -> Dict[str, L
 
 def _activity_query(db: Session, user: User, start_utc: datetime, end_utc: datetime) -> List[ActivityLog]:
     query = db.query(ActivityLog).filter(
-        ActivityLog.timestamp >= start_utc,
-        ActivityLog.timestamp <= end_utc,
+        ActivityLog.timestamp >= _timestamp_query_value(start_utc),
+        ActivityLog.timestamp <= _timestamp_query_value(end_utc),
         ActivityLog.action_type.in_(DIGEST_ACTIONS),
     )
 
