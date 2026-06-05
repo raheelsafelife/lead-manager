@@ -30,6 +30,16 @@ except ImportError:
 DIGEST_TIMEZONE = "America/Chicago"
 DIGEST_SEND_DELAY_SECONDS = 3
 DIGEST_ACTIONS = {
+    "CREATE_LEAD",
+    "UPDATE_LEAD",
+    "DELETE_LEAD",
+    "RESTORE_LEAD",
+    "PERMANENT_DELETE",
+    "ADD_COMMENT",
+    "UPLOAD_ATTACHMENT",
+    "DELETE_ATTACHMENT",
+    "CARE_START_MARKED",
+    "AUTHORIZATION_MARKED",
     "LEAD_CREATED",
     "LEAD_UPDATED",
     "LEAD_ASSIGNED",
@@ -162,6 +172,8 @@ def _log_has_field(log: ActivityLog, *fields: str) -> bool:
 
 
 def _section_for_log(log: ActivityLog) -> str:
+    if log.action_type in {"AUTHORIZATION_MARKED", "CARE_START_MARKED"}:
+        return "authorizations"
     if _log_has_field(log, "authorization_received", "care_status", "soc_date"):
         return "authorizations"
     if (
@@ -180,6 +192,16 @@ def _action_label(log: ActivityLog) -> str:
         if new_data.get("authorization_received") is False:
             return "Authorization Removed"
     labels = {
+        "CREATE_LEAD": "Lead Created",
+        "UPDATE_LEAD": "Lead Updated",
+        "DELETE_LEAD": "Lead Deleted",
+        "RESTORE_LEAD": "Lead Restored",
+        "PERMANENT_DELETE": "Lead Permanently Deleted",
+        "ADD_COMMENT": "Comment Added",
+        "UPLOAD_ATTACHMENT": "Attachment Uploaded",
+        "DELETE_ATTACHMENT": "Attachment Deleted",
+        "CARE_START_MARKED": "Care Start Marked",
+        "AUTHORIZATION_MARKED": "Authorization Marked",
         "LEAD_CREATED": "Lead Created",
         "LEAD_UPDATED": "Lead Updated",
         "LEAD_ASSIGNED": "Lead Assigned",
@@ -248,7 +270,7 @@ def _build_digest_items(db: Session, logs: Iterable[ActivityLog]) -> Dict[str, L
             "changes": _safe_changes(log.old_value, log.new_value),
             "context": _lead_context(db, log),
         }
-        if log.action_type == "COMMENT_ADDED":
+        if log.action_type in {"COMMENT_ADDED", "ADD_COMMENT"}:
             sections["comments"].append(item)
         else:
             sections[section].append(item)
