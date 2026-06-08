@@ -170,11 +170,6 @@ export default function Layout({ children }) {
     }
   }
 
-  function testNotificationSound() {
-    unlockNotificationSound();
-    playNotificationSound(true);
-  }
-
   function toggleNotificationSound() {
     setSoundEnabled((enabled) => {
       const next = !enabled;
@@ -204,7 +199,7 @@ export default function Layout({ children }) {
         const lookupData = bootstrapRes.data.lookups || {};
         if (mounted) {
           if (bootstrapRes.data.user) setUser((current) => ({ ...current, ...bootstrapRes.data.user }));
-          const nextNotifications = notificationData.notifications || [];
+          const nextNotifications = (notificationData.notifications || []).filter((item) => !item.read);
           setNotifications(nextNotifications);
           setNotificationTotal(notificationData.count || 0);
           setHistorianRows(activityData.rows || []);
@@ -258,7 +253,7 @@ export default function Layout({ children }) {
 
   async function markAllRead() {
     await api.post("/notifications/read-all");
-    setNotifications((items) => items.map((item) => ({ ...item, read: true })));
+    setNotifications([]);
     setNotificationTotal(0);
     notificationCountRef.current = 0;
   }
@@ -489,14 +484,6 @@ export default function Layout({ children }) {
                     >
                       {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                       <span>{soundEnabled ? "Sound On" : "Sound Off"}</span>
-                    </button>
-                    <button
-                      className="notification-sound-test"
-                      onClick={testNotificationSound}
-                      disabled={!soundEnabled}
-                      title="Test notification sound"
-                    >
-                      Test
                     </button>
                     <button className="notification-close" onClick={() => setNotificationOpen(false)} aria-label="Close notifications"><X size={26} /></button>
                   </div>
