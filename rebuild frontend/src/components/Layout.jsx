@@ -403,17 +403,16 @@ export default function Layout({ children }) {
             {sidebarOpen ? <PanelLeftClose size={21} /> : <PanelLeftOpen size={21} />}
           </button>
         </div>
-        <h2>Navigation</h2>
         <nav>
           {nav.map(([to, Icon, label]) => (
             <NavLink key={to} to={to} title={label}>
-              <Icon size={18} />
+              <Icon size={24} />
               <span className="sidebar-label">{label}</span>
             </NavLink>
           ))}
           {isAdminRole(user.role) && (
             <NavLink to="/users" title="System Management">
-              <UserCog size={18} />
+              <UserCog size={24} />
               <span className="sidebar-label">System Management</span>
             </NavLink>
           )}

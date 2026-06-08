@@ -165,7 +165,7 @@ button, input, select, textarea { font: inherit; }
   padding: 0;
   border-radius: 12px;
 }
-.app-shell.sidebar-closed .sidebar a svg { width: 22px; height: 22px; }
+.app-shell.sidebar-closed .sidebar a svg { width: 28px; height: 28px; }
 .historian-panel { margin-top: 18px; }
 .historian-card {
   position: relative;
