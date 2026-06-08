@@ -58,37 +58,52 @@ export default function Layout({ children }) {
   const regionLocale = typeof navigator !== "undefined" ? navigator.languages?.[0] || navigator.language || "en-US" : "en-US";
   const regionTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
-  function unlockNotificationSound() {
-    soundUnlockedRef.current = true;
+  function getNotificationAudioContext() {
+    if (typeof window === "undefined") return null;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return null;
+    if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+      audioContextRef.current = new AudioContext();
+    }
+    return audioContextRef.current;
   }
 
-  function playNotificationSound() {
+  function unlockNotificationSound() {
+    soundUnlockedRef.current = true;
+    const context = getNotificationAudioContext();
+    context?.resume?.().catch?.(() => {});
+  }
+
+  async function playNotificationSound(force = false) {
     if (!soundEnabled || !soundUnlockedRef.current || typeof window === "undefined") return;
     try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const context = audioContextRef.current || new AudioContext();
-      audioContextRef.current = context;
-      if (context.state === "suspended") context.resume();
+      const context = getNotificationAudioContext();
+      if (!context) return;
+      if (context.state === "suspended") await context.resume();
 
       const now = context.currentTime;
       const gain = context.createGain();
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      gain.gain.exponentialRampToValueAtTime(force ? 0.42 : 0.32, now + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.68);
       gain.connect(context.destination);
 
-      [660, 880].forEach((frequency, index) => {
+      [784, 988, 1319].forEach((frequency, index) => {
         const oscillator = context.createOscillator();
-        oscillator.type = "sine";
+        oscillator.type = "triangle";
         oscillator.frequency.setValueAtTime(frequency, now + index * 0.11);
         oscillator.connect(gain);
         oscillator.start(now + index * 0.11);
-        oscillator.stop(now + 0.34 + index * 0.11);
+        oscillator.stop(now + 0.3 + index * 0.11);
       });
     } catch {
       // Browsers may still block audio in strict modes; notification toast remains visible.
     }
+  }
+
+  function testNotificationSound() {
+    unlockNotificationSound();
+    playNotificationSound(true);
   }
 
   function toggleNotificationSound() {
@@ -391,6 +406,14 @@ export default function Layout({ children }) {
                     >
                       {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                       <span>{soundEnabled ? "Sound On" : "Sound Off"}</span>
+                    </button>
+                    <button
+                      className="notification-sound-test"
+                      onClick={testNotificationSound}
+                      disabled={!soundEnabled}
+                      title="Test notification sound"
+                    >
+                      Test
                     </button>
                     <button className="notification-close" onClick={() => setNotificationOpen(false)} aria-label="Close notifications"><X size={26} /></button>
                   </div>

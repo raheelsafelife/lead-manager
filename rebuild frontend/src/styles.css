@@ -356,6 +356,9 @@ button, input, select, textarea { font: inherit; }
 .notification-sound-toggle.enabled { background: #e6fbfa; border-color: #9ce7e4; color: #087b88; }
 .notification-sound-toggle:hover { background: #eef8fb; color: var(--deep-blue); }
 .notification-sound-toggle svg { width: 17px; height: 17px; stroke-width: 2.6; }
+.notification-sound-test { min-height: 36px; border: 1px solid #d8e6ef; border-radius: 999px; background: #fff; color: var(--deep-blue); cursor: pointer; padding: 0 12px; font-weight: 900; font-size: 0.78rem; }
+.notification-sound-test:hover { background: #f1f8fb; }
+.notification-sound-test:disabled { color: #94a3b8; background: #f8fafc; cursor: not-allowed; }
 .notification-close { width: 42px; height: 42px; border: 0; background: transparent; color: #667085; cursor: pointer; display: grid; place-items: center; }
 .notification-list { max-height: 520px; overflow: auto; }
 .notification-card { min-height: 142px; border-bottom: 1px solid #e8eef4; display: grid; grid-template-columns: minmax(0, 1fr) 58px; align-items: center; background: #fff; }
