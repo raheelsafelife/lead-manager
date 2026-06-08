@@ -351,6 +351,11 @@ button, input, select, textarea { font: inherit; }
 .notification-dropdown { position: absolute; right: -18px; top: 58px; width: min(600px, 94vw); max-height: 680px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 48px rgba(15,23,42,.18); z-index: 40; overflow: hidden; }
 .notification-head { min-height: 70px; border-bottom: 1px solid #e8eef4; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
 .notification-head h3 { margin: 0; color: var(--deep-blue); font-size: 1.4rem; }
+.notification-head-actions { display: inline-flex; align-items: center; gap: 8px; }
+.notification-sound-toggle { min-height: 36px; border: 1px solid #d8e6ef; border-radius: 999px; background: #f8fbfd; color: #64748b; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; font-weight: 900; font-size: 0.78rem; transition: background .16s ease, color .16s ease, border-color .16s ease; }
+.notification-sound-toggle.enabled { background: #e6fbfa; border-color: #9ce7e4; color: #087b88; }
+.notification-sound-toggle:hover { background: #eef8fb; color: var(--deep-blue); }
+.notification-sound-toggle svg { width: 17px; height: 17px; stroke-width: 2.6; }
 .notification-close { width: 42px; height: 42px; border: 0; background: transparent; color: #667085; cursor: pointer; display: grid; place-items: center; }
 .notification-list { max-height: 520px; overflow: auto; }
 .notification-card { min-height: 142px; border-bottom: 1px solid #e8eef4; display: grid; grid-template-columns: minmax(0, 1fr) 58px; align-items: center; background: #fff; }

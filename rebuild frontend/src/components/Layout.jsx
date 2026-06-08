@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, BarChart3, Bell, Check, ChevronDown, FileClock, FilePlus2, FileText, Home, LogIn, LogOut, MessageCircleMore, PanelLeftClose, PanelLeftOpen, Pencil, Search, Settings, ShieldCheck, UserCog, Users, X } from "lucide-react";
+import { Activity, BarChart3, Bell, Check, ChevronDown, FileClock, FilePlus2, FileText, Home, LogIn, LogOut, MessageCircleMore, PanelLeftClose, PanelLeftOpen, Pencil, Search, Settings, ShieldCheck, Volume2, VolumeX, UserCog, Users, X } from "lucide-react";
 import logoMark from "../../favicon.svg";
 import sidebarLogo from "../../sidebar_logo.png";
 import { useEffect, useRef, useState } from "react";
@@ -42,15 +42,73 @@ export default function Layout({ children }) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notificationTotal, setNotificationTotal] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("notificationSoundEnabled") !== "false";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [historianRows, setHistorianRows] = useState([]);
   const [userDirectory, setUserDirectory] = useState({});
+  const soundUnlockedRef = useRef(false);
+  const audioContextRef = useRef(null);
   const notificationReadyRef = useRef(false);
   const notificationCountRef = useRef(0);
   const title = Object.entries(pageTitles).find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`))?.[1] || "Dashboard";
   const showTopbarSmartSearch = location.pathname !== "/dashboard";
   const regionLocale = typeof navigator !== "undefined" ? navigator.languages?.[0] || navigator.language || "en-US" : "en-US";
   const regionTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+
+  function unlockNotificationSound() {
+    soundUnlockedRef.current = true;
+  }
+
+  function playNotificationSound() {
+    if (!soundEnabled || !soundUnlockedRef.current || typeof window === "undefined") return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const context = audioContextRef.current || new AudioContext();
+      audioContextRef.current = context;
+      if (context.state === "suspended") context.resume();
+
+      const now = context.currentTime;
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      gain.connect(context.destination);
+
+      [660, 880].forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now + index * 0.11);
+        oscillator.connect(gain);
+        oscillator.start(now + index * 0.11);
+        oscillator.stop(now + 0.34 + index * 0.11);
+      });
+    } catch {
+      // Browsers may still block audio in strict modes; notification toast remains visible.
+    }
+  }
+
+  function toggleNotificationSound() {
+    setSoundEnabled((enabled) => {
+      const next = !enabled;
+      if (typeof window !== "undefined") window.localStorage.setItem("notificationSoundEnabled", String(next));
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    const unlock = () => unlockNotificationSound();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      audioContextRef.current?.close?.();
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -69,6 +127,7 @@ export default function Layout({ children }) {
           const nextCount = notificationData.count || 0;
           const firstUnread = (notificationData.notifications || []).find((item) => !item.read);
           if (notificationReadyRef.current && nextCount > notificationCountRef.current && firstUnread) {
+            playNotificationSound();
             emitToast({ type: "info", message: `New notification: ${firstUnread.title}` });
           }
           notificationReadyRef.current = true;
@@ -91,7 +150,7 @@ export default function Layout({ children }) {
       window.removeEventListener("app:refresh-signals", loadMountedSidebarData);
       clearInterval(interval);
     };
-  }, []);
+  }, [soundEnabled]);
 
   function goNotification(item) {
     setNotificationOpen(false);
@@ -323,7 +382,18 @@ export default function Layout({ children }) {
               {notificationOpen && <div className="notification-dropdown">
                 <div className="notification-head">
                   <h3>Notifications</h3>
-                  <button className="notification-close" onClick={() => setNotificationOpen(false)} aria-label="Close notifications"><X size={26} /></button>
+                  <div className="notification-head-actions">
+                    <button
+                      className={`notification-sound-toggle ${soundEnabled ? "enabled" : ""}`}
+                      onClick={toggleNotificationSound}
+                      aria-label={soundEnabled ? "Turn notification sound off" : "Turn notification sound on"}
+                      title={soundEnabled ? "Notification sound on" : "Notification sound off"}
+                    >
+                      {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                      <span>{soundEnabled ? "Sound On" : "Sound Off"}</span>
+                    </button>
+                    <button className="notification-close" onClick={() => setNotificationOpen(false)} aria-label="Close notifications"><X size={26} /></button>
+                  </div>
                 </div>
                 <div className="notification-list">
                   {notifications.length ? notifications.map((item) => <article className={`notification-card ${item.read ? "read" : ""}`} key={item.id}>
