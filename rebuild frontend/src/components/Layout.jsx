@@ -50,13 +50,68 @@ export default function Layout({ children }) {
   const [historianRows, setHistorianRows] = useState([]);
   const [userDirectory, setUserDirectory] = useState({});
   const soundUnlockedRef = useRef(false);
+  const notificationAudioRef = useRef(null);
   const audioContextRef = useRef(null);
   const notificationReadyRef = useRef(false);
   const notificationCountRef = useRef(0);
+  const notificationSeenIdsRef = useRef(new Set());
   const title = Object.entries(pageTitles).find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`))?.[1] || "Dashboard";
   const showTopbarSmartSearch = location.pathname !== "/dashboard";
   const regionLocale = typeof navigator !== "undefined" ? navigator.languages?.[0] || navigator.language || "en-US" : "en-US";
   const regionTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+
+  function buildNotificationToneUrl() {
+    const sampleRate = 44100;
+    const duration = 0.55;
+    const samples = Math.floor(sampleRate * duration);
+    const dataSize = samples * 2;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+    const writeString = (offset, value) => {
+      for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+    };
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    for (let i = 0; i < samples; i += 1) {
+      const t = i / sampleRate;
+      const envelope = Math.min(1, t / 0.025) * Math.max(0, 1 - t / duration);
+      const tone =
+        Math.sin(2 * Math.PI * 784 * t) * 0.5 +
+        Math.sin(2 * Math.PI * 988 * t) * 0.35 +
+        Math.sin(2 * Math.PI * 1319 * t) * 0.25;
+      view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, tone * envelope)) * 32767, true);
+    }
+
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return `data:audio/wav;base64,${window.btoa(binary)}`;
+  }
+
+  function getNotificationAudio() {
+    if (typeof window === "undefined") return null;
+    if (!notificationAudioRef.current) {
+      notificationAudioRef.current = new Audio(buildNotificationToneUrl());
+      notificationAudioRef.current.preload = "auto";
+    }
+    return notificationAudioRef.current;
+  }
 
   function getNotificationAudioContext() {
     if (typeof window === "undefined") return null;
@@ -70,12 +125,25 @@ export default function Layout({ children }) {
 
   function unlockNotificationSound() {
     soundUnlockedRef.current = true;
+    getNotificationAudio()?.load?.();
     const context = getNotificationAudioContext();
     context?.resume?.().catch?.(() => {});
   }
 
   async function playNotificationSound(force = false) {
     if (!soundEnabled || !soundUnlockedRef.current || typeof window === "undefined") return;
+    const audio = getNotificationAudio();
+    if (audio) {
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = force ? 1 : 0.85;
+        await audio.play();
+        return;
+      } catch {
+        // Fall back to WebAudio below.
+      }
+    }
     try {
       const context = getNotificationAudioContext();
       if (!context) return;
@@ -98,6 +166,7 @@ export default function Layout({ children }) {
       });
     } catch {
       // Browsers may still block audio in strict modes; notification toast remains visible.
+      if (force) emitToast({ type: "warning", message: "Browser blocked notification sound. Check site or tab sound permissions." });
     }
   }
 
@@ -135,18 +204,33 @@ export default function Layout({ children }) {
         const lookupData = bootstrapRes.data.lookups || {};
         if (mounted) {
           if (bootstrapRes.data.user) setUser((current) => ({ ...current, ...bootstrapRes.data.user }));
-          setNotifications(notificationData.notifications || []);
+          const nextNotifications = notificationData.notifications || [];
+          setNotifications(nextNotifications);
           setNotificationTotal(notificationData.count || 0);
           setHistorianRows(activityData.rows || []);
           setUserDirectory(Object.fromEntries((lookupData.users || []).map((entry) => [entry.username, entry])));
           const nextCount = notificationData.count || 0;
-          const firstUnread = (notificationData.notifications || []).find((item) => !item.read);
-          if (notificationReadyRef.current && nextCount > notificationCountRef.current && firstUnread) {
+          const unreadNotifications = nextNotifications.filter((item) => !item.read);
+          const unreadIds = unreadNotifications.map((item) => String(item.id));
+          const firstUnread = unreadNotifications[0];
+          const hasNewUnreadId = unreadIds.some((id) => !notificationSeenIdsRef.current.has(id));
+          const hasUnreadIncrease = nextCount > notificationCountRef.current;
+          if (notificationReadyRef.current && firstUnread && (hasNewUnreadId || hasUnreadIncrease)) {
+            console.info("[SafeLife] Playing notification sound", {
+              hasNewUnreadId,
+              hasUnreadIncrease,
+              notificationId: firstUnread.id,
+              title: firstUnread.title
+            });
             playNotificationSound();
             emitToast({ type: "info", message: `New notification: ${firstUnread.title}` });
           }
           notificationReadyRef.current = true;
           notificationCountRef.current = nextCount;
+          notificationSeenIdsRef.current = new Set([
+            ...notificationSeenIdsRef.current,
+            ...unreadIds
+          ]);
         }
       } catch {
         if (mounted) {
