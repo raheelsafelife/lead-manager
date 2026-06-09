@@ -170,6 +170,125 @@ function searchTargetForLead(lead) {
   return { targetPage: "View Leads", targetUrl: `/view-leads?${folderQuery}idSearch=${lead.id}` };
 }
 
+const notificationFieldLabels = {
+  active_client: "Referral Status",
+  agency_id: "Payor",
+  authorization_received: "Authorization",
+  care_status: "Care Status",
+  caregiver_type: "Caregiver Type",
+  ccu_id: "CCU",
+  is_chicago_referral: "Chicago Referral",
+  last_contact_status: "Contact Status",
+  priority: "Priority",
+  referral_sent_date: "Referral Sent Date",
+  referral_type: "Referral Type",
+  send_reminders: "Reminders",
+  soc_date: "SOC Date",
+  staff_name: "Staff"
+};
+
+const notificationIgnoredFields = new Set([
+  "id",
+  "created_at",
+  "updated_at",
+  "created_by",
+  "updated_by",
+  "deleted_at",
+  "deleted_by",
+  "call_status_updated_at",
+  "agency_address",
+  "agency_email",
+  "agency_fax",
+  "agency_phone",
+  "ccu_care_coordinator_name",
+  "ccu_city",
+  "ccu_email",
+  "ccu_fax",
+  "ccu_phone",
+  "ccu_state",
+  "ccu_street",
+  "ccu_zip_code"
+]);
+
+function titleCase(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function parseJsonMaybe(value) {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function cleanNotificationValue(value) {
+  if (value === undefined || value === null || value === "") return "Not added";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (value === 1 || value === "1") return "Yes";
+  if (value === 0 || value === "0") return "No";
+  return String(value);
+}
+
+function notificationValueFor(field, data) {
+  if (!data) return "Not added";
+  if (field === "agency_id") return cleanNotificationValue(data.agency_name || data.agency_id);
+  if (field === "ccu_id") return cleanNotificationValue(data.ccu_name || data.ccu_id);
+  if (field === "active_client") return Number(data.active_client) === 1 ? "Referral" : "Lead";
+  if (field === "authorization_received") return Number(data.authorization_received) === 1 ? "Received" : "Pending";
+  if (field === "is_chicago_referral") return Number(data.is_chicago_referral) === 1 ? "Yes" : "No";
+  return cleanNotificationValue(data[field]);
+}
+
+function changedNotificationFields(oldValue, newValue) {
+  const oldData = parseJsonMaybe(oldValue);
+  const newData = parseJsonMaybe(newValue);
+  if (!oldData || !newData) return [];
+
+  const keys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+  return [...keys]
+    .filter((key) => !notificationIgnoredFields.has(key))
+    .map((key) => ({
+      key,
+      label: notificationFieldLabels[key] || titleCase(key),
+      before: notificationValueFor(key, oldData),
+      after: notificationValueFor(key, newData)
+    }))
+    .filter((change) => change.before !== change.after);
+}
+
+function activityNotificationMessage(activity) {
+  const changes = changedNotificationFields(activity.old_value, activity.new_value);
+  const actor = activity.username || "Someone";
+  const subject = activity.entity_name || "this record";
+  if (changes.length === 1) {
+    const change = changes[0];
+    const prefix = Number(activity.lead_active_client) === 1 ? "Referral Updated" : "Lead Updated";
+    return `${prefix}: ${change.label} changed from "${change.before}" to "${change.after}" by ${actor}.`;
+  }
+  if (changes.length > 1) {
+    const labels = changes.slice(0, 3).map((change) => change.label).join(", ");
+    const prefix = Number(activity.lead_active_client) === 1 ? "Referral Updated" : "Lead Updated";
+    return `${prefix}: ${actor} updated ${changes.length} fields for ${subject}: ${labels}${changes.length > 3 ? ", ..." : ""}.`;
+  }
+  return activity.description || activity.action_type || "Recent activity";
+}
+
+function reminderNotificationMessage(lead) {
+  if (Number(lead.active_client) !== 1) {
+    return `Lead Follow-up: Current status is "${lead.last_contact_status || "Not added"}".${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
+  }
+  if (Number(lead.authorization_received) === 1 && lead.care_status !== "Care Start") {
+    return `Care Start Follow-up: Authorization received. Current care status: ${lead.care_status || "Not Start"}.${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
+  }
+  return `Referral Follow-up: Current status is "${lead.last_contact_status || "Not added"}". Type: ${lead.referral_type || "Regular"}.${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
+}
+
 async function findDuplicateLead(body) {
   const firstName = String(body.first_name || "").trim().toLowerCase();
   const lastName = String(body.last_name || "").trim().toLowerCase();
@@ -563,7 +682,7 @@ async function notificationRows(user) {
   const reminderWhere = isAdminRole(user.role)
     ? "deleted_at is null and coalesce(send_reminders,0) = 1"
     : "deleted_at is null and coalesce(send_reminders,0) = 1 and (owner_id = @ownerId or staff_name = @username)";
-  const reminders = await db.all(`select id,first_name,last_name,phone,updated_at,referral_sent_date,referral_type,active_client,authorization_received,source,care_status from leads where ${reminderWhere} order by updated_at desc limit 8`, { ownerId: user.user_id, username: user.username });
+  const reminders = await db.all(`select id,first_name,last_name,phone,updated_at,referral_sent_date,referral_type,active_client,authorization_received,source,care_status,last_contact_status from leads where ${reminderWhere} order by updated_at desc limit 8`, { ownerId: user.user_id, username: user.username });
   reminders.forEach((lead) => {
     const target = searchTargetForLead(lead);
     const separator = target.targetUrl.includes("?") ? "&" : "?";
@@ -571,7 +690,7 @@ async function notificationRows(user) {
       id: `lead-reminder-${lead.id}`,
       type: "Lead reminder",
       title: `ID: ${lead.id} | ${`${lead.first_name || ""} ${lead.last_name || ""}`.trim() || "Lead"}`,
-      message: lead.active_client ? `Referral Sent: Please follow-up with this referral. (${lead.referral_type || "Regular"})${lead.phone ? ` Phone: ${lead.phone}` : ""}` : `Please follow-up with this lead.${lead.phone ? ` Phone: ${lead.phone}` : ""}`,
+      message: reminderNotificationMessage(lead),
       detail: lead.updated_at || lead.referral_sent_date || "",
       due: lead.referral_sent_date || lead.updated_at || "",
       icon: "lead",
@@ -581,7 +700,7 @@ async function notificationRows(user) {
     });
   });
 
-  const recentActivity = await db.all("select id,action_type,entity_type,entity_id,entity_name,description,timestamp from activity_logs order by timestamp desc limit 5", );
+  const recentActivity = await db.all("select id,action_type,entity_type,entity_id,entity_name,description,timestamp,username,old_value,new_value from activity_logs order by timestamp desc limit 5", );
   for (const activity of recentActivity) {
     let link = "/activity";
     let targetPage = "Activity Logs";
@@ -596,13 +715,14 @@ async function notificationRows(user) {
         link = `${target.targetUrl}${separator}globalSearch=true`;
         targetPage = target.targetPage;
         title = `ID: ${lead.id} | ${`${lead.first_name || ""} ${lead.last_name || ""}`.trim() || activity.entity_name || "Lead"}`;
+        activity.lead_active_client = lead.active_client;
       }
     }
     notifications.push({
       id: `activity-${activity.id}`,
       type: "Activity",
       title,
-      message: activity.description || activity.action_type || "Recent activity",
+      message: activityNotificationMessage(activity),
       detail: activity.timestamp || "",
       due: activity.timestamp || "",
       icon: "activity",
@@ -788,13 +908,18 @@ app.patch("/api/leads/:id", auth, async (req, res) => {
       : Number(req.body.active_client) === 1 && Number(req.body.authorization_received) === 0
         ? "REFERRAL_MARKED"
         : "UPDATE_LEAD";
-  const description = actionType === "CARE_START_MARKED"
-    ? `Marked Care Start for '${lead.first_name} ${lead.last_name}'`
-    : actionType === "AUTHORIZATION_MARKED"
-      ? `Marked authorization for '${lead.first_name} ${lead.last_name}'`
-      : actionType === "REFERRAL_MARKED"
-        ? `Marked referral for '${lead.first_name} ${lead.last_name}'`
-        : `Updated lead '${lead.first_name} ${lead.last_name}'`;
+  const changedFields = changedNotificationFields(oldLead, lead);
+  const description = changedFields.length === 1
+    ? `${changedFields[0].label} changed from "${changedFields[0].before}" to "${changedFields[0].after}" for '${lead.first_name} ${lead.last_name}'`
+    : changedFields.length > 1
+      ? `Updated ${changedFields.length} fields for '${lead.first_name} ${lead.last_name}': ${changedFields.slice(0, 3).map((field) => field.label).join(", ")}${changedFields.length > 3 ? ", ..." : ""}`
+      : actionType === "CARE_START_MARKED"
+        ? `Marked Care Start for '${lead.first_name} ${lead.last_name}'`
+        : actionType === "AUTHORIZATION_MARKED"
+          ? `Marked authorization for '${lead.first_name} ${lead.last_name}'`
+          : actionType === "REFERRAL_MARKED"
+            ? `Marked referral for '${lead.first_name} ${lead.last_name}'`
+            : `Updated lead '${lead.first_name} ${lead.last_name}'`;
   await logActivity(req.user, actionType, "Lead", lead.id, `${lead.first_name} ${lead.last_name}`, description, oldLead, lead, "lead,update");
   res.json({ lead });
 });
