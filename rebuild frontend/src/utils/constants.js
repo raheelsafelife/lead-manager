@@ -1,5 +1,5 @@
 export const leadSources = ["Home Health Notify", "Web", "Direct Through CCU", "Event", "Word of Mouth", "Transfer", "Other"];
-export const leadCallStatuses = ["Not Called", "Not Answering", "Interested", "Supervisor Followup"];
+export const leadCallStatuses = ["Not Called", "Not Answering", "Interested", "Not Interested", "Supervisor Followup"];
 export const referralCallStatuses = ["Not Called", "No Response", "Called", "Supervisor Followup"];
 export const callStatuses = [...new Set([...leadCallStatuses, ...referralCallStatuses, "Pending"])];
 export const activeStatuses = ["Active", "Inactive", "All"];
