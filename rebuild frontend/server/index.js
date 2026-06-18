@@ -399,31 +399,11 @@ const leadWriteFields = new Set([
   "send_reminders","caregiver_type","referral_sent_date","deleted_at","deleted_by","call_status_updated_by","call_status_updated_at",
   "is_chicago_referral"
 ]);
-const dashboardDataScopes = new Set(["Active", "Inactive", "All"]);
 
-function normalizeDashboardDataScope(value) {
-  return dashboardDataScopes.has(value) ? value : "Active";
-}
-
-function isActiveDashboardRow(row) {
-  const isReferral = Number(row.active_client) === 1;
-  const isAuthorization = isReferral && Number(row.authorization_received) === 1;
-  const contactStatus = String(row.last_contact_status || "").trim();
-  const careStatus = String(row.care_status || "").trim();
-
-  if (!isReferral) {
-    const status = careStatus || contactStatus;
-    return ["Initial Call", "No Response"].includes(status);
-  }
-  if (!isAuthorization) {
-    return ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done"].includes(contactStatus);
-  }
-  return !["Hold", "Terminated", "Deceased"].includes(careStatus);
-}
-
-function filterDashboardRowsByScope(rows, dataScope) {
-  if (dataScope === "All") return rows;
-  return rows.filter((row) => isActiveDashboardRow(row) === (dataScope === "Active"));
+function leadDateExpressionForFilter(q = {}) {
+  if (q.type === "referral") return "coalesce(leads.referral_sent_date, leads.updated_at, leads.created_at)";
+  if (q.type === "authorization") return "coalesce(leads.updated_at, leads.referral_sent_date, leads.created_at)";
+  return "leads.created_at";
 }
 
 function buildLeadQuery(q = {}, user) {
@@ -478,17 +458,29 @@ function buildLeadQuery(q = {}, user) {
         active: ["Care Start", "Not Start", "Transfer", "Transfer Received"]
       }
     };
-    const config = statusSets[q.type] || statusSets.lead;
-    const list = config.active;
-    const columnSql = q.type === "lead"
-      ? "case when trim(coalesce(leads.care_status,'')) != '' then leads.care_status else leads.last_contact_status end"
-      : config.column === "care_status"
-        ? "leads.care_status"
-        : "leads.last_contact_status";
-    const activeSql = `${columnSql} in (${list.map((_, i) => `@active${i}`).join(",")})`;
-    if (q.active === "Active") where.push(activeSql);
-    else where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${list.map((_, i) => `@active${i}`).join(",")}))`);
-    list.forEach((v, i) => { params[`active${i}`] = v; });
+      const config = statusSets[q.type] || statusSets.lead;
+      const list = config.active;
+      const columnSql = q.type === "lead"
+        ? "case when trim(coalesce(leads.care_status,'')) != '' then leads.care_status else leads.last_contact_status end"
+        : config.column === "care_status"
+          ? "leads.care_status"
+          : "leads.last_contact_status";
+
+      if (q.type === "authorization") {
+        const inactiveList = ["Hold", "Terminated", "Deceased", "Transfer Received"];
+        const inactiveSql = inactiveList.map((_, i) => `@inactive${i}`).join(",");
+        if (q.active === "Active") {
+          where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${inactiveSql}))`);
+        } else {
+          where.push(`${columnSql} in (${inactiveSql})`);
+        }
+        inactiveList.forEach((v, i) => { params[`inactive${i}`] = v; });
+      } else {
+        const activeSql = `${columnSql} in (${list.map((_, i) => `@active${i}`).join(",")})`;
+        if (q.active === "Active") where.push(activeSql);
+        else where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${list.map((_, i) => `@active${i}`).join(",")}))`);
+        list.forEach((v, i) => { params[`active${i}`] = v; });
+      }
     }
   }
   if (q.status && q.status !== "All") {
@@ -547,12 +539,13 @@ function buildLeadQuery(q = {}, user) {
       params.idSearch = `%${q.idSearch}%`;
     }
   }
+  const dateExpression = leadDateExpressionForFilter(q);
   if (q.startDate) {
-    where.push("date(leads.created_at) >= date(@startDate)");
+    where.push(`date(${dateExpression}) >= date(@startDate)`);
     params.startDate = q.startDate;
   }
   if (q.endDate) {
-    where.push("date(leads.created_at) <= date(@endDate)");
+    where.push(`date(${dateExpression}) <= date(@endDate)`);
     params.endDate = q.endDate;
   }
   return { where: where.length ? `where ${where.join(" and ")}` : "", params };
@@ -1032,13 +1025,11 @@ app.get("/api/leads/:id/history", auth, async (req, res) => {
 
 async function dashboardPayload(user, query = {}) {
   const includeUsers = query.includeUsers === "true" || query.includeUsers === true;
-  const dataScope = normalizeDashboardDataScope(query.dataScope);
   const isCumulative = isAdminRole(user.role) || query.mode === "cumulative";
   const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
-  return cached(cacheKey("dashboard", [cacheScope, dataScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
+  return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
-  const scopedRows = filterDashboardRowsByScope(leadRows, dataScope);
-  const visible = isCumulative ? scopedRows : scopedRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
+  const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
   const [totalUsersRow, approvedUsers] = await Promise.all([
     db.get("select count(*) as count from users", ),
     includeUsers ? db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ) : Promise.resolve([])

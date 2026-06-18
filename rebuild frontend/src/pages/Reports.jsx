@@ -18,7 +18,6 @@ import { Download, FileSpreadsheet, FileText, ShieldCheck, HeartHandshake, Layer
 import { Button, Select } from "../components/Controls";
 import { api } from "../services/api";
 import { ReportsSkeleton } from "../components/Skeleton";
-import { activeStatuses } from "../utils/constants";
 
 const topOptions = ["5", "10", "20"];
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
@@ -281,14 +280,12 @@ export default function Reports() {
   const [topN, setTopN] = useState(5);
   const [dateRange, setDateRange] = useState("All Time");
   const [formatLabel, setFormatLabel] = useState("Excel (.xlsx)");
-  const [dataScope, setDataScope] = useState("Active");
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    setDashboard(null);
     Promise.all([
-      api.get("/dashboard", { params: { mode: "cumulative", dataScope } }),
+      api.get("/dashboard", { params: { mode: "cumulative" } }),
       api.get("/activity", { params: { limit: 1000, offset: 0 } })
     ]).then(([dashboardRes, activityRes]) => {
       if (!mounted) return;
@@ -298,7 +295,7 @@ export default function Reports() {
     return () => {
       mounted = false;
     };
-  }, [dataScope]);
+  }, []);
 
   const scopedData = useMemo(() => {
     const config = categoryConfig(category);
@@ -410,10 +407,6 @@ export default function Reports() {
           <label className="reports-control">
             <span>Date Range</span>
             <Select value={dateRange} onChange={setDateRange} options={dateRangeOptions} />
-          </label>
-          <label className="reports-control">
-            <span>Data Scope</span>
-            <Select value={dataScope} onChange={setDataScope} options={activeStatuses} />
           </label>
           <label className="reports-control">
             <span>Download Format</span>

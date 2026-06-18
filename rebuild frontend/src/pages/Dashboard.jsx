@@ -6,7 +6,6 @@ import { useAuth } from "../context/AuthContext";
 import SmartSearch from "../components/SmartSearch";
 import { DashboardSkeleton, SkeletonTable } from "../components/Skeleton";
 import { isAdminRole } from "../utils/roles";
-import { activeStatuses } from "../utils/constants";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -121,7 +120,6 @@ export default function Dashboard() {
   const canAdmin = isAdminRole(user.role);
   const [mode, setMode] = useState(canAdmin ? "cumulative" : "individual");
   const [data, setData] = useState(null);
-  const [dataScope, setDataScope] = useState("Active");
   const [drill, setDrill] = useState(null);
   const [showUsers, setShowUsers] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -130,10 +128,7 @@ export default function Dashboard() {
   useEffect(() => {
     let mounted = true;
     setLoadError("");
-    setData(null);
-    setDrill(null);
-    setShowUsers(false);
-    api.get("/dashboard", { params: { mode, dataScope } })
+    api.get("/dashboard", { params: { mode } })
       .then((res) => {
         if (!mounted) return;
         if (!res.data?.stats || !res.data?.charts) {
@@ -149,7 +144,7 @@ export default function Dashboard() {
     return () => {
       mounted = false;
     };
-  }, [mode, dataScope]);
+  }, [mode]);
   function onDrill(chartKey, title, payload) {
     const nextTitle = `${title}: ${payload.name}`;
     if (drill?.chartKey === chartKey && drill?.title === nextTitle) {
@@ -161,7 +156,7 @@ export default function Dashboard() {
   async function showAllUserDashboards() {
     setShowUsers(true);
     if (data.userDashboards?.length) return;
-    const res = await api.get("/dashboard", { params: { mode: "cumulative", includeUsers: "true", dataScope } });
+    const res = await api.get("/dashboard", { params: { mode: "cumulative", includeUsers: "true" } });
     setData(res.data);
   }
   if (loadError) return <div className="error">Lead Manager failed to load: {loadError}</div>;
@@ -176,7 +171,6 @@ export default function Dashboard() {
       </div>
       <SmartSearch />
       <div className="dashboard-actions">
-        <div className="segmented dashboard-mode-toggle">{activeStatuses.map((scope) => <Button key={scope} active={dataScope === scope} onClick={() => setDataScope(scope)}>{scope}</Button>)}</div>
         {!canAdmin && <div className="segmented dashboard-mode-toggle"><Button active={mode === "individual"} onClick={() => setMode("individual")}>Individual</Button><Button active={mode === "cumulative"} onClick={() => setMode("cumulative")}>Cumulative</Button></div>}
         {canAdmin && <Button variant="primary" onClick={showAllUserDashboards}>View All User Dashboards</Button>}
       </div>

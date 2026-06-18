@@ -3,7 +3,6 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { Button, PageHeader, Select } from "../components/Controls";
 import { api } from "../services/api";
 import { DiscoverySkeleton } from "../components/Skeleton";
-import { activeStatuses } from "../utils/constants";
 
 const featureMap = {
   "Lead Source": "source",
@@ -43,13 +42,8 @@ export default function LeadDiscovery() {
   const [data, setData] = useState(null);
   const [xFeature, setXFeature] = useState("Lead Source");
   const [colorFeature, setColorFeature] = useState("None");
-  const [dataScope, setDataScope] = useState("Active");
   const [drill, setDrill] = useState(null);
-  useEffect(() => {
-    setData(null);
-    setDrill(null);
-    api.get("/dashboard", { params: { mode: "individual", dataScope } }).then((res) => setData(res.data));
-  }, [dataScope]);
+  useEffect(() => { api.get("/dashboard", { params: { mode: "individual" } }).then((res) => setData(res.data)); }, []);
 
   function rowStage(row) {
     const referral = Number(row.active_client) === 1;
@@ -111,7 +105,6 @@ export default function LeadDiscovery() {
   const xKey = featureMap[xFeature];
   return <><PageHeader>Lead Discovery</PageHeader>
     <div className="filter-grid">
-      <label className="field"><span>Data Scope:</span><Select value={dataScope} onChange={setDataScope} options={activeStatuses} /></label>
       <label className="field"><span>Split By (X-Axis):</span><Select value={xFeature} onChange={setXFeature} options={Object.keys(featureMap)} /></label>
       <label className="field"><span>Compare Against (Color):</span><Select value={colorFeature} onChange={setColorFeature} options={["None", ...Object.keys(featureMap)]} /></label>
     </div>
