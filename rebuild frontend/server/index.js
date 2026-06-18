@@ -1005,20 +1005,31 @@ app.get("/api/leads/:id/history", auth, async (req, res) => {
 });
 
 async function dashboardPayload(user, query = {}) {
+  const startedAt = Date.now();
+  const timings = {};
   const includeUsers = query.includeUsers === "true" || query.includeUsers === true;
   const isCumulative = isAdminRole(user.role) || query.mode === "cumulative";
   const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
   return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
+  const queryStartedAt = Date.now();
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
+  timings.leadQueryMs = Date.now() - queryStartedAt;
+  const filterStartedAt = Date.now();
   const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
+  timings.scopeFilterMs = Date.now() - filterStartedAt;
+  const userStartedAt = Date.now();
   const [totalUsersRow, approvedUsers] = await Promise.all([
     db.get("select count(*) as count from users", ),
     includeUsers ? db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ) : Promise.resolve([])
   ]);
+  timings.userQueryMs = Date.now() - userStartedAt;
+  const metricsStartedAt = Date.now();
   const metrics = buildDashboardMetrics(visible, {
     totalUsers: totalUsersRow?.count || 0,
     generatedAt: new Date().toISOString()
   });
+  timings.metricsMs = Date.now() - metricsStartedAt;
+  const userDashboardsStartedAt = Date.now();
   const userDashboards = includeUsers ? approvedUsers.map((u) => {
     const userRows = metrics.rows.filter((l) => l.staff_name === u.username || l.owner_id === u.id);
     const userMetrics = buildDashboardMetrics(userRows, { totalUsers: totalUsersRow?.count || 0 });
@@ -1030,12 +1041,51 @@ async function dashboardPayload(user, query = {}) {
       rowIds: userRows.map((row) => row.id)
     };
   }) : [];
+  timings.userDashboardsMs = Date.now() - userDashboardsStartedAt;
+  timings.totalMs = Date.now() - startedAt;
+  console.info("[dashboard:timing]", {
+    user: user.username,
+    role: user.role,
+    mode: query.mode || (isCumulative ? "cumulative" : "individual"),
+    includeUsers,
+    dbMode: db.mode,
+    totalRows: leadRows.length,
+    visibleRows: visible.length,
+    approvedUsers: approvedUsers.length,
+    ...timings
+  });
   return { ...metrics, userDashboards };
   });
 }
 
 app.get("/api/dashboard", auth, async (req, res) => {
-  res.json(await dashboardPayload(req.user, req.query));
+  const startedAt = Date.now();
+  try {
+    const payload = await dashboardPayload(req.user, req.query);
+    console.info("[dashboard:response]", {
+      user: req.user?.username,
+      role: req.user?.role,
+      mode: req.query?.mode,
+      includeUsers: req.query?.includeUsers,
+      dbMode: db.mode,
+      ms: Date.now() - startedAt,
+      rows: payload.rows?.length || 0,
+      cachedOrWarm: true
+    });
+    res.json(payload);
+  } catch (error) {
+    console.error("[dashboard:error]", {
+      user: req.user?.username,
+      role: req.user?.role,
+      mode: req.query?.mode,
+      includeUsers: req.query?.includeUsers,
+      dbMode: db.mode,
+      ms: Date.now() - startedAt,
+      message: error?.message,
+      stack: error?.stack
+    });
+    res.status(500).json({ error: "Dashboard failed to load." });
+  }
 });
 
 app.get("/api/reports/export", auth, async (req, res) => {
