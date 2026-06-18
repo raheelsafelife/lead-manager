@@ -399,6 +399,32 @@ const leadWriteFields = new Set([
   "send_reminders","caregiver_type","referral_sent_date","deleted_at","deleted_by","call_status_updated_by","call_status_updated_at",
   "is_chicago_referral"
 ]);
+const dashboardDataScopes = new Set(["Active", "Inactive", "All"]);
+
+function normalizeDashboardDataScope(value) {
+  return dashboardDataScopes.has(value) ? value : "Active";
+}
+
+function isActiveDashboardRow(row) {
+  const isReferral = Number(row.active_client) === 1;
+  const isAuthorization = isReferral && Number(row.authorization_received) === 1;
+  const contactStatus = String(row.last_contact_status || "").trim();
+  const careStatus = String(row.care_status || "").trim();
+
+  if (!isReferral) {
+    const status = careStatus || contactStatus;
+    return ["Initial Call", "No Response"].includes(status);
+  }
+  if (!isAuthorization) {
+    return ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done"].includes(contactStatus);
+  }
+  return !["Hold", "Terminated", "Deceased"].includes(careStatus);
+}
+
+function filterDashboardRowsByScope(rows, dataScope) {
+  if (dataScope === "All") return rows;
+  return rows.filter((row) => isActiveDashboardRow(row) === (dataScope === "Active"));
+}
 
 function buildLeadQuery(q = {}, user) {
   const where = [];
@@ -1006,11 +1032,13 @@ app.get("/api/leads/:id/history", auth, async (req, res) => {
 
 async function dashboardPayload(user, query = {}) {
   const includeUsers = query.includeUsers === "true" || query.includeUsers === true;
+  const dataScope = normalizeDashboardDataScope(query.dataScope);
   const isCumulative = isAdminRole(user.role) || query.mode === "cumulative";
   const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
-  return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
+  return cached(cacheKey("dashboard", [cacheScope, dataScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
-  const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
+  const scopedRows = filterDashboardRowsByScope(leadRows, dataScope);
+  const visible = isCumulative ? scopedRows : scopedRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
   const [totalUsersRow, approvedUsers] = await Promise.all([
     db.get("select count(*) as count from users", ),
     includeUsers ? db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ) : Promise.resolve([])
