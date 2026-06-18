@@ -361,8 +361,8 @@ const [newUser, setNewUser] = useState({ username: "", user_id: "", email: "", p
                     <p><b>Coordinator</b><CopyField label="Coordinator" value={item.care_coordinator_name} copyKey={`ccu-${item.id}-coordinator`} /></p>
                     <p><b>Phone</b><CopyField label="CCU phone" value={item.phone} copyKey={`ccu-${item.id}-phone`} /></p>
                     <p><b>Fax</b><CopyField label="CCU fax" value={item.fax} copyKey={`ccu-${item.id}-fax`} /></p>
-                    <p><b>Email</b><CopyField label="CCU email" value={item.email} copyKey={`ccu-${item.id}-email`} /></p>
-                    <p className="wide"><b>Address</b><CopyField label="CCU address" value={ccuAddress(item) === "Not added" ? "" : ccuAddress(item)} copyKey={`ccu-${item.id}-address`} /></p>
+                    <p className="ccu-email-field"><b>Email</b><CopyField label="CCU email" value={item.email} copyKey={`ccu-${item.id}-email`} /></p>
+                    <p className="wide ccu-address-field"><b>Address</b><CopyField label="CCU address" value={ccuAddress(item) === "Not added" ? "" : ccuAddress(item)} copyKey={`ccu-${item.id}-address`} /></p>
                   </div>
                 )}
                 <div className="ccu-directory-actions">

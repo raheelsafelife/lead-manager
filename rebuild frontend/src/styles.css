@@ -1106,7 +1106,7 @@ textarea { min-height: 96px; resize: vertical; }
 }
 .ccu-directory-card {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.6fr) minmax(88px, auto);
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 3fr) minmax(88px, auto);
   gap: 20px;
   align-items: start;
   border: 1px solid #e1edf4;
@@ -1142,7 +1142,7 @@ textarea { min-height: 96px; resize: vertical; }
 }
 .ccu-directory-details {
   display: grid;
-  grid-template-columns: minmax(150px, .95fr) minmax(150px, .95fr) minmax(150px, .95fr) minmax(220px, 1.35fr);
+  grid-template-columns: minmax(132px, .8fr) minmax(132px, .8fr) minmax(132px, .8fr) minmax(360px, 2fr);
   gap: 14px 18px;
   min-width: 0;
 }
@@ -1166,6 +1166,25 @@ textarea { min-height: 96px; resize: vertical; }
   flex: 1 1 120px;
   min-width: 0;
   max-width: 100%;
+}
+.ccu-directory-details .ccu-email-field .ccu-copy-value {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.ccu-directory-details .ccu-email-field .ccu-copy-value > span {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.ccu-directory-details .ccu-address-field .ccu-copy-value {
+  width: auto;
+  max-width: 100%;
+}
+.ccu-directory-details .ccu-address-field .ccu-copy-value > span {
+  flex: 0 1 auto;
 }
 .ccu-directory-details .copy-value-btn {
   align-self: flex-start;
