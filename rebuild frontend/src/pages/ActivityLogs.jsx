@@ -194,11 +194,6 @@ export default function ActivityLogs() {
 
   return (
     <div className="activity-page">
-      <div className="activity-page-head">
-        <h2>Activity Logs</h2>
-        <p>Track all user activities and system events</p>
-      </div>
-
       <section className="activity-filter-card">
         <div className="activity-filters">
           <label className="activity-filter">

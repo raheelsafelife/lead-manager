@@ -184,11 +184,6 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
   return (
     <div className="leads-page">
-      <div className="leads-page-head">
-        <h2>{title}</h2>
-        <p>{pageSubtitle(type, discovery)}</p>
-      </div>
-
       <section className="leads-filter-card">
         <div className="leads-filter-grid">
           <label className="leads-filter">

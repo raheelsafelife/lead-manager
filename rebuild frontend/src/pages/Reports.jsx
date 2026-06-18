@@ -386,12 +386,6 @@ export default function Reports() {
 
   return (
     <div className="reports-page">
-      <div className="reports-page-head">
-        <span>Home / Reports</span>
-        <h2>Reports</h2>
-        <p>Generate, analyze and export operational reports from one clean reporting workspace.</p>
-      </div>
-
       <section className="reports-generator-card">
         <div className="reports-generator-head">
           <div className="reports-generator-badge"><FileSpreadsheet size={20} /></div>

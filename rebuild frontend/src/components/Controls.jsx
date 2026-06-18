@@ -1,7 +1,7 @@
 import { Children, cloneElement, isValidElement, useId } from "react";
 
-export function PageHeader({ children }) {
-  return <div className="main-header">{children}</div>;
+export function PageHeader() {
+  return null;
 }
 
 export function Button({ children, active, variant = "secondary", className = "", ...props }) {
