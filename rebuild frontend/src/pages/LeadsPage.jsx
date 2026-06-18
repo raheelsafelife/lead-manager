@@ -96,6 +96,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [lookups, setLookups] = useState({ ccus: [], agencies: [] });
   const [data, setData] = useState({ rows: [], total: 0 });
   const [loadingRows, setLoadingRows] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -159,10 +160,25 @@ export default function LeadsPage({ title, type, discovery = false }) {
   }
 
   function load() {
+    let cancelled = false;
     setLoadingRows(true);
+    setLoadError("");
     api.get("/leads", { params })
-      .then((res) => setData(res.data))
-      .finally(() => setLoadingRows(false));
+      .then((res) => {
+        if (!cancelled) setData(res.data);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err.response?.data?.error || "Could not load leads");
+          setData({ rows: [], total: 0 });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRows(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }
 
   useEffect(() => {
@@ -351,6 +367,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
         <span>Folder: {currentFolder.title} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
       </p>
 
+      {loadError && <div className="error">Could not load this lead list: {loadError}</div>}
+
       {!discovery && (
         <div className="leads-inline-options">
           <label className="check"><input type="checkbox" checked={filters.includeDeleted} onChange={(e) => patch("includeDeleted", e.target.checked)} />Show Deleted Leads</label>
@@ -365,6 +383,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
       {loadingRows
         ? <LeadListSkeleton />
+        : loadError
+        ? null
         : data.rows.length
         ? data.rows.map((lead) => <LeadCard key={lead.id} lead={lead} type={type} onChanged={load} />)
         : <div className="info">{currentFolder.empty} Try a shorter search term, different spelling, phone, or ID.</div>}

@@ -824,7 +824,14 @@ app.post("/api/notifications/read", auth, async (req, res) => {
   res.json({ success: true });
 });
 
-app.get("/api/leads", auth, async (req, res) => res.json(await listLeads(req.query, req.user)));
+app.get("/api/leads", auth, async (req, res) => {
+  try {
+    res.json(await listLeads(req.query, req.user));
+  } catch (error) {
+    console.error("Failed to list leads", { query: req.query, error });
+    res.status(400).json({ error: "Lead list could not be loaded for the selected filters" });
+  }
+});
 app.get("/api/leads/:id", auth, async (req, res) => {
   const lead = await getLead(req.params.id, true);
   if (!lead) return res.status(404).json({ error: "Lead not found" });

@@ -33,6 +33,8 @@ export function ConfirmProvider({ children }) {
     try {
       await request.onConfirm();
       setRequest(null);
+    } catch {
+      // API errors already surface through the shared toast interceptor.
     } finally {
       setRunning(false);
     }
