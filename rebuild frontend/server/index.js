@@ -1364,6 +1364,10 @@ app.delete("/api/admin/:type/:id", auth, admin, async (req, res) => {
 
 function spaHtml() {
   const indexPath = path.join(distDir, "index.html");
+  if (!fs.existsSync(indexPath)) {
+    console.warn(`Missing frontend build output at ${indexPath}`);
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lead Manager</title></head><body><div style="font-family:system-ui,sans-serif;padding:24px">Frontend build is unavailable. Please rebuild the app and try again.</div></body></html>`;
+  }
   let html = fs.readFileSync(indexPath, "utf8");
   const scripts = [];
   html = html.replace(/\s*<script\b[^>]*\bsrc="[^"]+"[^>]*><\/script>/g, (tag) => {
