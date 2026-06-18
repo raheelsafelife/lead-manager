@@ -77,6 +77,35 @@ function leadName(row) {
   return `${row.first_name || ""} ${row.last_name || ""}`.trim() || "N/A";
 }
 
+function isReferral(row) {
+  return Number(row.active_client) === 1;
+}
+
+function isAuthorization(row) {
+  return isReferral(row) && Number(row.authorization_received) === 1;
+}
+
+function isCareStart(row) {
+  return isAuthorization(row) && row.care_status === "Care Start";
+}
+
+function isLeadStage(row) {
+  return !isReferral(row);
+}
+
+function isReferralStage(row) {
+  return isReferral(row) && !isAuthorization(row);
+}
+
+function isAuthorizationStage(row) {
+  return isAuthorization(row) && !isCareStart(row);
+}
+
+function sourceLabel(row) {
+  const source = String(row.source || "").trim();
+  return source.toLowerCase() === "hhn" ? "Home Health Notify" : source || "N/A";
+}
+
 function groupCounts(rows, accessor) {
   const grouped = {};
   rows.forEach((row) => {
@@ -98,44 +127,44 @@ function categoryConfig(category) {
     case "Community Care Unit (CCU)":
       return {
         scope: "lead",
-        filter: (row) => Number(row.active_client) === 1,
+        filter: isReferralStage,
         groupLabel: "CCU Name",
         groupBy: (row) => row.ccu_name || "N/A"
       };
     case "Top Staff Leaderboard":
       return {
         scope: "lead",
-        filter: () => true,
+        filter: isLeadStage,
         groupLabel: "Staff",
         groupBy: (row) => row.staff_name || "Unassigned"
       };
     case "Top Sources":
       return {
         scope: "lead",
-        filter: () => true,
+        filter: isLeadStage,
         groupLabel: "Source",
-        groupBy: (row) => row.source || "N/A"
+        groupBy: sourceLabel
       };
     case "Referral Report":
       return {
         scope: "lead",
-        filter: (row) => Number(row.active_client) === 1 && Number(row.authorization_received) !== 1,
+        filter: isReferralStage,
         groupLabel: "Source",
-        groupBy: (row) => row.source || "N/A"
+        groupBy: sourceLabel
       };
     case "Authorization Report":
       return {
         scope: "lead",
-        filter: (row) => Number(row.active_client) === 1 && Number(row.authorization_received) === 1,
+        filter: isAuthorizationStage,
         groupLabel: "CCU Name",
         groupBy: (row) => row.ccu_name || "N/A"
       };
     case "Leads Report":
       return {
         scope: "lead",
-        filter: (row) => Number(row.active_client) !== 1,
+        filter: isLeadStage,
         groupLabel: "Source",
-        groupBy: (row) => row.source || "N/A"
+        groupBy: sourceLabel
       };
     case "Activity Logs":
       return {
@@ -147,23 +176,23 @@ function categoryConfig(category) {
     case "Payor Report":
       return {
         scope: "lead",
-        filter: (row) => Number(row.active_client) === 1,
+        filter: isReferralStage,
         groupLabel: "Payor",
         groupBy: (row) => row.agency_name || "N/A"
       };
     case "Care Start Report":
       return {
         scope: "lead",
-        filter: (row) => row.care_status === "Care Start",
+        filter: isCareStart,
         groupLabel: "Staff",
         groupBy: (row) => row.staff_name || "Unassigned"
       };
     default:
       return {
         scope: "lead",
-        filter: () => true,
+        filter: isLeadStage,
         groupLabel: "Source",
-        groupBy: (row) => row.source || "N/A"
+        groupBy: sourceLabel
       };
   }
 }
@@ -273,11 +302,15 @@ export default function Reports() {
     if (!dashboard?.rows) return { config, filteredRows: [], grouped: [], leaderboard: [], chartOne: [], chartTwo: [], exportRows: [], detailColumns: [], kpis: [] };
 
     const allLeadRows = dashboard.rows.filter((row) => inSelectedRange(row.created_at || row.updated_at, dateRange));
+    const leadStageRows = allLeadRows.filter(isLeadStage);
+    const referralStageRows = allLeadRows.filter(isReferralStage);
+    const authorizationStageRows = allLeadRows.filter(isAuthorizationStage);
+    const careStartRows = allLeadRows.filter(isCareStart);
     const leadKpis = {
-      totalLeads: allLeadRows.length,
-      referrals: allLeadRows.filter((row) => Number(row.active_client) === 1).length,
-      authorizations: allLeadRows.filter((row) => Number(row.authorization_received) === 1).length,
-      careStarts: allLeadRows.filter((row) => row.care_status === "Care Start").length
+      totalLeads: leadStageRows.length,
+      referrals: referralStageRows.length,
+      authorizations: authorizationStageRows.length,
+      careStarts: careStartRows.length
     };
 
     if (config.scope === "activity") {
@@ -323,7 +356,7 @@ export default function Reports() {
       grouped,
       leaderboard,
       chartOne: leaderboard.map((entry) => ({ name: entry.name, count: entry.count })),
-      chartTwo: groupCounts(filteredRows, (row) => row.source || "N/A").slice(0, 6),
+      chartTwo: groupCounts(filteredRows, sourceLabel).slice(0, 6),
       exportRows: buildLeadExportRows(detailRows),
       detailColumns: ["ID", "Name", "Staff", "Source", "Status", "Call Status", "Phone", "Payor", "CCU", "Created", "Updated"],
       kpis: [

@@ -10,6 +10,7 @@ import { AlignmentType, Document, PageOrientation, Packer, Paragraph, Table, Tab
 import { fileURLToPath } from "url";
 import { createDatabase } from "./db.js";
 import { searchSuggestionRelevance } from "./suggestionRank.js";
+import { buildDashboardMetrics, validateLeadMetricState } from "./dashboardMetrics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..", "..");
@@ -831,6 +832,7 @@ app.post("/api/external-lead", async (req, res) => {
     active_client: bool(isTransfer),
     authorization_received: bool(isTransfer),
     care_status: isTransfer ? "Transfer Received" : null,
+    referral_sent_date: isTransfer ? now().slice(0, 10) : null,
     soc_date: body.soc_date || null,
     phone: String(body.phone).trim(),
     street: fullAddress || null,
@@ -882,6 +884,8 @@ app.post("/api/leads", auth, async (req, res) => {
   }
   const fields = ["created_at","updated_at","created_by","updated_by","owner_id","staff_name","first_name","last_name","source","event_name","word_of_mouth_type","other_source_type","active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","care_status","priority","tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name","e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state","send_reminders","caregiver_type","referral_sent_date"];
   const data = { ...body, created_at: now(), updated_at: now(), created_by: req.user.username, updated_by: req.user.username, priority: body.priority || "Not Called", tag_color: body.tag_color || null, active_client: bool(body.active_client), authorization_received: bool(body.authorization_received), send_reminders: 1, referral_sent_date: body.active_client ? (body.referral_sent_date || now().slice(0, 10)) : null };
+  const metricErrors = validateLeadMetricState(data);
+  if (metricErrors.length) return res.status(400).json({ error: metricErrors.join(" ") });
   const sql = `insert into leads (${fields.join(",")}) values (${fields.map((f) => `@${f}`).join(",")})`;
   const result = await db.run(sql, data);
   const lead = await getLead(result.lastInsertRowid, true);
@@ -895,6 +899,12 @@ app.patch("/api/leads/:id", auth, async (req, res) => {
   const allowed = Object.keys(req.body).filter((k) => leadWriteFields.has(k));
   if (!allowed.length) return res.json({ lead: oldLead });
   const data = Object.fromEntries(allowed.map((key) => [key, req.body[key]]));
+  const proposedLead = { ...oldLead, ...data };
+  const metricFieldsChanged = allowed.some((key) => ["active_client", "authorization_received", "care_status", "referral_sent_date"].includes(key));
+  if (metricFieldsChanged) {
+    const metricErrors = validateLeadMetricState(proposedLead);
+    if (metricErrors.length) return res.status(400).json({ error: metricErrors.join(" ") });
+  }
   data.id = req.params.id;
   data.updated_at = now();
   data.updated_by = req.user.username;
@@ -1001,77 +1011,26 @@ async function dashboardPayload(user, query = {}) {
   return cached(cacheKey("dashboard", [cacheScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
   const visible = isCumulative ? leadRows : leadRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);
-  const hydrate = (row) => ({
-    ...row,
-    full_name: `${row.first_name || ""} ${row.last_name || ""}`.trim(),
-    month: String(row.created_at || "").slice(0, 7) || "N/A",
-    ccu_name: row.ccu_name || "N/A",
-    agency_name: row.agency_name || "N/A",
-    auth_label: row.authorization_received ? "Authorized" : "Pending",
-    referral_label: row.active_client ? "Referrals" : "Pending"
-  });
-  const rows = visible.map(hydrate);
-  const group = (key, sourceRows = rows) => Object.values(sourceRows.reduce((acc, row) => {
-    const name = row[key] || "N/A";
-    acc[name] = acc[name] || { name, count: 0, rowIds: [] };
-    acc[name].count += 1;
-    acc[name].rowIds.push(row.id);
-    return acc;
-  }, {})).sort((a, b) => b.count - a.count || String(a.name).localeCompare(String(b.name)));
-  const only = (predicate) => rows.filter(predicate);
-  const referrals = only((l) => Number(l.active_client) === 1);
-  const pendingLeads = only((l) => Number(l.active_client) !== 1);
-  const careStart = referrals.filter((l) => l.care_status === "Care Start");
-  const notStart = referrals.filter((l) => l.care_status === "Not Start");
-  const pendingCare = referrals.filter((l) => !["Care Start", "Not Start"].includes(l.care_status));
   const [totalUsersRow, approvedUsers] = await Promise.all([
     db.get("select count(*) as count from users", ),
     includeUsers ? db.all("select id,user_id,username,email,role from users where is_approved = 1 order by username", ) : Promise.resolve([])
   ]);
+  const metrics = buildDashboardMetrics(visible, {
+    totalUsers: totalUsersRow?.count || 0,
+    generatedAt: new Date().toISOString()
+  });
   const userDashboards = includeUsers ? approvedUsers.map((u) => {
-    const userRows = rows.filter((l) => l.staff_name === u.username || l.owner_id === u.id);
+    const userRows = metrics.rows.filter((l) => l.staff_name === u.username || l.owner_id === u.id);
+    const userMetrics = buildDashboardMetrics(userRows, { totalUsers: totalUsersRow?.count || 0 });
     return {
       user: u,
-      stats: { total_leads: userRows.length, referrals: userRows.filter((l) => Number(l.active_client) === 1).length },
-      source: group("source", userRows),
-      status: group("last_contact_status", userRows),
+      stats: { total_leads: userMetrics.stats.total_leads, referrals: userMetrics.stats.active_clients },
+      source: userMetrics.charts.source,
+      status: userMetrics.charts.status,
       rowIds: userRows.map((row) => row.id)
     };
   }) : [];
-  return {
-    stats: {
-      total_leads: rows.length,
-      total_users: totalUsersRow?.count || 0,
-      active_clients: referrals.length
-    },
-    charts: {
-      staff: group("staff_name"),
-      source: group("source"),
-      status: group("last_contact_status"),
-      month: group("month"),
-      event: group("event_name", rows.filter((l) => l.source === "Event")),
-      wordOfMouth: group("word_of_mouth_type", rows.filter((l) => l.source === "Word of Mouth")),
-      priority: group("priority"),
-      auth: group("auth_label"),
-      ccuSent: group("ccu_name", referrals),
-      ccuConfirmed: group("ccu_name", referrals.filter((l) => l.care_status === "Care Start" || Number(l.authorization_received) === 1)),
-      referralConfirmation: [
-        { name: "Referrals", count: referrals.length, rowIds: referrals.map((row) => row.id) },
-        { name: "Pending", count: pendingLeads.length, rowIds: pendingLeads.map((row) => row.id) }
-      ],
-      leadConversion: [
-        { name: "Care Start", count: careStart.length, rowIds: careStart.map((row) => row.id) },
-        { name: "Not Start", count: notStart.length, rowIds: notStart.map((row) => row.id) },
-        { name: "Pending", count: pendingCare.length, rowIds: pendingCare.map((row) => row.id) }
-      ]
-    },
-    rates: {
-      confirmation: rows.length ? (referrals.length / rows.length) * 100 : 0,
-      conversion: referrals.length ? (careStart.length / referrals.length) * 100 : 0
-    },
-    rows,
-    userDashboards
-  };
+  return { ...metrics, userDashboards };
   });
 }
 

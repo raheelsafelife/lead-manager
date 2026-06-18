@@ -735,7 +735,7 @@ export default function LeadCard({ lead, type, onChanged }) {
           </div>
 
           {lead.active_client && (
-            <Button className="edit-unmark-button" onClick={() => askUpdateLead({ title: "Unmark Referral?", message: `Do you want to unmark ${fullName} as a referral?`, data: { active_client: 0, referral_type: null, referral_sent_date: null, agency_id: null, ccu_id: null, caregiver_type: null, send_reminders: 0, last_contact_status: "Initial Call" }, after: () => setEdit(false) })}>
+            <Button className="edit-unmark-button" onClick={() => askUpdateLead({ title: "Unmark Referral?", message: `Do you want to unmark ${fullName} as a referral? This also clears authorization and care status.`, data: { active_client: 0, authorization_received: 0, care_status: null, soc_date: null, referral_type: null, referral_sent_date: null, agency_id: null, ccu_id: null, caregiver_type: null, send_reminders: 0, last_contact_status: "Initial Call" }, after: () => setEdit(false) })}>
               UNMARK AS REFERRAL
             </Button>
           )}

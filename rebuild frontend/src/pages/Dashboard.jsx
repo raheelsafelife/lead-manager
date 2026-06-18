@@ -176,9 +176,11 @@ export default function Dashboard() {
       </div>
     </section>
     <div className="stats dashboard-stats">
-      <StatCard value={data.stats.total_leads} label={mode === "cumulative" ? "Total Leads" : "Your Leads"} />
       <StatCard value={data.stats.total_users} label="Total Users" />
+      <StatCard value={data.stats.total_leads} label={mode === "cumulative" ? "Leads" : "Your Leads"} />
       <StatCard value={data.stats.active_clients} label="Referrals" />
+      <StatCard value={data.stats.authorizations} label="Authorizations" />
+      <StatCard value={data.stats.care_starts} label="Care Starts" />
     </div>
     <div className="chart-grid dashboard-primary-grid">
       {mode === "cumulative"
@@ -199,7 +201,7 @@ export default function Dashboard() {
     </div>
     <div className="pipeline-header"><h2>Pipeline Analytics</h2></div>
     <div className="chart-grid">
-      <DonutChartBox chartKey="lead-confirmation" title="Lead Confirmation" data={data.charts.referralConfirmation} filename="lead_confirmation_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <DonutChartBox chartKey="pipeline-stages" title="Pipeline Stage Distribution" data={data.charts.pipelineStages} filename="pipeline_stage_distribution.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <DonutChartBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <div className="rate-cards"><div><b>{data.rates.confirmation.toFixed(1)}%</b><span>{mode === "cumulative" ? "Confirmation Rate" : "Your Confirmation Rate"}</span></div><div><b>{data.rates.conversion.toFixed(1)}%</b><span>{mode === "cumulative" ? "Conversion Rate" : "Your Conversion Rate"}</span></div></div>
