@@ -27,6 +27,20 @@ app.add_middleware(
 API_KEY = os.getenv("LEAD_MANAGER_API_KEY", "your-secret-api-key-here")
 
 
+@app.on_event("startup")
+def start_background_scheduler():
+    """Start reminder and daily digest checks with the API process."""
+    if os.getenv("START_EMAIL_SCHEDULER", "true").lower() not in ("1", "true", "yes", "on"):
+        return
+
+    try:
+        from app.email_scheduler import start_scheduler
+
+        start_scheduler()
+    except Exception as exc:
+        print(f"[ERROR] Failed to start email scheduler from FastAPI startup: {exc}")
+
+
 class SafeLifeFormData(BaseModel):
     """Schema for SafeLife CCP Form submissions"""
     # User identification

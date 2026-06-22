@@ -5,7 +5,11 @@ on:
     branches:
       - main
     paths:
+      - "backend/**"
+      - "frontend_app/**"
       - "rebuild frontend/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
       - ".github/workflows/deploy-rebuilt-frontend.yml"
   workflow_dispatch:
 

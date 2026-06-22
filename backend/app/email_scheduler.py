@@ -21,10 +21,16 @@ except ImportError:
 
 
 _last_digest_attempt_date = None
+_scheduler_thread = None
+_scheduler_lock = threading.Lock()
 
 
 def _digest_enabled():
     return os.getenv("DAILY_DIGEST_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+
+
+def _digest_timezone():
+    return os.getenv("DAILY_DIGEST_TIMEZONE", "America/Chicago")
 
 
 def _digest_send_hour():
@@ -41,14 +47,13 @@ def send_daily_digest_if_due():
     if not _digest_enabled():
         return
 
-    now_local = datetime.now(ZoneInfo("America/Chicago"))
+    now_local = datetime.now(ZoneInfo(_digest_timezone()))
     digest_date = now_local.date()
     if now_local.hour < _digest_send_hour():
         return
     if _last_digest_attempt_date == digest_date:
         return
 
-    _last_digest_attempt_date = digest_date
     db = SessionLocal()
     try:
         from app.services.daily_digest_service import send_daily_digests
@@ -56,6 +61,10 @@ def send_daily_digest_if_due():
         print(f"[{datetime.now()}] Starting daily digest scan for {digest_date}...")
         result = send_daily_digests(db, digest_date=digest_date)
         print(f"[SUCCESS] Daily digest complete: {result}")
+        if result.get("failed", 0) == 0:
+            _last_digest_attempt_date = digest_date
+        else:
+            print(f"[WARN] Daily digest had failures; will retry failed recipients on the next scheduler check.")
     except Exception as e:
         print(f"[ERROR] Daily digest scan failed: {e}")
     finally:
@@ -416,9 +425,16 @@ def run_scheduler():
 
 def start_scheduler():
     """Start the background scheduler thread"""
-    try:
-        scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-        scheduler_thread.start()
-        print("[SUCCESS] Notification reminder background thread spawned.")
-    except Exception as e:
-        print(f"[ERROR] Failed to spawn scheduler thread: {e}")
+    global _scheduler_thread
+
+    with _scheduler_lock:
+        if _scheduler_thread and _scheduler_thread.is_alive():
+            print("[INFO] Notification reminder background thread already running.")
+            return
+
+        try:
+            _scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+            _scheduler_thread.start()
+            print("[SUCCESS] Notification reminder background thread spawned.")
+        except Exception as e:
+            print(f"[ERROR] Failed to spawn scheduler thread: {e}")

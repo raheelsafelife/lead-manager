@@ -27,7 +27,7 @@ except ImportError:
     from backports.zoneinfo import ZoneInfo
 
 
-DIGEST_TIMEZONE = "America/Chicago"
+DIGEST_TIMEZONE = os.getenv("DAILY_DIGEST_TIMEZONE", "America/Chicago")
 DIGEST_SEND_DELAY_SECONDS = 3
 DIGEST_ACTIONS = {
     "CREATE_LEAD",
