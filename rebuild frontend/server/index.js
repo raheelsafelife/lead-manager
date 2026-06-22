@@ -6,6 +6,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import ExcelJS from "exceljs";
+import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { AlignmentType, Document, PageOrientation, Packer, Paragraph, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType } from "docx";
 import { fileURLToPath } from "url";
@@ -15,6 +16,8 @@ import { buildDashboardMetrics, validateLeadMetricState } from "./dashboardMetri
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..", "..");
+dotenv.config({ path: path.join(rootDir, ".env") });
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 const dbPath = process.env.LEAD_DB || path.join(rootDir, "backend", "leads.db");
 const uploadsDir = path.join(rootDir, "backend", "uploads");
 const legacyUploadDirs = [
