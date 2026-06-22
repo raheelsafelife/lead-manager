@@ -43,7 +43,8 @@ jobs:
         run: |
           ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" \
             "cd '$APP_DIR' && \
-             git pull --ff-only origin main && \
+             git fetch origin main && \
+             git reset --hard origin/main && \
              cd 'rebuild frontend' && \
              npm ci && \
              rm -rf dist && \
