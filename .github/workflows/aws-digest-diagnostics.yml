@@ -1,6 +1,6 @@
-name: AWS Digest Diagnostics
+name: aws-digest-diagnostics
 
-on:
+"on":
   workflow_dispatch:
 
 jobs:
