@@ -43,12 +43,17 @@ jobs:
           import dotenv from "dotenv";
           import path from "path";
           import { fileURLToPath } from "url";
+          import { execFileSync } from "child_process";
           import { createDatabase } from "./server/db.js";
 
           const __dirname = path.dirname(fileURLToPath(import.meta.url));
           const rootDir = path.resolve(__dirname, "..");
           dotenv.config({ path: path.join(rootDir, ".env") });
           dotenv.config({ path: path.resolve(__dirname, ".env") });
+
+          const pm2List = JSON.parse(execFileSync("pm2", ["jlist"], { encoding: "utf8" }));
+          const app = pm2List.find((item) => item.name === "lead-manager-react");
+          Object.assign(process.env, app?.pm2_env?.env || {});
 
           const db = await createDatabase({
             dbPath: path.join(rootDir, "backend", "leads.db"),
