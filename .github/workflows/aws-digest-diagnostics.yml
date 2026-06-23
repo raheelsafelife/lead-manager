@@ -1,4 +1,5 @@
 name: aws-digest-diagnostics
+# Temporary workflow for AWS digest checks.
 
 "on":
   push:
