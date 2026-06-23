@@ -202,6 +202,10 @@ function digestDateString(date = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function digestDateOffset(days) {
+  return digestDateString(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
+}
+
 function digestLocalHour(date = new Date()) {
   return Number(timeZoneParts(date).hour || 0);
 }
@@ -335,7 +339,6 @@ async function sendDigestForUser(user, digestDate) {
   }
   sql += " order by timestamp desc";
   const logs = await db.all(sql, params);
-  if (!logs.length) return "no_activity";
 
   const { subject, body, html } = buildDigestMessage(user, digestDate, logs);
   let status = "sent";
@@ -386,6 +389,16 @@ async function sendDailyDigestIfDue() {
 }
 
 function startDailyDigestScheduler() {
+  setTimeout(async () => {
+    const yesterday = digestDateOffset(-1);
+    console.log(`[digest] Backfill scan for ${yesterday}`);
+    try {
+      const result = await sendDailyDigests(yesterday);
+      console.log(`[digest] Backfill complete: ${JSON.stringify(result)}`);
+    } catch (error) {
+      console.error("[digest] Backfill failed:", error);
+    }
+  }, 5_000);
   setTimeout(sendDailyDigestIfDue, 15_000);
   setInterval(sendDailyDigestIfDue, 10 * 60 * 1000);
   console.log(`[digest] Scheduler enabled for ${digestTimeZone} at hour ${digestSendHour()}`);

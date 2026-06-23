@@ -481,9 +481,6 @@ def send_digest_for_user(db: Session, user: User, digest_date: Optional[date] = 
 
     start_utc, end_utc = _local_day_window(digest_date)
     logs = _activity_query(db, user, start_utc, end_utc)
-    if not logs:
-        return "no_activity"
-
     sections = _build_digest_items(db, logs)
     subject, plain_body, html_body = build_digest_email(user, digest_date, sections)
     activity_count = sum(len(items) for items in sections.values())
