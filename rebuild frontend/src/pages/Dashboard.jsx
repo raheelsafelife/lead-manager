@@ -82,14 +82,16 @@ function DonutChartBox({ chartKey, title, data = [], filename, onDrill, drill, r
   const cleanData = compactTop(data, limit);
   return <ChartShell chartKey={chartKey} title={title} data={cleanData} filename={filename} resolveRows={resolveRows} drill={drill}>{(clean) => (
     <div className="donut-layout">
-      <ResponsiveContainer width="48%" height={260}>
-        <PieChart>
-          <Tooltip formatter={(value) => [value, "Count"]} />
-          <Pie data={clean} dataKey="count" nameKey="name" innerRadius={62} outerRadius={98} paddingAngle={2} onClick={(entry) => onDrill(chartKey, title, entry)}>
-            {clean.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
+      <div className="donut-chart-frame">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
+            <Tooltip formatter={(value) => [value, "Count"]} />
+            <Pie data={clean} dataKey="count" nameKey="name" innerRadius={62} outerRadius={98} paddingAngle={2} onClick={(entry) => onDrill(chartKey, title, entry)}>
+              {clean.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
       <div className="donut-legend">
         {clean.map((entry, index) => <button key={entry.name} onClick={() => onDrill(chartKey, title, entry)}><span style={{ "--legend-color": chartColors[index % chartColors.length] }} /> <b>{shortName(entry.name, 24)}</b><em>{entry.count}</em></button>)}
       </div>

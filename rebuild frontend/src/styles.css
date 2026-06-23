@@ -456,11 +456,14 @@ h3 { color: #111827; margin: 16px 0 8px; font-size: 1.12rem; }
 .chart-box, .form-panel, .lead-detail, .auth-card, .report-card { background: #fff; border: 1px solid #ecf1f5; border-radius: 18px; padding: 20px 22px 18px; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
 .chart-box h3 { margin-top: 0; font-size: 1.12rem; color: #122231; }
 .chart-box .recharts-wrapper { margin-top: 18px; }
-.dashboard-chart-card { overflow: hidden; }
+.dashboard-chart-card { overflow: visible; }
 .chart-card-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
 .chart-card-head h3 { margin: 0; }
 .chart-card-head span { color: #667085; font-size: .78rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-.donut-layout { display: grid; grid-template-columns: minmax(180px, .9fr) minmax(180px, 1fr); gap: 14px; align-items: center; min-height: 276px; }
+.donut-layout { display: grid; grid-template-columns: minmax(260px, .9fr) minmax(180px, 1fr); gap: 14px; align-items: center; min-height: 286px; }
+.donut-chart-frame { width: min(100%, 300px); height: 276px; justify-self: center; overflow: visible; }
+.donut-chart-frame .recharts-wrapper { margin-top: 0; overflow: visible; }
+.donut-chart-frame .recharts-surface { overflow: visible; }
 .donut-legend { display: grid; gap: 8px; align-content: center; }
 .donut-legend button { border: 1px solid #edf2f7; background: #fff; border-radius: 8px; min-height: 38px; padding: 8px 10px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 9px; align-items: center; text-align: left; cursor: pointer; }
 .donut-legend span { width: 10px; height: 10px; border-radius: 999px; background: var(--legend-color); }
@@ -2688,6 +2691,8 @@ th { background: #f8fafc; color: var(--deep-blue); }
   .dashboard-copy p { margin-bottom: 24px; }
   .dashboard-stats { grid-template-columns: 1fr; }
   .dashboard-actions .btn-primary { min-width: 0; width: 100%; justify-content: center; padding-left: 22px; }
+  .donut-layout { grid-template-columns: 1fr; }
+  .donut-chart-frame { width: min(100%, 320px); height: 286px; }
   .smart-search { min-height: 72px; padding: 0 18px; border-radius: 14px; }
   .smart-search input { font-size: 18px; }
   .smart-search .suggestions { top: 72px; }
