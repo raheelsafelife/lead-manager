@@ -72,5 +72,5 @@ jobs:
             activity_utc_dates: activity
           }, null, 2));
           await db.close?.();
-NODE
-REMOTE
+          NODE
+          REMOTE
