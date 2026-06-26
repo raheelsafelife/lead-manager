@@ -47,6 +47,9 @@ if (db.mode === "sqlite") {
   if (leadColumns.length && !leadColumns.includes("is_chicago_referral")) {
     db.exec("alter table leads add column is_chicago_referral integer not null default 0");
   }
+  if (leadColumns.length && !leadColumns.includes("authorization_received_at")) {
+    db.exec("alter table leads add column authorization_received_at text");
+  }
 }
 
 const app = express();
@@ -157,6 +160,50 @@ db.run = async (...args) => {
   return result;
 };
 await ensureLeadSources();
+
+async function ensureAuthorizationReceivedAt() {
+  const rows = await db.all(`
+    select id, authorization_received, authorization_received_at, created_at, updated_at
+    from leads
+    where coalesce(authorization_received,0) = 1
+      and authorization_received_at is null
+  `);
+
+  for (const lead of rows) {
+    const history = await db.all(`
+      select timestamp, action_type, old_value, new_value
+      from activity_logs
+      where entity_type = 'Lead'
+        and entity_id = @leadId
+        and (
+          action_type = 'AUTHORIZATION_MARKED'
+          or coalesce(new_value,'') like '%"authorization_received"%'
+        )
+      order by timestamp asc
+    `, { leadId: lead.id });
+
+    const marked = history.find((entry) => {
+      try {
+        const oldValue = entry.old_value ? JSON.parse(entry.old_value) : {};
+        const newValue = entry.new_value ? JSON.parse(entry.new_value) : {};
+        return Number(oldValue.authorization_received || 0) !== 1
+          && Number(newValue.authorization_received || 0) === 1;
+      } catch {
+        return entry.action_type === "AUTHORIZATION_MARKED";
+      }
+    });
+
+    await db.run(
+      "update leads set authorization_received_at = @authorizationReceivedAt where id = @id",
+      {
+        id: lead.id,
+        authorizationReceivedAt: marked?.timestamp || lead.updated_at || lead.created_at || now()
+      }
+    );
+  }
+}
+
+await ensureAuthorizationReceivedAt();
 
 const digestTimeZone = process.env.DAILY_DIGEST_TIMEZONE || "America/Chicago";
 const digestActions = [
@@ -681,7 +728,7 @@ function filterDashboardRowsByScope(rows, dataScope) {
 
 function leadDateExpressionForFilter(q = {}) {
   if (q.type === "referral") return "coalesce(leads.referral_sent_date, leads.updated_at, leads.created_at)";
-  if (q.type === "authorization") return "coalesce(leads.updated_at, leads.referral_sent_date, leads.created_at)";
+  if (q.type === "authorization") return "coalesce(leads.authorization_received_at, leads.updated_at, leads.referral_sent_date, leads.created_at)";
   return "leads.created_at";
 }
 
@@ -1124,9 +1171,10 @@ app.post("/api/external-lead", async (req, res) => {
 
   const fullAddress = [body.address_line1, body.address_line2].map((value) => String(value || "").trim()).filter(Boolean).join(", ");
   const isTransfer = body.source === "Transfer";
+  const timestamp = now();
   const data = {
-    created_at: now(),
-    updated_at: now(),
+    created_at: timestamp,
+    updated_at: timestamp,
     created_by: user.username,
     updated_by: user.username,
     owner_id: user.id,
@@ -1136,8 +1184,9 @@ app.post("/api/external-lead", async (req, res) => {
     source: String(body.source).trim(),
     active_client: bool(isTransfer),
     authorization_received: bool(isTransfer),
+    authorization_received_at: isTransfer ? timestamp : null,
     care_status: isTransfer ? "Transfer Received" : null,
-    referral_sent_date: isTransfer ? now().slice(0, 10) : null,
+    referral_sent_date: isTransfer ? timestamp.slice(0, 10) : null,
     soc_date: body.soc_date || null,
     phone: String(body.phone).trim(),
     street: fullAddress || null,
@@ -1187,8 +1236,10 @@ app.post("/api/leads", auth, async (req, res) => {
     const payloadKey = duplicate.deleted_at ? "deletedDuplicate" : "duplicate";
     return res.status(409).json({ error: `Duplicate ${kind.charAt(0).toUpperCase()}${kind.slice(1)} Detected`, [payloadKey]: duplicate, duplicateKind: kind });
   }
-  const fields = ["created_at","updated_at","created_by","updated_by","owner_id","staff_name","first_name","last_name","source","event_name","word_of_mouth_type","other_source_type","active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","care_status","priority","tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name","e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state","send_reminders","caregiver_type","referral_sent_date"];
-  const data = { ...body, created_at: now(), updated_at: now(), created_by: req.user.username, updated_by: req.user.username, priority: body.priority || "Not Called", tag_color: body.tag_color || null, active_client: bool(body.active_client), authorization_received: bool(body.authorization_received), send_reminders: 1, referral_sent_date: body.active_client ? (body.referral_sent_date || now().slice(0, 10)) : null };
+  const timestamp = now();
+  const authorizationReceived = bool(body.authorization_received);
+  const fields = ["created_at","updated_at","created_by","updated_by","owner_id","staff_name","first_name","last_name","source","event_name","word_of_mouth_type","other_source_type","active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","authorization_received_at","care_status","priority","tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name","e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state","send_reminders","caregiver_type","referral_sent_date"];
+  const data = { ...body, created_at: timestamp, updated_at: timestamp, created_by: req.user.username, updated_by: req.user.username, priority: body.priority || "Not Called", tag_color: body.tag_color || null, active_client: bool(body.active_client), authorization_received: authorizationReceived, authorization_received_at: authorizationReceived ? timestamp : null, send_reminders: 1, referral_sent_date: body.active_client ? (body.referral_sent_date || timestamp.slice(0, 10)) : null };
   const metricErrors = validateLeadMetricState(data);
   if (metricErrors.length) return res.status(400).json({ error: metricErrors.join(" ") });
   const sql = `insert into leads (${fields.join(",")}) values (${fields.map((f) => `@${f}`).join(",")})`;
@@ -1213,6 +1264,20 @@ app.patch("/api/leads/:id", auth, async (req, res) => {
   data.id = req.params.id;
   data.updated_at = now();
   data.updated_by = req.user.username;
+  if (allowed.includes("authorization_received")) {
+    const hadAuthorization = Number(oldLead.authorization_received || 0) === 1;
+    const hasAuthorization = Number(data.authorization_received || 0) === 1;
+    if (!hadAuthorization && hasAuthorization) {
+      data.authorization_received_at = data.updated_at;
+      allowed.push("authorization_received_at");
+    } else if (hasAuthorization && !oldLead.authorization_received_at) {
+      data.authorization_received_at = data.updated_at;
+      allowed.push("authorization_received_at");
+    } else if (hadAuthorization && !hasAuthorization) {
+      data.authorization_received_at = null;
+      allowed.push("authorization_received_at");
+    }
+  }
   const sets = [...allowed, "updated_at", "updated_by"].map((k) => `${k} = @${k}`).join(",");
   await db.run(`update leads set ${sets} where id = @id`, data);
   const lead = await getLead(req.params.id, true);

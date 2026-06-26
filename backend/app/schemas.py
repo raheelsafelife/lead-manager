@@ -90,6 +90,7 @@ class LeadBase(BaseModel):
     ccu_id: Optional[int] = None
     mco_id: Optional[int] = None
     authorization_received: bool = False
+    authorization_received_at: Optional[datetime] = None
     care_status: Optional[str] = None  # "Care Start" or "Not Start"
     priority: Optional[str] = "Not Called"
     tag_color: Optional[str] = None  # color tag
@@ -141,6 +142,7 @@ class LeadUpdate(BaseModel):
     ccu_id: Optional[int] = None
     mco_id: Optional[int] = None
     authorization_received: Optional[bool] = None
+    authorization_received_at: Optional[datetime] = None
     care_status: Optional[str] = None
     priority: Optional[str] = None
     soc_date: Optional[date] = None

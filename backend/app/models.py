@@ -83,6 +83,7 @@ class Lead(Base):
     
     # Authorization tracking
     authorization_received = Column(Boolean, nullable=False, default=False)  # Whether authorization was received
+    authorization_received_at = Column(DateTime, nullable=True)
     care_status = Column(String(50), nullable=True)  # "Care Start" or "Not Start"
     priority = Column(String(50), nullable=True, default="Not Called")  # "Not Called", "Pending", "Called"
     caregiver_type = Column(String(50), nullable=True) # "None", "FHCA", "PHCA", "HCA"

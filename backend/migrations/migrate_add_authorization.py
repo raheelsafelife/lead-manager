@@ -23,6 +23,17 @@ def migrate():
         print(" authorization_received column added")
     else:
         print("⏭authorization_received column already exists")
+
+    # Add authorization_received_at column if not exists
+    if 'authorization_received_at' not in existing_columns:
+        print("Adding authorization_received_at column...")
+        cursor.execute("""
+            ALTER TABLE leads
+            ADD COLUMN authorization_received_at DATETIME
+        """)
+        print(" authorization_received_at column added")
+    else:
+        print("⏭authorization_received_at column already exists")
     
     # Add care_status column if not exists
     if 'care_status' not in existing_columns:

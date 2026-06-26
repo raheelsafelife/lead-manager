@@ -88,6 +88,7 @@ def migrate():
             
             # Status & Dates
             ('authorization_received', 'BOOLEAN DEFAULT 0'),
+            ('authorization_received_at', 'DATETIME'),
             ('care_status', 'VARCHAR(50)'),
             ('soc_date', 'DATE'),
             ('dob', 'DATE'),

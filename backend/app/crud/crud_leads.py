@@ -1,6 +1,7 @@
 # Force Reload
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
+from datetime import datetime
 import json
 import re
 
@@ -17,6 +18,9 @@ def create_lead(db: Session, lead_in: LeadCreate, username: str = "system", user
     # Ensure owner_id is set from function argument if not in schema
     if user_id and lead.owner_id is None:
         lead.owner_id = user_id
+
+    if lead.authorization_received and not lead.authorization_received_at:
+        lead.authorization_received_at = datetime.utcnow()
         
     lead.created_by = lead_in.staff_name
     lead.updated_by = lead_in.staff_name
@@ -184,6 +188,16 @@ def update_lead(
             new_values[field] = value
             changes_made = True
             setattr(lead, field, value)
+
+    if "authorization_received" in new_values:
+        if new_values["authorization_received"] and not old_values.get("authorization_received"):
+            lead.authorization_received_at = datetime.utcnow()
+            new_values["authorization_received_at"] = lead.authorization_received_at
+            old_values["authorization_received_at"] = None
+        elif old_values.get("authorization_received") and not new_values["authorization_received"]:
+            old_values["authorization_received_at"] = lead.authorization_received_at
+            lead.authorization_received_at = None
+            new_values["authorization_received_at"] = None
     
     if changes_made:
         lead.updated_by = username
