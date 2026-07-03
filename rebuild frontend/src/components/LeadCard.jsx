@@ -216,8 +216,7 @@ export default function LeadCard({ lead, type, onChanged }) {
           authorization_received: 1,
           authorization_received_at: authorizationReceivedDate || new Date().toISOString().slice(0, 10),
           active_client: 1,
-          last_contact_status: "Care Start",
-          care_status: "Care Start"
+          care_status: null
         });
         setAuthorizationDialogOpen(false);
       }
@@ -594,9 +593,7 @@ export default function LeadCard({ lead, type, onChanged }) {
         )}
         {type === "authorization" && !lead.deleted_at && canModify && <div className="status-controls">
           <b>Manage Status:</b>
-          {["Active", "Hold", "Terminated", "Deceased", "Transfer"].map((s) => <Button key={s} active={(s === "Active" && !["Hold", "Terminated", "Deceased", "Transfer Received"].includes(lead.care_status)) || lead.care_status === s || (s === "Transfer" && String(lead.care_status || "").includes("Transfer"))} onClick={() => askUpdateLead({ title: "Update Authorization Status?", message: `Do you want to set authorization status to ${s}?`, data: { care_status: s === "Active" ? null : s === "Transfer" ? "Transfer Received" : s, soc_date: s === "Active" ? lead.soc_date : null } })}>{s}</Button>)}
-          <Button active={lead.care_status === "Care Start"} onClick={() => askUpdateLead({ title: "Mark Care Start?", message: `Do you want to mark Care Start for ${fullName}?`, data: { care_status: "Care Start" } })}>Care Start</Button>
-          <Button active={lead.care_status === "Not Start"} onClick={() => askUpdateLead({ title: "Mark Care Not Start?", message: `Do you want to mark Care Not Start for ${fullName}?`, data: { care_status: "Not Start", soc_date: null } })}>Care Not Start</Button>
+          {["Active", "Hold", "Terminated", "Transfer"].map((s) => <Button key={s} active={(s === "Active" && !["Hold", "Terminated", "Deceased", "Transfer Received"].includes(lead.care_status) && lead.source !== "Transfer") || lead.care_status === s || (s === "Transfer" && (String(lead.care_status || "").includes("Transfer") || lead.source === "Transfer"))} onClick={() => askUpdateLead({ title: "Update Authorization Status?", message: `Do you want to set authorization status to ${s}?`, data: { care_status: s === "Active" ? null : s === "Transfer" ? "Transfer Received" : s, soc_date: s === "Active" ? lead.soc_date : null } })}>{s}</Button>)}
         </div>}
 
         <div className="lead-bottom-grid">

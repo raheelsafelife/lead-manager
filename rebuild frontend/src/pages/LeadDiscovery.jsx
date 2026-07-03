@@ -48,8 +48,6 @@ export default function LeadDiscovery() {
   function rowStage(row) {
     const referral = Number(row.active_client) === 1;
     const authorization = referral && Number(row.authorization_received) === 1;
-    const careStart = authorization && row.care_status === "Care Start";
-    if (careStart) return "careStart";
     if (authorization) return "authorization";
     if (referral) return "referral";
     return "lead";

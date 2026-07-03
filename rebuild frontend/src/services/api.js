@@ -37,7 +37,6 @@ function successMessage(config = {}) {
   if (url === "/auth/forgot") return "Password reset request sent successfully";
   if (method === "post" && url === "/leads") return "";
   if (method === "patch" && /^\/leads\/[^/]+$/.test(url)) {
-    if (data.care_status === "Care Start") return "Care Start marked successfully";
     if (Number(data.authorization_received) === 1) return "Authorization marked successfully";
     if (Number(data.active_client) === 1 && Number(data.authorization_received) === 0) return "Referral marked successfully";
     if (Number(data.authorization_received) === 0 && !data.active_client) return "Authorization removed successfully";

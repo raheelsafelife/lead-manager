@@ -453,7 +453,7 @@ function startDailyDigestScheduler() {
 
 function duplicateKind(lead) {
   if (!lead) return "";
-  if (Number(lead.authorization_received) === 1) return lead.source === "Transfer" && lead.care_status !== "Care Start" ? "transfer case" : "authorization";
+  if (Number(lead.authorization_received) === 1) return lead.source === "Transfer" || String(lead.care_status || "").includes("Transfer") ? "transfer case" : "authorization";
   if (Number(lead.active_client) === 1) return "referral";
   return "lead";
 }
@@ -461,7 +461,7 @@ function duplicateKind(lead) {
 function searchTargetForLead(lead) {
   const folderQuery = Number(lead.is_chicago_referral) === 1 ? "active=Chicago&" : "";
   if (Number(lead.authorization_received) === 1) {
-    if (lead.source === "Transfer" && lead.care_status !== "Care Start") return { targetPage: "Transfer Cases", targetUrl: `/authorizations?${folderQuery}idSearch=${lead.id}&transferView=true` };
+    if (lead.source === "Transfer" || String(lead.care_status || "").includes("Transfer")) return { targetPage: "Transfer Cases", targetUrl: `/authorizations?${folderQuery}idSearch=${lead.id}&transferView=true` };
     return { targetPage: "Authorizations", targetUrl: `/authorizations?${folderQuery}idSearch=${lead.id}` };
   }
   if (Number(lead.active_client) === 1) return { targetPage: "Referrals Sent", targetUrl: `/referrals?${folderQuery}idSearch=${lead.id}` };
@@ -583,8 +583,8 @@ function reminderNotificationMessage(lead) {
   if (Number(lead.active_client) !== 1) {
     return `Lead Follow-up: Current status is "${lead.last_contact_status || "Not added"}".${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
   }
-  if (Number(lead.authorization_received) === 1 && lead.care_status !== "Care Start") {
-    return `Care Start Follow-up: Authorization received. Current care status: ${lead.care_status || "Not Start"}.${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
+  if (Number(lead.authorization_received) === 1 && !["Hold", "Terminated", "Deceased", "Transfer Received"].includes(String(lead.care_status || ""))) {
+    return `Authorization Follow-up: Authorization received. Current status: Active.${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
   }
   return `Referral Follow-up: Current status is "${lead.last_contact_status || "Not added"}". Type: ${lead.referral_type || "Regular"}.${lead.phone ? ` Phone: ${lead.phone}` : ""}`;
 }
@@ -757,8 +757,7 @@ function buildLeadQuery(q = {}, user) {
     where.push("leads.active_client = 1");
     where.push("leads.authorization_received = 1");
     if (q.transferView === "true" || q.transferView === true) {
-      where.push("leads.source = 'Transfer'");
-      where.push("coalesce(leads.care_status,'') != 'Care Start'");
+      where.push("(leads.source = 'Transfer' or coalesce(leads.care_status,'') = 'Transfer Received')");
     }
   }
   if (q.active === "Chicago") {
@@ -781,7 +780,7 @@ function buildLeadQuery(q = {}, user) {
       },
       authorization: {
         column: "care_status",
-        active: ["Care Start", "Not Start", "Transfer", "Transfer Received"]
+        active: []
       }
     };
       const config = statusSets[q.type] || statusSets.lead;
@@ -797,6 +796,7 @@ function buildLeadQuery(q = {}, user) {
         const inactiveSql = inactiveList.map((_, i) => `@inactive${i}`).join(",");
         if (q.active === "Active") {
           where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${inactiveSql}))`);
+          where.push("coalesce(leads.source,'') != 'Transfer'");
         } else {
           where.push(`${columnSql} in (${inactiveSql})`);
         }
@@ -810,8 +810,14 @@ function buildLeadQuery(q = {}, user) {
     }
   }
   if (q.status && q.status !== "All") {
-    where.push("(leads.last_contact_status = @status or leads.care_status = @status)");
-    params.status = q.status;
+    if (q.type === "authorization" && q.status === "Terminated") {
+      where.push("leads.care_status in (@statusTerminated,@statusDeceased)");
+      params.statusTerminated = "Terminated";
+      params.statusDeceased = "Deceased";
+    } else {
+      where.push("(leads.last_contact_status = @status or leads.care_status = @status)");
+      params.status = q.status;
+    }
   }
   if (q.callStatus && q.callStatus !== "All") {
     where.push("coalesce(leads.priority,'Not Called') = @callStatus");

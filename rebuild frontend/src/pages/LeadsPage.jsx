@@ -32,7 +32,7 @@ function startForDateFilter(filter) {
 
 function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") {
   return {
-    active: type === "authorization" ? "All" : initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
+    active: type === "authorization" ? (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active") : initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
     status: "All",
     callStatus: "All",
     tagColor: "All",
@@ -70,7 +70,7 @@ function readUrlFilters(search) {
 function pageSubtitle(type, discovery) {
   if (discovery) return "Search and explore matching leads quickly.";
   if (type === "referral") return "Active referrals stay here. Closed referrals live in Archive. Chicago referrals live in their own folder.";
-  if (type === "authorization") return "All authorizations are shown by default. Use filters to narrow by status, transfer cases, staff, CCU, payor, or authorization received date.";
+  if (type === "authorization") return "Active authorizations are shown by default. Use filters to narrow by hold, terminated, transfer cases, staff, CCU, payor, or authorization received date.";
   return "Active leads stay here. Closed leads live in Archive. Chicago referrals live in their own folder.";
 }
 
@@ -177,7 +177,18 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setFilters((current) => ({
       ...current,
       transferView,
+      active: transferView ? "All" : "Active",
       status: "All"
+    }));
+    setPage(0);
+  }
+
+  function setAuthorizationStatus(status) {
+    setFilters((current) => ({
+      ...current,
+      transferView: false,
+      active: status === "Active" ? "Active" : "All",
+      status: status === "Active" ? "All" : status
     }));
     setPage(0);
   }
@@ -227,7 +238,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const statusOptions = type === "referral"
     ? referralStatuses
     : type === "authorization"
-      ? ["All", "Care Start", "Not Start", "Hold", "Terminated", "Deceased"]
+      ? ["Active", "Hold", "Terminated"]
       : ["All", "Initial Call", "No Response", "Not Interested"];
   const callStatusOptions = type === "lead" ? leadCallStatuses : type === "referral" ? referralCallStatuses : [...new Set([...leadCallStatuses, ...referralCallStatuses])];
   const callFilterOptions = ["All", ...callStatusOptions];
@@ -356,11 +367,12 @@ export default function LeadsPage({ title, type, discovery = false }) {
           {type === "authorization" && (
             <>
               {statusOptions.map((status) => (
-                <Button key={status} active={filters.status === status && !filters.transferView} onClick={() => {
-                  setAuthorizationMode(false);
-                  patch("status", status);
-                }}>
-                  {status === "All" ? "Authorizations" : status}
+                <Button
+                  key={status}
+                  active={!filters.transferView && (status === "Active" ? filters.active === "Active" && filters.status === "All" : filters.status === status)}
+                  onClick={() => setAuthorizationStatus(status)}
+                >
+                  {status === "Active" ? "Active Authorizations" : status}
                 </Button>
               ))}
               <Button active={filters.transferView} onClick={() => {

@@ -50,6 +50,7 @@ jobs:
              rm -rf dist && \
              npm run build && \
              test -s dist/index.html && \
+             npm run normalize:auth-statuses && \
              LEAD_MANAGER_API_KEY='$LEAD_MANAGER_API_KEY' \
              JWT_SECRET_KEY='$JWT_SECRET_KEY' \
              pm2 restart lead-manager-react --update-env && \

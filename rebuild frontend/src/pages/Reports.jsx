@@ -37,8 +37,7 @@ const reportCategories = [
   "Authorization Report",
   "Leads Report",
   "Activity Logs",
-  "Payor Report",
-  "Care Start Report"
+  "Payor Report"
 ];
 
 function saveBlob(blob, fileName) {
@@ -86,10 +85,6 @@ function isAuthorization(row) {
   return isReferral(row) && Number(row.authorization_received) === 1;
 }
 
-function isCareStart(row) {
-  return isAuthorization(row) && row.care_status === "Care Start";
-}
-
 function isLeadStage(row) {
   return !isReferral(row);
 }
@@ -99,7 +94,7 @@ function isReferralStage(row) {
 }
 
 function isAuthorizationStage(row) {
-  return isAuthorization(row) && !isCareStart(row);
+  return isAuthorization(row);
 }
 
 function sourceLabel(row) {
@@ -180,13 +175,6 @@ function categoryConfig(category) {
         filter: isReferralStage,
         groupLabel: "Payor",
         groupBy: (row) => row.agency_name || "N/A"
-      };
-    case "Care Start Report":
-      return {
-        scope: "lead",
-        filter: isCareStart,
-        groupLabel: "Staff",
-        groupBy: (row) => row.staff_name || "Unassigned"
       };
     default:
       return {
@@ -308,12 +296,10 @@ export default function Reports() {
     const leadStageRows = allLeadRows.filter(isLeadStage);
     const referralStageRows = allLeadRows.filter(isReferralStage);
     const authorizationStageRows = allLeadRows.filter(isAuthorizationStage);
-    const careStartRows = allLeadRows.filter(isCareStart);
     const leadKpis = {
       totalLeads: leadStageRows.length,
       referrals: referralStageRows.length,
-      authorizations: authorizationStageRows.length,
-      careStarts: careStartRows.length
+      authorizations: authorizationStageRows.length
     };
 
     if (config.scope === "activity") {
@@ -365,8 +351,7 @@ export default function Reports() {
       kpis: [
         { icon: Layers3, tintClass: "tone-aqua", label: "Total Leads", value: leadKpis.totalLeads.toLocaleString(), note: "selected date range" },
         { icon: HeartHandshake, tintClass: "tone-blue", label: "Referrals Sent", value: leadKpis.referrals.toLocaleString(), note: "active referral pipeline" },
-        { icon: ShieldCheck, tintClass: "tone-green", label: "Authorizations", value: leadKpis.authorizations.toLocaleString(), note: "approved client cases" },
-        { icon: Sparkles, tintClass: "tone-violet", label: "Care Starts", value: leadKpis.careStarts.toLocaleString(), note: "care start conversions" }
+        { icon: ShieldCheck, tintClass: "tone-green", label: "Authorizations", value: leadKpis.authorizations.toLocaleString(), note: "approved client cases" }
       ]
     };
   }, [activityRows, category, dashboard, dateRange, topN]);

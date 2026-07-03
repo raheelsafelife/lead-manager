@@ -7,4 +7,4 @@ export const tagColors = ["All", "Blue", "Purple"];
 export const caregiverTypes = ["None", "FHCA", "PHCA", "HCA"];
 export const referralStatuses = ["All", "Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Not Approved", "Services Refused"];
 export const leadStatuses = ["Initial Call", "Not Interested", "No Response"];
-export const authCareStatuses = ["Active", "Hold", "Terminated", "Deceased", "Transfer"];
+export const authCareStatuses = ["Active", "Hold", "Terminated", "Transfer"];

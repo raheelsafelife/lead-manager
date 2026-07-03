@@ -21,7 +21,7 @@ function existingLeadPath(lead) {
     return `/view-leads?${query.toString()}`;
   }
   if (Number(lead.authorization_received) === 1) {
-    if (lead.source === "Transfer" && lead.care_status !== "Care Start") query.set("transferView", "true");
+    if (lead.source === "Transfer" || String(lead.care_status || "").includes("Transfer")) query.set("transferView", "true");
     return `/authorizations?${query.toString()}`;
   }
   if (Number(lead.active_client) === 1) return `/referrals?${query.toString()}`;
@@ -44,7 +44,7 @@ function duplicateFolderLabel(lead) {
 
 function duplicateBucket(lead) {
   const status = duplicateStatus(lead);
-  if (["Initial Call", "No Response", "Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Care Start", "Not Start", "Transfer", "Transfer Received"].includes(status)) return "Active";
+  if (["Initial Call", "No Response", "Initial Referral Sent", "Assessment Scheduled", "Assessment Done", "Transfer", "Transfer Received"].includes(status)) return "Active";
   return "Inactive";
 }
 
@@ -104,7 +104,7 @@ export default function AddLead() {
     }
     if (key === "source") {
       const isReferral = ["Direct Through CCU", "Transfer"].includes(value);
-      next.last_contact_status = value === "Transfer" ? "Care Start" : isReferral ? "Initial Referral Sent" : "Initial Call";
+      next.last_contact_status = isReferral ? "Initial Referral Sent" : "Initial Call";
       next.active_client = isReferral ? 1 : 0;
       next.authorization_received = value === "Transfer" || value === "Direct Through CCU" ? 1 : 0;
       next.care_status = value === "Transfer" ? "Transfer Received" : null;

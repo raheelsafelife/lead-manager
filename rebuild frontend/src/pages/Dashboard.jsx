@@ -185,7 +185,6 @@ export default function Dashboard() {
       <StatCard value={data.stats.total_leads} label={mode === "cumulative" ? "Leads" : "Your Leads"} />
       <StatCard value={data.stats.active_clients} label="Referrals" />
       <StatCard value={data.stats.authorizations} label="Authorizations" />
-      <StatCard value={data.stats.care_starts} label="Care Starts" />
     </div>
     <div className="chart-grid dashboard-primary-grid">
       {mode === "cumulative"
