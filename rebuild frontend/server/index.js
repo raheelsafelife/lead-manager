@@ -472,6 +472,7 @@ const notificationFieldLabels = {
   active_client: "Referral Status",
   agency_id: "Payor",
   authorization_received: "Authorization",
+  authorization_received_at: "Authorization Received Date",
   care_status: "Care Status",
   caregiver_type: "Caregiver Type",
   ccu_id: "CCU",
@@ -539,6 +540,7 @@ function notificationValueFor(field, data) {
   if (field === "ccu_id") return cleanNotificationValue(data.ccu_name || data.ccu_id);
   if (field === "active_client") return Number(data.active_client) === 1 ? "Referral" : "Lead";
   if (field === "authorization_received") return Number(data.authorization_received) === 1 ? "Received" : "Pending";
+  if (field === "authorization_received_at") return cleanNotificationValue(String(data.authorization_received_at || "").slice(0, 10));
   if (field === "is_chicago_referral") return Number(data.is_chicago_referral) === 1 ? "Yes" : "No";
   return cleanNotificationValue(data[field]);
 }
@@ -690,7 +692,7 @@ const leadSelect = `select leads.*, agencies.name as agency_name, agencies.addre
   from leads left join agencies on agencies.id = leads.agency_id left join ccus on ccus.id = leads.ccu_id`;
 const leadWriteFields = new Set([
   "owner_id","staff_name","first_name","last_name","source","event_name","word_of_mouth_type","other_source_type",
-  "active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","care_status","priority",
+  "active_client","referral_type","agency_id","agency_suboption_id","ccu_id","authorization_received","authorization_received_at","care_status","priority",
   "tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name",
   "e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state",
   "send_reminders","caregiver_type","referral_sent_date","deleted_at","deleted_by","call_status_updated_by","call_status_updated_at",
@@ -728,7 +730,7 @@ function filterDashboardRowsByScope(rows, dataScope) {
 
 function leadDateExpressionForFilter(q = {}) {
   if (q.type === "referral") return "coalesce(leads.referral_sent_date, leads.updated_at, leads.created_at)";
-  if (q.type === "authorization") return "coalesce(leads.authorization_received_at, leads.updated_at, leads.referral_sent_date, leads.created_at)";
+  if (q.type === "authorization") return "leads.authorization_received_at";
   return "leads.created_at";
 }
 
@@ -757,8 +759,6 @@ function buildLeadQuery(q = {}, user) {
     if (q.transferView === "true" || q.transferView === true) {
       where.push("leads.source = 'Transfer'");
       where.push("coalesce(leads.care_status,'') != 'Care Start'");
-    } else {
-      where.push("(leads.source != 'Transfer' or leads.care_status = 'Care Start')");
     }
   }
   if (q.active === "Chicago") {
@@ -1264,18 +1264,21 @@ app.patch("/api/leads/:id", auth, async (req, res) => {
   data.id = req.params.id;
   data.updated_at = now();
   data.updated_by = req.user.username;
+  if (allowed.includes("authorization_received_at")) {
+    data.authorization_received_at = data.authorization_received_at ? String(data.authorization_received_at).slice(0, 10) : null;
+  }
   if (allowed.includes("authorization_received")) {
     const hadAuthorization = Number(oldLead.authorization_received || 0) === 1;
     const hasAuthorization = Number(data.authorization_received || 0) === 1;
     if (!hadAuthorization && hasAuthorization) {
-      data.authorization_received_at = data.updated_at;
-      allowed.push("authorization_received_at");
+      data.authorization_received_at = data.authorization_received_at || data.updated_at;
+      if (!allowed.includes("authorization_received_at")) allowed.push("authorization_received_at");
     } else if (hasAuthorization && !oldLead.authorization_received_at) {
-      data.authorization_received_at = data.updated_at;
-      allowed.push("authorization_received_at");
+      data.authorization_received_at = data.authorization_received_at || data.updated_at;
+      if (!allowed.includes("authorization_received_at")) allowed.push("authorization_received_at");
     } else if (hadAuthorization && !hasAuthorization) {
       data.authorization_received_at = null;
-      allowed.push("authorization_received_at");
+      if (!allowed.includes("authorization_received_at")) allowed.push("authorization_received_at");
     }
   }
   const sets = [...allowed, "updated_at", "updated_by"].map((k) => `${k} = @${k}`).join(",");

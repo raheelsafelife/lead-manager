@@ -1974,6 +1974,24 @@ textarea { min-height: 96px; resize: vertical; }
   padding: 0 14px;
   background: #fff;
 }
+.date-range-summary-button {
+  width: 100%;
+  border: 1px solid #d6e0e8;
+  border-radius: 10px;
+  background: #f8fbfd;
+  color: #1d3557;
+  font-weight: 800;
+  min-height: 38px;
+  padding: 8px 12px;
+  text-align: left;
+}
+.custom-date-modal {
+  display: grid;
+  gap: 16px;
+}
+.custom-date-modal .edit-lead-actions {
+  margin-top: 4px;
+}
 .leads-input-shell {
   min-height: 54px;
   border: 1px solid #d6e0e8;

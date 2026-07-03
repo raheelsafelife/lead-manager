@@ -191,7 +191,7 @@ def update_lead(
 
     if "authorization_received" in new_values:
         if new_values["authorization_received"] and not old_values.get("authorization_received"):
-            lead.authorization_received_at = datetime.utcnow()
+            lead.authorization_received_at = new_values.get("authorization_received_at") or datetime.utcnow()
             new_values["authorization_received_at"] = lead.authorization_received_at
             old_values["authorization_received_at"] = None
         elif old_values.get("authorization_received") and not new_values["authorization_received"]:

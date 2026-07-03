@@ -51,6 +51,8 @@ export default function LeadCard({ lead, type, onChanged }) {
   const [ccuDetailsOpen, setCcuDetailsOpen] = useState(false);
   const [updateNotice, setUpdateNotice] = useState("");
   const [copiedKey, setCopiedKey] = useState("");
+  const [authorizationDialogOpen, setAuthorizationDialogOpen] = useState(false);
+  const [authorizationReceivedDate, setAuthorizationReceivedDate] = useState(new Date().toISOString().slice(0, 10));
   const commentInputRef = useRef(null);
   const canModify = canAdmin || lead.staff_name === user.username;
   const managedSourceOptions = (lookups.leadSources || []).length ? lookups.leadSources.map((source) => source.name) : leadSources;
@@ -158,8 +160,28 @@ export default function LeadCard({ lead, type, onChanged }) {
   }
 
   async function saveEdit() {
+    const {
+      active_client,
+      authorization_received,
+      agency_address,
+      agency_email,
+      agency_fax,
+      agency_name,
+      agency_phone,
+      ccu_care_coordinator_name,
+      ccu_city,
+      ccu_email,
+      ccu_fax,
+      ccu_name,
+      ccu_phone,
+      ccu_state,
+      ccu_street,
+      ccu_zip_code,
+      ...editableForm
+    } = form;
     await updateLead({
-      ...form,
+      ...editableForm,
+      authorization_received_at: form.authorization_received_at ? String(form.authorization_received_at).slice(0, 10) : null,
       caregiver_type: form.caregiver_type === "None" ? null : form.caregiver_type,
       agency_id: selectedAgencyId ? Number(selectedAgencyId) : null,
       ccu_id: selectedCcuId ? Number(selectedCcuId) : null,
@@ -175,6 +197,30 @@ export default function LeadCard({ lead, type, onChanged }) {
       confirmText: "Yes",
       cancelText: "No",
       onConfirm: saveEdit
+    });
+  }
+
+  function openAuthorizationDialog() {
+    setAuthorizationReceivedDate(lead.authorization_received_at ? String(lead.authorization_received_at).slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setAuthorizationDialogOpen(true);
+  }
+
+  function askMarkAuthorization() {
+    confirmAction({
+      title: "Mark Authorization?",
+      message: `Do you want to mark authorization for ${fullName}?`,
+      confirmText: "Yes",
+      cancelText: "No",
+      onConfirm: async () => {
+        await updateLead({
+          authorization_received: 1,
+          authorization_received_at: authorizationReceivedDate || new Date().toISOString().slice(0, 10),
+          active_client: 1,
+          last_contact_status: "Care Start",
+          care_status: "Care Start"
+        });
+        setAuthorizationDialogOpen(false);
+      }
     });
   }
 
@@ -404,13 +450,14 @@ export default function LeadCard({ lead, type, onChanged }) {
                 <h3>{fullName}</h3>
                 <span className="lead-profile-id">ID: {lead.id}</span>
                 <span className="lead-profile-status">{mainStatus}</span>
-                {Number(lead.is_chicago_referral) === 1 && <span className="lead-profile-status chicago">Chicago Referral</span>}
+                {type !== "authorization" && Number(lead.is_chicago_referral) === 1 && <span className="lead-profile-status chicago">Chicago Referral</span>}
               </div>
               <div className="lead-profile-contact-list">
                 <span><UserRound size={16} />{value(lead.staff_name)}</span>
                 <ProfileContact icon={Phone} label="Phone" text={lead.phone} copyKey={`lead-${lead.id}-phone`} />
                 <ProfileContact icon={Mail} label="Email" text={lead.email} copyKey={`lead-${lead.id}-email`} />
                 <span><CalendarDays size={16} />DOB: {dateOnly(lead.dob)} ({value(lead.age)}{lead.age ? " Years" : ""})</span>
+                <span><CalendarDays size={16} />Authorization Received: {dateOnly(lead.authorization_received_at)}</span>
               </div>
             </div>
           </div>
@@ -508,7 +555,7 @@ export default function LeadCard({ lead, type, onChanged }) {
         </div>
         <div className="action-row">
           {!lead.deleted_at && canModify && <Button onClick={openEdit}>Edit Lead</Button>}
-          {!lead.deleted_at && canModify && (
+          {!lead.deleted_at && canModify && type !== "authorization" && (
             <Button onClick={() => askUpdateLead({
               title: Number(lead.is_chicago_referral) === 1 ? "Remove Chicago Referral?" : "Mark Chicago Referral?",
               message: Number(lead.is_chicago_referral) === 1
@@ -520,7 +567,7 @@ export default function LeadCard({ lead, type, onChanged }) {
             </Button>
           )}
           {!lead.deleted_at && canModify && !lead.active_client && <Button onClick={() => navigate(`/mark-referral/${lead.id}?from=${encodeURIComponent(location.pathname)}`)}>Mark Referral Sent</Button>}
-          {!lead.deleted_at && type === "referral" && <Button onClick={() => askUpdateLead({ title: "Mark Authorization?", message: `Do you want to mark authorization for ${fullName}?`, data: { authorization_received: 1, active_client: 1, last_contact_status: "Care Start", care_status: "Care Start" } })}>Mark Authorization</Button>}
+          {!lead.deleted_at && type === "referral" && <Button onClick={openAuthorizationDialog}>Mark Authorization</Button>}
           {!lead.deleted_at && type === "authorization" && <Button onClick={() => askUpdateLead({ title: "Unmark Authorization?", message: `Do you want to unmark authorization for ${fullName}?`, data: { authorization_received: 0, care_status: null } })}>Unmark Authorization</Button>}
           {!lead.deleted_at && canModify && <Button onClick={askSoftDelete}><Trash2 size={15} />Delete Lead</Button>}
           {lead.deleted_at && <Button variant="primary" onClick={askRestore}>Restore</Button>}
@@ -638,6 +685,7 @@ export default function LeadCard({ lead, type, onChanged }) {
             <Field label="Employee ID"><input value={form.custom_user_id || ""} onChange={(e) => setForm({ ...form, custom_user_id: e.target.value })} /></Field>
             <Field label="Date of Birth"><input type="date" value={form.dob ? String(form.dob).slice(0, 10) : ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} /></Field>
             <Field label="Phone"><input value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+            <Field label="Authorization Received Date"><input type="date" value={form.authorization_received_at ? String(form.authorization_received_at).slice(0, 10) : ""} onChange={(e) => setForm({ ...form, authorization_received_at: e.target.value })} /></Field>
             <Field label="Age / Year"><input type="number" value={form.age || ""} onChange={(e) => setForm({ ...form, age: e.target.value })} /></Field>
             <Field label="Gender"><div className="segmented gender-buttons">{genderOptions.map((option) => <Button key={option} active={form.gender === option} onClick={() => setForm({ ...form, gender: form.gender === option ? "" : option })}>{option}</Button>)}</div></Field>
             <div />
@@ -748,6 +796,17 @@ export default function LeadCard({ lead, type, onChanged }) {
       </Modal>}
       {updateNotice && <Modal title="Updated" onClose={() => setUpdateNotice("")}>
         <div className="info">{updateNotice}</div>
+      </Modal>}
+      {authorizationDialogOpen && <Modal title="Mark Authorization" onClose={() => setAuthorizationDialogOpen(false)}>
+        <div className="edit-lead-dialog">
+          <Field label="Authorization Received Date">
+            <input type="date" value={authorizationReceivedDate} onChange={(e) => setAuthorizationReceivedDate(e.target.value)} />
+          </Field>
+          <div className="edit-lead-actions">
+            <Button onClick={() => setAuthorizationDialogOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={askMarkAuthorization}>Confirm</Button>
+          </div>
+        </div>
       </Modal>}
     </div>
   );

@@ -11,7 +11,7 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { Button, Select } from "../components/Controls";
+import { Button, Field, Modal, Select } from "../components/Controls";
 import LeadCard from "../components/LeadCard";
 import { LeadListSkeleton } from "../components/Skeleton";
 import { api, downloadFile } from "../services/api";
@@ -19,7 +19,7 @@ import { caregiverTypes, leadCallStatuses, referralCallStatuses, referralStatuse
 import { useAuth } from "../context/AuthContext";
 import { isAdminRole } from "../utils/roles";
 
-const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days"];
+const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days", "Custom"];
 
 function startForDateFilter(filter) {
   const d = new Date();
@@ -30,9 +30,9 @@ function startForDateFilter(filter) {
   return d.toISOString().slice(0, 10);
 }
 
-function getDefaultFilters(user, initialId, initialOptions = {}) {
+function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") {
   return {
-    active: initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
+    active: type === "authorization" ? "All" : initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
     status: "All",
     callStatus: "All",
     tagColor: "All",
@@ -48,6 +48,8 @@ function getDefaultFilters(user, initialId, initialOptions = {}) {
     includeDeleted: Boolean(initialOptions.includeDeleted),
     onlyMine: !isAdminRole(user.role),
     dateRange: "All Time",
+    customStartDate: "",
+    customEndDate: "",
     transferView: Boolean(initialOptions.transferView)
   };
 }
@@ -68,7 +70,7 @@ function readUrlFilters(search) {
 function pageSubtitle(type, discovery) {
   if (discovery) return "Search and explore matching leads quickly.";
   if (type === "referral") return "Active referrals stay here. Closed referrals live in Archive. Chicago referrals live in their own folder.";
-  if (type === "authorization") return "Active authorizations stay here. Closed cases live in Archive. Chicago referrals live in their own folder.";
+  if (type === "authorization") return "All authorizations are shown by default. Use filters to narrow by status, transfer cases, staff, CCU, payor, or authorization received date.";
   return "Active leads stay here. Closed leads live in Archive. Chicago referrals live in their own folder.";
 }
 
@@ -79,20 +81,12 @@ function folderCopy(active) {
   return { title: "Active Folder", summary: "Active", empty: "No active records found for these filters." };
 }
 
-function callTone(status) {
-  if (status === "Not Called") return "danger";
-  if (status === "Not Interested" || status === "Not Answering" || status === "No Response") return "soft-danger";
-  if (status === "Interested" || status === "Called") return "success";
-  if (status === "Supervisor Followup" || status === "Pending") return "warning";
-  return "primary";
-}
-
 export default function LeadsPage({ title, type, discovery = false }) {
   const { user } = useAuth();
   const canAdmin = isAdminRole(user.role);
   const location = useLocation();
   const { idSearch: initialId, options: initialOptions } = readUrlFilters(location.search);
-  const [filters, setFilters] = useState(() => getDefaultFilters(user, initialId, initialOptions));
+  const [filters, setFilters] = useState(() => getDefaultFilters(user, initialId, initialOptions, type));
   const [lookups, setLookups] = useState({ ccus: [], agencies: [] });
   const [data, setData] = useState({ rows: [], total: 0 });
   const [loadingRows, setLoadingRows] = useState(true);
@@ -100,25 +94,68 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [customDateOpen, setCustomDateOpen] = useState(false);
+  const [customDateDraft, setCustomDateDraft] = useState({ start: "", end: "" });
   const ccuFilterOptions = ["All", ...lookups.ccus.map((entry) => entry.name)];
 
   const params = useMemo(() => ({
     ...filters,
     type: discovery || initialOptions.globalSearch ? undefined : type,
     pageSearch: discovery ? undefined : true,
-    startDate: startForDateFilter(filters.dateRange),
+    startDate: filters.dateRange === "Custom" ? filters.customStartDate : startForDateFilter(filters.dateRange),
+    endDate: filters.dateRange === "Custom" ? filters.customEndDate : undefined,
     offset: page * 10,
     limit: 10
   }), [filters, type, discovery, page, initialOptions.globalSearch]);
 
   useEffect(() => {
     const { idSearch, options } = readUrlFilters(location.search);
-    setFilters(getDefaultFilters(user, idSearch, options));
+    setFilters(getDefaultFilters(user, idSearch, options, type));
     setPage(0);
-  }, [location.search, user.role]);
+  }, [location.search, user.role, type]);
 
   function patch(key, value) {
     setFilters((current) => ({ ...current, [key]: value }));
+    setPage(0);
+  }
+
+  function handleDateRangeChange(value) {
+    if (value === "Custom") {
+      setCustomDateDraft({ start: filters.customStartDate, end: filters.customEndDate });
+      setFilters((current) => ({ ...current, dateRange: value }));
+      setCustomDateOpen(true);
+      setPage(0);
+      return;
+    }
+    setFilters((current) => ({ ...current, dateRange: value }));
+    setPage(0);
+  }
+
+  function openCustomDateDialog() {
+    setCustomDateDraft({ start: filters.customStartDate, end: filters.customEndDate });
+    setCustomDateOpen(true);
+  }
+
+  function applyCustomDateRange() {
+    setFilters((current) => ({
+      ...current,
+      dateRange: "Custom",
+      customStartDate: customDateDraft.start,
+      customEndDate: customDateDraft.end
+    }));
+    setCustomDateOpen(false);
+    setPage(0);
+  }
+
+  function clearCustomDateRange() {
+    setFilters((current) => ({
+      ...current,
+      dateRange: "All Time",
+      customStartDate: "",
+      customEndDate: ""
+    }));
+    setCustomDateDraft({ start: "", end: "" });
+    setCustomDateOpen(false);
     setPage(0);
   }
 
@@ -132,7 +169,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   }
 
   function resetFilters() {
-    setFilters(getDefaultFilters(user, initialId, initialOptions));
+    setFilters(getDefaultFilters(user, initialId, initialOptions, type));
     setPage(0);
   }
 
@@ -190,7 +227,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const statusOptions = type === "referral"
     ? referralStatuses
     : type === "authorization"
-      ? ["All", "Care Start", "Not Start", "Hold", "Terminated", "Deceased", "Transfer Received"]
+      ? ["All", "Care Start", "Not Start", "Hold", "Terminated", "Deceased"]
       : ["All", "Initial Call", "No Response", "Not Interested"];
   const callStatusOptions = type === "lead" ? leadCallStatuses : type === "referral" ? referralCallStatuses : [...new Set([...leadCallStatuses, ...referralCallStatuses])];
   const callFilterOptions = ["All", ...callStatusOptions];
@@ -232,7 +269,12 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
           <label className="leads-filter">
             <span><CalendarRange size={18} />Date Range</span>
-            <Select value={filters.dateRange} onChange={(value) => patch("dateRange", value)} options={dateRangeOptions} />
+            <Select value={filters.dateRange} onChange={handleDateRangeChange} options={dateRangeOptions} />
+            {filters.dateRange === "Custom" && (
+              <button type="button" className="date-range-summary-button" onClick={openCustomDateDialog}>
+                {filters.customStartDate || "Start"} to {filters.customEndDate || "End"}
+              </button>
+            )}
           </label>
 
           <label className="leads-filter">
@@ -245,10 +287,12 @@ export default function LeadsPage({ title, type, discovery = false }) {
             <Select value={filters.tagColor === "All" ? "All Tags" : filters.tagColor} onChange={(value) => patch("tagColor", value === "All Tags" ? "All" : value)} options={tagColors.map((item) => item === "All" ? "All Tags" : item)} />
           </label>
 
-          <label className="leads-filter">
-            <span>Contact Status</span>
-            <Select value={filters.status} onChange={(value) => patch("status", value)} options={statusOptions} />
-          </label>
+          {type !== "authorization" && (
+            <label className="leads-filter">
+              <span>Contact Status</span>
+              <Select value={filters.status} onChange={(value) => patch("status", value)} options={statusOptions} />
+            </label>
+          )}
 
           <label className="leads-filter">
             <span>Sort By</span>
@@ -282,7 +326,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
           )}
         </div>
 
-        {!discovery && (
+        {!discovery && type !== "authorization" && (
           <div className="archive-folder-switch" aria-label={`${summaryLabel} folder`}>
             <button className={filters.active === "Active" ? "active" : ""} onClick={() => setFolder("Active")} type="button">
               <b>Active Folder</b>
@@ -305,35 +349,24 @@ export default function LeadsPage({ title, type, discovery = false }) {
           </div>
         )}
 
-        <div className="leads-quick-filters">
-          <div className="leads-quick-group">
-            <span>Call Filters</span>
-            <div className="leads-pill-row">
-              {[...callStatusOptions, "All"].map((value) => {
-                const tone = callTone(value);
-                return (
-                  <button
-                    className={`leads-filter-pill ${filters.callStatus === value ? `active tone-${tone}` : tone === "soft-danger" ? "outline-soft-danger" : tone === "danger" ? "outline-danger" : tone === "warning" ? "outline-warning" : tone === "success" ? "outline-success" : ""}`}
-                    key={value}
-                    onClick={() => patch("callStatus", value)}
-                  >
-                    {value}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       </section>
 
       <div className="leads-toolbar-modern">
         <div className="leads-toolbar-actions">
           {type === "authorization" && (
             <>
-              <Button active={!filters.transferView} onClick={() => setAuthorizationMode(false)}>
-                Authorizations
-              </Button>
-              <Button active={filters.transferView} onClick={() => setAuthorizationMode(true)}>
+              {statusOptions.map((status) => (
+                <Button key={status} active={filters.status === status && !filters.transferView} onClick={() => {
+                  setAuthorizationMode(false);
+                  patch("status", status);
+                }}>
+                  {status === "All" ? "Authorizations" : status}
+                </Button>
+              ))}
+              <Button active={filters.transferView} onClick={() => {
+                setAuthorizationMode(true);
+                patch("status", "All");
+              }}>
                 Transfer Cases
               </Button>
             </>
@@ -364,7 +397,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
       <p className="leads-summary-line">
         <b>Showing {data.rows.length} {filters.transferView ? "transfer cases" : summaryLabel} in {currentFolder.summary} of {data.total} total</b>
-        <span>Folder: {currentFolder.title} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
+        <span>{type === "authorization" ? "Authorization Records" : `Folder: ${currentFolder.title}`} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
       </p>
 
       {loadError && <div className="error">Could not load this lead list: {loadError}</div>}
@@ -394,6 +427,24 @@ export default function LeadsPage({ title, type, discovery = false }) {
         <span>Page {page + 1} of {Math.max(1, Math.ceil(data.total / 10))}</span>
         <Button disabled={(page + 1) * 10 >= data.total} onClick={() => setPage(page + 1)}>Next</Button>
       </div>
+
+      {customDateOpen && (
+        <Modal title="Custom Date Range" onClose={() => setCustomDateOpen(false)}>
+          <div className="custom-date-modal">
+            <Field label="Start Date">
+              <input type="date" value={customDateDraft.start} onChange={(e) => setCustomDateDraft((current) => ({ ...current, start: e.target.value }))} />
+            </Field>
+            <Field label="End Date">
+              <input type="date" value={customDateDraft.end} onChange={(e) => setCustomDateDraft((current) => ({ ...current, end: e.target.value }))} />
+            </Field>
+            <div className="edit-lead-actions">
+              <Button onClick={clearCustomDateRange}>Clear</Button>
+              <Button onClick={() => setCustomDateOpen(false)}>Cancel</Button>
+              <Button variant="primary" onClick={applyCustomDateRange}>Apply</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
