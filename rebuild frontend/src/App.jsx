@@ -32,6 +32,7 @@ export default function App() {
           <Route path="/authorizations" element={<LeadsPage title="Authorizations" type="authorization" />} />
           <Route path="/mark-referral/:id" element={<MarkReferralPage />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/chatbot" element={<Navigate to="/dashboard" replace />} />
           <Route path="/activity" element={<ActivityLogs />} />
           <Route path="/settings" element={<UserSettings />} />
           <Route path="/users" element={isAdminRole(user.role) ? <UserManagement /> : <Navigate to="/dashboard" replace />} />

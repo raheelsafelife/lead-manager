@@ -32,6 +32,7 @@ function successMessage(config = {}) {
   }
   if (method === "get" || url.includes("/notifications/read")) return "";
   if (url === "/auth/login") return "Login successful";
+  if (url === "/chat" || url.startsWith("/chat/sessions")) return "";
   if (url === "/auth/logout") return "Logged out successfully";
   if (url === "/auth/signup") return "Account created successfully. Pending admin approval.";
   if (url === "/auth/forgot") return "Password reset request sent successfully";

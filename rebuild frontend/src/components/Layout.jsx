@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { isAdminRole } from "../utils/roles";
 import SmartSearch from "./SmartSearch";
 import { emitToast } from "../utils/appEvents";
+import AssistantWidget from "./AssistantWidget";
 
 const nav = [
   ["/dashboard", Home, "Dashboard"],
@@ -529,6 +530,7 @@ export default function Layout({ children }) {
         </header>
         <section className="content">{children}</section>
       </main>
+      <AssistantWidget pageTitle={title} route={location.pathname} />
     </div>
   );
 }
