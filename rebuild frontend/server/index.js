@@ -1160,7 +1160,7 @@ function parseSpecificDate(message = "") {
 }
 
 function parseChatDateRange(message = "") {
-  const text = message.toLowerCase();
+  const text = normalizeChatText(message);
   const today = new Date();
   const specific = parseSpecificDate(message);
   if (specific) return { startDate: specific, endDate: specific, label: specific };
@@ -1186,7 +1186,7 @@ function parseChatDateRange(message = "") {
     };
   }
 
-  if (/\b(today)\b/.test(text)) {
+  if (/\b(today|todays)\b/.test(text)) {
     const day = localDateString(today);
     return { startDate: day, endDate: day, label: "today" };
   }
@@ -1223,6 +1223,7 @@ function normalizeChatText(message = "") {
   return String(message || "")
     .toLowerCase()
     .replace(/[’']/g, "")
+    .replace(/\btodays\b/g, "today")
     .replace(/\bmanu\b/g, "many")
     .replace(/\breciev(?:e|ed|ing)?\b/g, "receive")
     .replace(/\breceivd\b/g, "received")
