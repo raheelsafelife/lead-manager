@@ -4,8 +4,8 @@ export function PageHeader() {
   return null;
 }
 
-export function Button({ children, active, variant = "secondary", className = "", ...props }) {
-  return <button className={`btn ${active || variant === "primary" ? "btn-primary" : "btn-secondary"} ${className}`.trim()} {...props}>{children}</button>;
+export function Button({ children, active, variant = "secondary", className = "", type = "button", ...props }) {
+  return <button type={type} className={`btn ${active || variant === "primary" ? "btn-primary" : "btn-secondary"} ${className}`.trim()} {...props}>{children}</button>;
 }
 
 function controlName(value) {
@@ -48,5 +48,5 @@ export function StatusPill({ value }) {
 }
 
 export function Modal({ title, children, onClose }) {
-  return <div className="modal-backdrop"><div className="modal"><button className="modal-x" onClick={onClose}>×</button>{title ? <h2>{title}</h2> : null}{children}</div></div>;
+  return <div className="modal-backdrop"><div className="modal"><button type="button" className="modal-x" onClick={onClose}>×</button>{title ? <h2>{title}</h2> : null}{children}</div></div>;
 }

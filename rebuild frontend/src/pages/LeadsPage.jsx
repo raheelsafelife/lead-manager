@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   CalendarRange,
   Download,
@@ -85,6 +85,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const { user } = useAuth();
   const canAdmin = isAdminRole(user.role);
   const location = useLocation();
+  const navigate = useNavigate();
   const { idSearch: initialId, options: initialOptions } = readUrlFilters(location.search);
   const [filters, setFilters] = useState(() => getDefaultFilters(user, initialId, initialOptions, type));
   const [lookups, setLookups] = useState({ ccus: [], agencies: [] });
@@ -169,7 +170,10 @@ export default function LeadsPage({ title, type, discovery = false }) {
   }
 
   function resetFilters() {
-    setFilters(getDefaultFilters(user, initialId, initialOptions, type));
+    if (location.search) navigate(location.pathname, { replace: true });
+    setFilters(getDefaultFilters(user, "", {}, type));
+    setCustomDateDraft({ start: "", end: "" });
+    setCustomDateOpen(false);
     setPage(0);
   }
 
