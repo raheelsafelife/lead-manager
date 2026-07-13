@@ -1,0 +1,102 @@
+name: Digest diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$AWS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Check digest history and logs
+        env:
+          APP_DIR: ${{ secrets.APP_DIR }}
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+        run: |
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" "APP_DIR='$APP_DIR' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_DIR/rebuild frontend"
+          echo "== server time =="
+          date -u
+          TZ=America/Chicago date
+          echo "== digest scheduler pm2 logs =="
+          pm2 logs lead-manager-react --lines 300 --nostream 2>/dev/null | grep -Ei 'digest|smtp|sendmail|daily' || true
+          echo "== digest database history =="
+          node --input-type=module <<'NODE'
+          import path from "path";
+          import dotenv from "dotenv";
+          import { createDatabase } from "./server/db.js";
+
+          const appDir = process.env.APP_DIR;
+          dotenv.config({ path: path.join(appDir, ".env") });
+          dotenv.config({ path: path.join(appDir, "rebuild frontend", ".env") });
+
+          const db = await createDatabase({
+            dbPath: process.env.LEAD_DB || path.join(appDir, "backend", "leads.db"),
+            schemaPath: path.join(appDir, "rebuild frontend", "migrations", "aws", "postgres-schema.sql")
+          });
+
+          const rows = await db.all(`
+            select d.id, d.user_id, u.username, u.role, d.recipient_email, d.digest_date,
+                   d.activity_count, d.status, d.sent_at, d.error_message
+            from daily_digest_emails d
+            left join users u on u.id = d.user_id
+            order by d.sent_at desc
+            limit 20
+          `);
+
+          const users = await db.all(`
+            select id, username, role, email, is_approved
+            from users
+            where is_approved = 1
+            order by id asc
+          `);
+
+          const maskEmail = (email = "") => {
+            const [name, domain] = String(email || "").split("@");
+            if (!domain) return "";
+            return `${name.slice(0, 2)}***@${domain}`;
+          };
+
+          console.log(JSON.stringify({
+            database_mode: db.mode,
+            digest_timezone: process.env.DAILY_DIGEST_TIMEZONE || "America/Chicago",
+            digest_hour: process.env.DAILY_DIGEST_SEND_HOUR || "18",
+            digest_minute: process.env.DAILY_DIGEST_SEND_MINUTE || "0",
+            smtp_configured: Boolean(process.env.SMTP_SERVER && process.env.SENDER_EMAIL && process.env.SENDER_PASSWORD),
+            approved_digest_recipients: users.map((user) => ({
+              id: user.id,
+              username: user.username,
+              role: user.role,
+              email: maskEmail(user.email),
+              approved: Number(user.is_approved) === 1
+            })),
+            latest_digest_rows: rows.map((row) => ({
+              id: row.id,
+              user_id: row.user_id,
+              username: row.username,
+              role: row.role,
+              recipient_email: maskEmail(row.recipient_email),
+              digest_date: row.digest_date,
+              activity_count: row.activity_count,
+              status: row.status,
+              sent_at: row.sent_at,
+              error_message: row.error_message
+            }))
+          }, null, 2));
+
+          await db.close?.();
+          NODE
+          REMOTE
