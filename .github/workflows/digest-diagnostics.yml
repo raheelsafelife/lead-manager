@@ -76,6 +76,7 @@ jobs:
             digest_hour: process.env.DAILY_DIGEST_SEND_HOUR || "18",
             digest_minute: process.env.DAILY_DIGEST_SEND_MINUTE || "0",
             smtp_configured: Boolean(process.env.SMTP_SERVER && process.env.SENDER_EMAIL && process.env.SENDER_PASSWORD),
+            smtp_sender_email: maskEmail(process.env.SENDER_EMAIL),
             approved_digest_recipients: users.map((user) => ({
               id: user.id,
               username: user.username,
