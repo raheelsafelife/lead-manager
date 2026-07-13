@@ -401,6 +401,11 @@ function digestSendHour() {
   return Number.isFinite(parsed) ? parsed : 18;
 }
 
+function digestSendMinute() {
+  const parsed = Number(process.env.DAILY_DIGEST_SEND_MINUTE || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function digestEnabled() {
   return !["0", "false", "no", "off"].includes(String(process.env.DAILY_DIGEST_ENABLED || "true").toLowerCase());
 }
@@ -545,26 +550,47 @@ async function sendDailyDigestIfDue() {
   try {
     const result = await sendDailyDigests(digestDate);
     console.log(`[digest] Daily digest complete: ${JSON.stringify(result)}`);
-    if (!result.failed) lastDigestAttemptDate = digestDate;
+    lastDigestAttemptDate = digestDate;
+    if (result.failed) console.warn("[digest] Daily digest had failures; automatic same-day retries are disabled.");
   } catch (error) {
+    lastDigestAttemptDate = digestDate;
     console.error("[digest] Daily digest failed:", error);
   }
 }
 
+function nextDailyDigestDelayMs() {
+  const now = new Date();
+  const parts = timeZoneParts(now);
+  const target = zonedTimeToUtc(
+    Number(parts.year),
+    Number(parts.month),
+    Number(parts.day),
+    digestSendHour(),
+    digestSendMinute(),
+    0
+  );
+  if (target <= now) target.setUTCDate(target.getUTCDate() + 1);
+  return Math.max(1_000, target.getTime() - now.getTime());
+}
+
 function startDailyDigestScheduler() {
-  setTimeout(async () => {
-    const yesterday = digestDateOffset(-1);
-    console.log(`[digest] Backfill scan for ${yesterday}`);
-    try {
-      const result = await sendDailyDigests(yesterday);
-      console.log(`[digest] Backfill complete: ${JSON.stringify(result)}`);
-    } catch (error) {
-      console.error("[digest] Backfill failed:", error);
-    }
-  }, 5_000);
-  setTimeout(sendDailyDigestIfDue, 15_000);
-  setInterval(sendDailyDigestIfDue, 10 * 60 * 1000);
-  console.log(`[digest] Scheduler enabled for ${digestTimeZone} at hour ${digestSendHour()}`);
+  const scheduleNextRun = () => {
+    const delayMs = nextDailyDigestDelayMs();
+    const runAt = new Date(Date.now() + delayMs).toLocaleString("en-US", {
+      timeZone: digestTimeZone,
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short"
+    });
+    console.log(`[digest] Next daily digest scheduled for ${runAt}`);
+    setTimeout(async () => {
+      await sendDailyDigestIfDue();
+      scheduleNextRun();
+    }, delayMs);
+  };
+
+  scheduleNextRun();
+  console.log(`[digest] Scheduler enabled for ${digestTimeZone} at ${digestSendHour()}:${String(digestSendMinute()).padStart(2, "0")}`);
 }
 
 function duplicateKind(lead) {
