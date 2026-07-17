@@ -373,6 +373,10 @@ function digestLocalHour(date = new Date()) {
   return Number(timeZoneParts(date).hour || 0);
 }
 
+function digestLocalMinute(date = new Date()) {
+  return Number(timeZoneParts(date).minute || 0);
+}
+
 function timeZoneOffsetMs(date, timeZone = digestTimeZone) {
   const parts = timeZoneParts(date, timeZone);
   const asUtc = Date.UTC(parts.year, Number(parts.month) - 1, parts.day, parts.hour, parts.minute, parts.second);
@@ -471,24 +475,188 @@ function actionLabel(action) {
   return labels[action] || String(action || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function buildDigestMessage(user, digestDate, logs) {
-  const scope = user.role === "super_admin" ? "All workspace activity" : "Your activity";
-  const rows = logs.map((log) => {
-    const when = new Date(String(log.timestamp).replace(" ", "T") + "Z").toLocaleTimeString("en-US", { timeZone: digestTimeZone, hour: "numeric", minute: "2-digit" });
-    return `- ${actionLabel(log.action_type)} | ${log.entity_name || "Unknown"} | ${when} by ${log.username}\n  ${log.description}`;
+function escapeHtml(value = "") {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function parseDigestJson(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function logHasField(log, fields) {
+  const oldValue = parseDigestJson(log.old_value);
+  const newValue = parseDigestJson(log.new_value);
+  const keys = new Set([...Object.keys(oldValue), ...Object.keys(newValue)]);
+  return fields.some((field) => keys.has(field));
+}
+
+function digestSectionForLog(log) {
+  if (["COMMENT_ADDED", "ADD_COMMENT"].includes(log.action_type)) return "comments";
+  if (
+    ["AUTHORIZATION_MARKED", "CARE_START_MARKED"].includes(log.action_type) ||
+    logHasField(log, ["authorization_received", "care_status", "soc_date"])
+  ) return "authorizations";
+  if (
+    ["REFERRAL_MARKED", "REFERRAL_UNMARKED", "AGENCY_ASSIGNED"].includes(log.action_type) ||
+    logHasField(log, ["active_client", "referral_type", "agency_id", "agency_suboption_id", "ccu_id", "referral_sent_date"])
+  ) return "referrals";
+  return "leads";
+}
+
+function digestActionColor(section, label) {
+  if (label.includes("Deleted") || label.includes("Removed")) return "#DC2626";
+  if (section === "authorizations") return "#16A34A";
+  if (section === "referrals") return "#0B5C7A";
+  if (section === "comments") return "#14C8C4";
+  return "#2563EB";
+}
+
+function digestDisplayDate(digestDate) {
+  const [year, month, day] = String(digestDate).split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
+    .format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function digestLocalTime(timestamp) {
+  const raw = String(timestamp || "");
+  const date = new Date(raw.includes("T") ? raw : `${raw.replace(" ", "T")}Z`);
+  if (Number.isNaN(date.getTime())) return raw;
+  return date.toLocaleTimeString("en-US", {
+    timeZone: digestTimeZone,
+    hour: "numeric",
+    minute: "2-digit"
   });
-  const subject = `SafeLife Daily Digest - ${digestDate}`;
+}
+
+function isWorkspaceDigestRole(role) {
+  return role === "admin" || role === "super_admin";
+}
+
+function buildDigestSections(logs) {
+  const sections = { leads: [], referrals: [], authorizations: [], comments: [] };
+  for (const log of logs) {
+    const section = digestSectionForLog(log);
+    const action = actionLabel(log.action_type);
+    sections[section].push({
+      action,
+      color: digestActionColor(section, action),
+      time: digestLocalTime(log.timestamp),
+      by: log.username || "system",
+      name: log.entity_name || "Unknown",
+      leadId: log.entity_id || "N/A",
+      description: log.description || ""
+    });
+  }
+  return sections;
+}
+
+function renderDigestItem(item) {
+  return `
+    <div style="background:#FFFFFF;border:1px solid #DCEAF0;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 8px 24px rgba(11,92,122,.08);">
+      <div style="margin-bottom:12px;">
+        <span style="display:inline-block;background:${item.color};color:#FFFFFF;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;letter-spacing:.02em;">${escapeHtml(item.action)}</span>
+        <span style="color:#64748B;font-size:13px;margin-left:8px;">${escapeHtml(item.time)} by ${escapeHtml(item.by)}</span>
+      </div>
+      <div style="font-size:18px;font-weight:900;color:#0F2742;margin-bottom:6px;">${escapeHtml(item.name)}</div>
+      <div style="color:#475569;font-size:13px;line-height:1.65;margin-bottom:12px;"><strong>ID:</strong> ${escapeHtml(item.leadId)}</div>
+      <div style="color:#334155;font-size:14px;line-height:1.6;">${escapeHtml(item.description)}</div>
+    </div>
+  `;
+}
+
+function renderDigestSection(title, items) {
+  if (!items.length) {
+    return `
+      <div style="margin-top:26px;">
+        <h2 style="color:#0F2742;margin:0 0 10px;font-size:22px;">${escapeHtml(title)}</h2>
+        <div style="background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:16px;padding:16px;color:#64748B;">No ${escapeHtml(title.toLowerCase())} activity recorded.</div>
+      </div>
+    `;
+  }
+  return `
+    <div style="margin-top:26px;">
+      <h2 style="color:#0F2742;margin:0 0 10px;font-size:22px;">${escapeHtml(title)}</h2>
+      ${items.map(renderDigestItem).join("")}
+    </div>
+  `;
+}
+
+function buildDigestMessage(user, digestDate, logs) {
+  const scope = isWorkspaceDigestRole(user.role) ? "All workspace activity" : "Your activity";
+  const displayDate = digestDisplayDate(digestDate);
+  const sections = buildDigestSections(logs);
+  const counts = {
+    total: logs.length,
+    leads: sections.leads.length,
+    referrals: sections.referrals.length,
+    authorizations: sections.authorizations.length
+  };
+  const rows = Object.entries(sections).flatMap(([section, items]) =>
+    items.map((item) => `- ${item.action} | ${item.name} | ${item.time} by ${item.by}\n  ${item.description}`)
+  );
+  const subject = `SafeLife Daily Digest - ${displayDate}`;
   const body = [
-    `SafeLife Daily Digest - ${digestDate}`,
+    `SafeLife Daily Digest - ${displayDate}`,
     `Scope: ${scope}`,
-    `Total actions: ${logs.length}`,
+    `Total actions: ${counts.total}`,
     "",
-    rows.length ? rows.join("\n") : "No activity recorded.",
+    rows.join("\n"),
     "",
     "Secure operations note: sensitive fields such as SSN and passwords are intentionally excluded from digest emails."
   ].join("\n");
-  const htmlRows = logs.map((log) => `<li><strong>${actionLabel(log.action_type)}</strong> - ${String(log.entity_name || "Unknown")}<br><span style="color:#64748b">${String(log.description || "")} by ${String(log.username || "system")}</span></li>`).join("");
-  const html = `<div style="font-family:Arial,sans-serif;color:#0f2742"><h1>SafeLife Daily Digest</h1><p><strong>${digestDate}</strong> - ${scope}</p><p>Total actions: <strong>${logs.length}</strong></p><ul>${htmlRows}</ul><p style="color:#64748b">Sensitive fields such as SSN and passwords are excluded.</p></div>`;
+  const cards = [
+    ["Total Actions", counts.total, "#0B5C7A"],
+    ["Lead Updates", counts.leads, "#2563EB"],
+    ["Referral Updates", counts.referrals, "#14C8C4"],
+    ["Authorizations", counts.authorizations, "#24D17E"]
+  ].map(([label, value, color]) => `
+    <td width="25%" style="padding:6px;">
+      <div style="background:#FFFFFF;border:1px solid #DCEAF0;border-radius:18px;padding:16px;text-align:center;">
+        <div style="color:${color};font-size:28px;font-weight:900;line-height:1;">${value}</div>
+        <div style="color:#64748B;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-top:8px;">${escapeHtml(label)}</div>
+      </div>
+    </td>
+  `).join("");
+  const html = `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#EAF5F7;padding:28px;font-family:Inter,Arial,sans-serif;color:#0F2742;">
+        <div style="max-width:920px;margin:0 auto;background:#F8FCFD;border-radius:28px;overflow:hidden;border:1px solid #D6E9EF;box-shadow:0 24px 70px rgba(3,18,38,.14);">
+          <div style="background:linear-gradient(135deg,#0B5C7A,#07354F 58%,#14C8C4);padding:34px 38px;color:#FFFFFF;">
+            <div style="font-size:28px;font-weight:900;">Safe<span style="color:#14C8C4;">Life</span></div>
+            <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#B7F5F3;margin-top:4px;">Home Health | Home Care | Hospice</div>
+            <h1 style="font-size:34px;line-height:1.1;margin:26px 0 8px;">Daily Digest</h1>
+            <div style="font-size:15px;color:#DDFBFA;">${escapeHtml(displayDate)} - ${escapeHtml(scope)}</div>
+          </div>
+          <div style="padding:28px 34px 38px;">
+            <p style="font-size:16px;line-height:1.65;color:#334155;margin:0 0 18px;">
+              Here is the complete operational summary for the day. It is grouped by leads, referrals, and authorizations so a reader can understand what changed and who handled it.
+            </p>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:8px 0 18px;"><tr>${cards}</tr></table>
+            ${renderDigestSection("Leads", sections.leads)}
+            ${renderDigestSection("Referrals", sections.referrals)}
+            ${renderDigestSection("Authorizations", sections.authorizations)}
+            ${renderDigestSection("Comments", sections.comments)}
+            <div style="margin-top:30px;background:#E6F7F7;border:1px solid #BFEDEC;border-radius:18px;padding:16px;color:#0B5C7A;font-size:13px;line-height:1.6;">
+              Secure operations note: sensitive fields such as SSN and passwords are intentionally excluded from digest emails.
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
   return { subject, body, html };
 }
 
@@ -501,12 +669,13 @@ async function sendDigestForUser(user, digestDate) {
   const placeholders = digestActions.map(() => "?").join(",");
   const params = [start, end, ...digestActions];
   let sql = `select * from activity_logs where timestamp >= ? and timestamp < ? and action_type in (${placeholders})`;
-  if (user.role !== "super_admin") {
+  if (!isWorkspaceDigestRole(user.role)) {
     sql += " and (user_id=? or username=?)";
     params.push(user.id, user.username);
   }
   sql += " order by timestamp desc";
   const logs = await db.all(sql, params);
+  if (!logs.length) return "no_activity";
 
   const { subject, body, html } = buildDigestMessage(user, digestDate, logs);
   let status = "sent";
@@ -544,7 +713,9 @@ async function sendDailyDigests(digestDate = digestDateString()) {
 async function sendDailyDigestIfDue() {
   if (!digestEnabled()) return;
   const digestDate = digestDateString();
-  if (digestLocalHour() < digestSendHour()) return;
+  const localMinutes = digestLocalHour() * 60 + digestLocalMinute();
+  const sendMinutes = digestSendHour() * 60 + digestSendMinute();
+  if (localMinutes < sendMinutes) return;
   if (lastDigestAttemptDate === digestDate) return;
   console.log(`[digest] Starting daily digest scan for ${digestDate}`);
   try {
@@ -3414,6 +3585,56 @@ app.post("/api/admin/daily-digest/run", auth, superAdmin, async (req, res) => {
   const digestDate = req.body?.digest_date || digestDateString();
   const result = await sendDailyDigests(digestDate);
   res.json({ success: true, digest_date: digestDate, result });
+});
+
+app.post("/api/admin/daily-digest/test", auth, superAdmin, async (req, res) => {
+  const toEmail = String(req.body?.email || "").trim();
+  const digestDate = req.body?.digest_date || digestDateString();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+
+  const contextUser = await db.get("select * from users where role in ('admin','super_admin') and is_approved = 1 order by id asc limit 1");
+  if (!contextUser) return res.status(400).json({ error: "No approved admin user available for digest context" });
+
+  const { start, end } = digestWindowUtc(digestDate);
+  const placeholders = digestActions.map(() => "?").join(",");
+  const logs = await db.all(
+    `select * from activity_logs where timestamp >= ? and timestamp < ? and action_type in (${placeholders}) order by timestamp desc`,
+    [start, end, ...digestActions]
+  );
+  if (!logs.length) return res.status(404).json({ error: "No digest activity found for this date", digest_date: digestDate });
+
+  const { subject, body, html } = buildDigestMessage(contextUser, digestDate, logs);
+  try {
+    const info = await digestTransporter().sendMail({
+      from: process.env.SENDER_EMAIL,
+      to: toEmail,
+      subject: `[TEST] ${subject}`,
+      text: body,
+      html
+    });
+    res.json({
+      success: true,
+      digest_date: digestDate,
+      to: toEmail,
+      activity_count: logs.length,
+      message_id: info.messageId,
+      accepted: info.accepted || [],
+      rejected: info.rejected || [],
+      response: info.response || null
+    });
+  } catch (error) {
+    res.status(502).json({
+      success: false,
+      digest_date: digestDate,
+      to: toEmail,
+      error: error.message || "SMTP send failed",
+      code: error.code || null,
+      command: error.command || null,
+      response: error.response || null
+    });
+  }
 });
 
 function spaHtml() {
