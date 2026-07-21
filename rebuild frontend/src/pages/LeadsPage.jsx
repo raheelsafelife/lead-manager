@@ -20,6 +20,7 @@ import { useAuth } from "../context/AuthContext";
 import { isAdminRole } from "../utils/roles";
 
 const dateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days", "Custom"];
+const attachmentDateRangeOptions = ["All Time", "Today", "Last 7 Days", "Last 30 Days", "Custom"];
 
 function startForDateFilter(filter) {
   const d = new Date();
@@ -50,6 +51,9 @@ function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") 
     dateRange: "All Time",
     customStartDate: "",
     customEndDate: "",
+    attachmentDateRange: "All Time",
+    attachmentStartDate: "",
+    attachmentEndDate: "",
     transferView: Boolean(initialOptions.transferView)
   };
 }
@@ -97,6 +101,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [exporting, setExporting] = useState(false);
   const [customDateOpen, setCustomDateOpen] = useState(false);
   const [customDateDraft, setCustomDateDraft] = useState({ start: "", end: "" });
+  const [attachmentDateOpen, setAttachmentDateOpen] = useState(false);
+  const [attachmentDateDraft, setAttachmentDateDraft] = useState({ range: "All Time", start: "", end: "" });
   const ccuFilterOptions = ["All", ...lookups.ccus.map((entry) => entry.name)];
 
   const params = useMemo(() => ({
@@ -105,6 +111,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
     pageSearch: discovery ? undefined : true,
     startDate: filters.dateRange === "Custom" ? filters.customStartDate : startForDateFilter(filters.dateRange),
     endDate: filters.dateRange === "Custom" ? filters.customEndDate : undefined,
+    attachmentStartDate: filters.attachmentDateRange === "Custom" ? filters.attachmentStartDate : startForDateFilter(filters.attachmentDateRange),
+    attachmentEndDate: filters.attachmentDateRange === "Custom" ? filters.attachmentEndDate : undefined,
     offset: page * 10,
     limit: 10
   }), [filters, type, discovery, page, initialOptions.globalSearch]);
@@ -160,6 +168,57 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setPage(0);
   }
 
+  function openAttachmentDateDialog() {
+    setAttachmentDateDraft({
+      range: filters.attachmentDateRange,
+      start: filters.attachmentStartDate,
+      end: filters.attachmentEndDate
+    });
+    setAttachmentDateOpen(true);
+  }
+
+  function handleAttachmentDateRangeChange(range) {
+    if (range === "Custom") {
+      setAttachmentDateDraft({
+        range,
+        start: filters.attachmentStartDate,
+        end: filters.attachmentEndDate
+      });
+      setAttachmentDateOpen(true);
+      return;
+    }
+    setFilters((current) => ({
+      ...current,
+      attachmentDateRange: range,
+      attachmentStartDate: "",
+      attachmentEndDate: ""
+    }));
+    setPage(0);
+  }
+
+  function applyAttachmentDateRange() {
+    setFilters((current) => ({
+      ...current,
+      attachmentDateRange: attachmentDateDraft.range,
+      attachmentStartDate: attachmentDateDraft.range === "Custom" ? attachmentDateDraft.start : "",
+      attachmentEndDate: attachmentDateDraft.range === "Custom" ? attachmentDateDraft.end : ""
+    }));
+    setAttachmentDateOpen(false);
+    setPage(0);
+  }
+
+  function clearAttachmentDateRange() {
+    setFilters((current) => ({
+      ...current,
+      attachmentDateRange: "All Time",
+      attachmentStartDate: "",
+      attachmentEndDate: ""
+    }));
+    setAttachmentDateDraft({ range: "All Time", start: "", end: "" });
+    setAttachmentDateOpen(false);
+    setPage(0);
+  }
+
   function setFolder(active) {
     setFilters((current) => ({
       ...current,
@@ -174,6 +233,8 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setFilters(getDefaultFilters(user, "", {}, type));
     setCustomDateDraft({ start: "", end: "" });
     setCustomDateOpen(false);
+    setAttachmentDateDraft({ range: "All Time", start: "", end: "" });
+    setAttachmentDateOpen(false);
     setPage(0);
   }
 
@@ -337,6 +398,17 @@ export default function LeadsPage({ title, type, discovery = false }) {
                 <span>Payor</span>
                 <Select value={filters.payor} onChange={(value) => patch("payor", value)} options={["All", ...lookups.agencies.map((entry) => entry.name)]} />
               </label>
+              {type === "authorization" && (
+                <label className="leads-filter">
+                  <span>Attachment Updated</span>
+                  <Select value={filters.attachmentDateRange} onChange={handleAttachmentDateRangeChange} options={attachmentDateRangeOptions} />
+                  {filters.attachmentDateRange === "Custom" && (
+                    <button type="button" className="date-range-summary-button" onClick={openAttachmentDateDialog}>
+                      {filters.attachmentStartDate || "Start"} to {filters.attachmentEndDate || "End"}
+                    </button>
+                  )}
+                </label>
+              )}
             </>
           )}
         </div>
@@ -413,7 +485,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
       <p className="leads-summary-line">
         <b>Showing {data.rows.length} {filters.transferView ? "transfer cases" : summaryLabel} in {currentFolder.summary} of {data.total} total</b>
-        <span>{type === "authorization" ? "Authorization Records" : `Folder: ${currentFolder.title}`} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}</span>
+        <span>{type === "authorization" ? "Authorization Records" : `Folder: ${currentFolder.title}`} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}{type === "authorization" ? ` | Attachment Updated: ${filters.attachmentDateRange}` : ""}</span>
       </p>
 
       {loadError && <div className="error">Could not load this lead list: {loadError}</div>}
@@ -457,6 +529,35 @@ export default function LeadsPage({ title, type, discovery = false }) {
               <Button onClick={clearCustomDateRange}>Clear</Button>
               <Button onClick={() => setCustomDateOpen(false)}>Cancel</Button>
               <Button variant="primary" onClick={applyCustomDateRange}>Apply</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {attachmentDateOpen && (
+        <Modal title="Filter by Attachment Update" onClose={() => setAttachmentDateOpen(false)}>
+          <div className="custom-date-modal">
+            <Field label="Attachment Updated">
+              <Select
+                value={attachmentDateDraft.range}
+                onChange={(range) => setAttachmentDateDraft((current) => ({ ...current, range }))}
+                options={attachmentDateRangeOptions}
+              />
+            </Field>
+            {attachmentDateDraft.range === "Custom" && (
+              <>
+                <Field label="Start Date">
+                  <input type="date" value={attachmentDateDraft.start} onChange={(e) => setAttachmentDateDraft((current) => ({ ...current, start: e.target.value }))} />
+                </Field>
+                <Field label="End Date">
+                  <input type="date" value={attachmentDateDraft.end} onChange={(e) => setAttachmentDateDraft((current) => ({ ...current, end: e.target.value }))} />
+                </Field>
+              </>
+            )}
+            <div className="edit-lead-actions">
+              <Button onClick={clearAttachmentDateRange}>Clear</Button>
+              <Button onClick={() => setAttachmentDateOpen(false)}>Cancel</Button>
+              <Button variant="primary" onClick={applyAttachmentDateRange}>Apply</Button>
             </div>
           </div>
         </Modal>

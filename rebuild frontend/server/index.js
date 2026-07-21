@@ -1203,6 +1203,22 @@ function buildLeadQuery(q = {}, user) {
     where.push(`date(${dateExpression}) <= date(@endDate)`);
     params.endDate = q.endDate;
   }
+  if (q.type === "authorization" && (q.attachmentStartDate || q.attachmentEndDate)) {
+    const attachmentDateConditions = [
+      "activity.entity_type = 'Lead'",
+      "activity.entity_id = leads.id",
+      "activity.action_type in ('UPLOAD_ATTACHMENT','DELETE_ATTACHMENT')"
+    ];
+    if (q.attachmentStartDate) {
+      attachmentDateConditions.push("date(activity.timestamp) >= date(@attachmentStartDate)");
+      params.attachmentStartDate = q.attachmentStartDate;
+    }
+    if (q.attachmentEndDate) {
+      attachmentDateConditions.push("date(activity.timestamp) <= date(@attachmentEndDate)");
+      params.attachmentEndDate = q.attachmentEndDate;
+    }
+    where.push(`exists (select 1 from activity_logs activity where ${attachmentDateConditions.join(" and ")})`);
+  }
   return { where: where.length ? `where ${where.join(" and ")}` : "", params };
 }
 
@@ -1213,7 +1229,10 @@ async function getLead(id, includeDeleted = false) {
 
 async function listLeads(q, user) {
   const { where, params } = buildLeadQuery(q, user);
-  const sort = q.sort === "Recently Updated" ? "leads.updated_at desc" : "leads.created_at desc";
+  const hasAttachmentDateFilter = q.type === "authorization" && (q.attachmentStartDate || q.attachmentEndDate);
+  const sort = hasAttachmentDateFilter
+    ? "(select max(activity.timestamp) from activity_logs activity where activity.entity_type = 'Lead' and activity.entity_id = leads.id and activity.action_type in ('UPLOAD_ATTACHMENT','DELETE_ATTACHMENT')) desc"
+    : q.sort === "Recently Updated" ? "leads.updated_at desc" : "leads.created_at desc";
   const limit = Math.min(Number(q.limit || 10), 2000);
   const offset = Math.max(Number(q.offset || 0), 0);
   const rows = await db.all(`${leadSelect} ${where} order by ${sort} limit @limit offset @offset`, { ...params, limit, offset });
