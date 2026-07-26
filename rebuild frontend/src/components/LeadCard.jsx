@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { emitToast } from "../utils/appEvents";
 import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
 import { isAdminRole } from "../utils/roles";
+import { formatCalendarDate } from "../utils/dateFormat";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
@@ -408,7 +409,7 @@ export default function LeadCard({ lead, type, onChanged }) {
     ["Employee ID", value(lead.custom_user_id)],
     ["Authorization", lead.authorization_received ? "Received" : "Pending"],
     ["Care Status", value(lead.care_status)],
-    ["SOC Date", dateOnly(lead.soc_date)],
+    ["SOC Date", formatCalendarDate(lead.soc_date)],
     ["Gender", value(lead.gender)],
     ["Address", joinAddress(lead.street, lead.city, lead.state, lead.zip_code)],
     ["Emergency Contact", lead.e_contact_name || "N/A"]
@@ -455,7 +456,7 @@ export default function LeadCard({ lead, type, onChanged }) {
                 <span><UserRound size={16} />{value(lead.staff_name)}</span>
                 <ProfileContact icon={Phone} label="Phone" text={lead.phone} copyKey={`lead-${lead.id}-phone`} />
                 <ProfileContact icon={Mail} label="Email" text={lead.email} copyKey={`lead-${lead.id}-email`} />
-                <span><CalendarDays size={16} />DOB: {dateOnly(lead.dob)} ({value(lead.age)}{lead.age ? " Years" : ""})</span>
+                <span><CalendarDays size={16} />DOB: {formatCalendarDate(lead.dob)} ({value(lead.age)}{lead.age ? " Years" : ""})</span>
                 <span><CalendarDays size={16} />Authorization Received: {dateOnly(lead.authorization_received_at)}</span>
               </div>
             </div>

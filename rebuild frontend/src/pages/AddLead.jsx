@@ -8,6 +8,7 @@ import { leadSources, leadStatuses, referralStatuses } from "../utils/constants"
 import { useAuth } from "../context/AuthContext";
 import { emitToast, refreshAppSignals } from "../utils/appEvents";
 import { isAdminRole } from "../utils/roles";
+import { calendarDateParts } from "../utils/dateFormat";
 
 const blank = { source: "Home Health Notify", staff_name: "", custom_user_id: "", first_name: "", last_name: "", phone: "", email: "", gender: "", state: "IL", last_contact_status: "Initial Call", priority: "Not Called" };
 const emptyLookups = { approvedUsers: [], agencies: [], agencySuboptions: [], ccus: [], events: [], leadSources: [] };
@@ -98,9 +99,11 @@ export default function AddLead() {
     if (key === "ccu_id") setCcuNotice("");
     const next = { ...form, [key]: value };
     if (key === "dob" && value) {
-      const birth = new Date(value);
+      const birth = calendarDateParts(value);
       const today = new Date();
-      next.age = today.getFullYear() - birth.getFullYear() - ((today.getMonth() + 1 < birth.getMonth() + 1 || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) ? 1 : 0);
+      if (birth) {
+        next.age = today.getFullYear() - birth.year - ((today.getMonth() + 1 < birth.month || (today.getMonth() + 1 === birth.month && today.getDate() < birth.day)) ? 1 : 0);
+      }
     }
     if (key === "source") {
       const isReferral = ["Direct Through CCU", "Transfer"].includes(value);
