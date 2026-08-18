@@ -496,7 +496,7 @@ export default function LeadCard({ lead, type, onChanged }) {
         <div className="lead-card-topline">
           <div className="tag-picker card-tag-picker">
             <span>Assign Color Tag:</span>
-            {["", "Blue", "Purple"].map((color) => <Button key={color || "none"} active={(lead.tag_color || "") === color} onClick={() => askUpdateLead({ title: "Update Color Tag?", message: `Do you want to set this lead's color tag to ${color || "None"}?`, data: { tag_color: color || null } })}>{color || "None"}</Button>)}
+            {["", "Blue", "Purple", "Pink"].map((color) => <Button key={color || "none"} active={(lead.tag_color || "") === color} onClick={() => askUpdateLead({ title: "Update Color Tag?", message: `Do you want to set this lead's color tag to ${color || "None"}?`, data: { tag_color: color || null } })}>{color || "None"}</Button>)}
           </div>
         </div>
         <div className="lead-panels-grid">
