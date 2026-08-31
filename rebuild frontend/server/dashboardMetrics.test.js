@@ -26,6 +26,10 @@ test("canonical dashboard metrics reconcile charts and rates", () => {
   assert.equal(result.stats.total_records, 4);
   assert.equal(result.stats.active_clients, 1);
   assert.equal(result.stats.authorizations, 1);
+  assert.equal(result.stats.regular_leads, 1);
+  assert.equal(result.stats.chicago_leads, 0);
+  assert.equal(result.stats.regular_referrals, 1);
+  assert.equal(result.stats.chicago_referrals, 0);
   assert.equal(result.stats.care_starts, 1);
   assert.equal(result.rates.confirmation, 3 / 4 * 100);
   assert.equal(result.rates.conversion, 50);
@@ -72,4 +76,34 @@ test("legacy source aliases are combined under the canonical graph label", () =>
     { name: "Home Health Notify", count: 2 }
   ]);
   assert.equal(result.trust.qualityIssues.find((item) => item.code === "noncanonical_source").count, 1);
+});
+
+test("regular and Chicago dashboard totals are separated without overlap", () => {
+  const result = buildDashboardMetrics([
+    { ...base, id: 1, active_client: 0, authorization_received: 0, is_chicago_referral: 0 },
+    { ...base, id: 2, active_client: 0, authorization_received: 0, is_chicago_referral: 1 },
+    { ...base, id: 3, active_client: 1, authorization_received: 0, referral_sent_date: "2026-06-02", is_chicago_referral: 0 },
+    { ...base, id: 4, active_client: 1, authorization_received: 0, referral_sent_date: "2026-06-03", is_chicago_referral: 1 }
+  ]);
+
+  assert.equal(result.stats.regular_leads, 1);
+  assert.equal(result.stats.chicago_leads, 1);
+  assert.equal(result.stats.regular_referrals, 1);
+  assert.equal(result.stats.chicago_referrals, 1);
+  assert.equal(result.stats.regular_leads + result.stats.chicago_leads, result.stats.total_leads);
+  assert.equal(result.stats.regular_referrals + result.stats.chicago_referrals, result.stats.active_clients);
+});
+
+test("reported authorizations include care starts but exclude transfers and Not Start", () => {
+  const result = buildDashboardMetrics([
+    { ...base, id: 1, active_client: 1, authorization_received: 1, care_status: null },
+    { ...base, id: 2, active_client: 1, authorization_received: 1, care_status: "Care Start" },
+    { ...base, id: 3, active_client: 1, authorization_received: 1, care_status: "Transfer Received" },
+    { ...base, id: 4, active_client: 1, authorization_received: 1, care_status: "Not Start" }
+  ]);
+
+  assert.equal(result.stats.authorizations, 2);
+  assert.equal(result.stats.care_starts, 1);
+  assert.equal(result.stats.transfers, 1);
+  assert.equal(result.stats.not_starts, 1);
 });

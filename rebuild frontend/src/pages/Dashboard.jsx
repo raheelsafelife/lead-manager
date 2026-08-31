@@ -184,21 +184,24 @@ export default function Dashboard() {
       </div>
     </section>
     <div className="stats dashboard-stats">
-      <StatCard value={data.stats.total_users} label="Total Users" />
-      <StatCard value={data.stats.total_leads} label={mode === "cumulative" ? "Leads" : "Your Leads"} />
-      <StatCard value={data.stats.active_clients} label="Referrals" />
+      <StatCard value={data.stats.regular_leads} label="Regular Leads" />
+      <StatCard value={data.stats.chicago_leads} label="Chicago Leads" />
+      <StatCard value={data.stats.regular_referrals} label="Regular Referrals" />
+      <StatCard value={data.stats.chicago_referrals} label="Chicago Referrals" />
       <StatCard value={data.stats.authorizations} label="Authorizations" />
     </div>
     <div className="chart-grid dashboard-primary-grid">
       {mode === "cumulative"
         ? <HorizontalRankChart chartKey="primary-staff-or-month" title="Top Staff by Leads" data={data.charts.staff} filename="staff_leads_all.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={12} accent="#00506b" />
         : <LineChartBox chartKey="primary-staff-or-month" title="Your Monthly Lead Flow" data={data.charts.month} filename="your_monthly_leads.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />}
-      <DonutChartBox chartKey="primary-source" title={mode === "cumulative" ? "Leads by Source" : "Your Lead Sources"} data={data.charts.source} filename={mode === "cumulative" ? "source_leads_all.csv" : "your_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <DonutChartBox chartKey="primary-source" title={mode === "cumulative" ? "Regular Leads by Source" : "Your Regular Lead Sources"} data={data.charts.source} filename={mode === "cumulative" ? "regular_source_leads_all.csv" : "your_regular_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <h2 className="section-title">Referral and Authorization Breakdown</h2>
     <div className="chart-grid">
       <HorizontalRankChart chartKey="ccu-sent" title="Top CCUs by Referrals Sent" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={10} accent="#3CA5AA" tall />
       <HorizontalRankChart chartKey="ccu-confirmed" title="Top CCUs by Authorizations" data={data.charts.ccuConfirmed} filename="authorizations_received.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={10} accent="#54B56B" tall />
+      <DonutChartBox chartKey="chicago-source" title="Chicago Leads by Source" data={data.charts.chicagoSource} filename="chicago_leads_by_source.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
+      <HorizontalRankChart chartKey="chicago-referrals" title="Chicago Referrals by CCU" data={data.charts.chicagoReferrals} filename="chicago_referrals_by_ccu.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={10} accent="#7C91B0" />
       <DonutChartBox chartKey="status" title={mode === "cumulative" ? "Leads by Status" : "Your Leads by Status"} data={data.charts.status} filename="status_breakdown.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <LineChartBox chartKey="month" title={mode === "cumulative" ? "Monthly Leads" : "Your Monthly Flow"} data={data.charts.month} filename={mode === "cumulative" ? "monthly_leads_all.csv" : "your_monthly_flow.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
       <HorizontalRankChart chartKey="event" title={mode === "cumulative" ? "Event Leads" : "Your Event Leads"} data={data.charts.event} filename="event_leads_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={8} accent="#7C91B0" />

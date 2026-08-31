@@ -1,9 +1,13 @@
-export const DASHBOARD_METRIC_VERSION = "2026-06-16.1";
+export const DASHBOARD_METRIC_VERSION = "2026-09-01.1";
 
 export const DASHBOARD_METRIC_DEFINITIONS = {
   totalLeads: "Non-deleted lead records visible in the selected dashboard scope.",
   referrals: "Visible leads with active_client = 1.",
-  authorizations: "Visible referrals with authorization_received = 1 and care_status is not Care Start.",
+  regularLeads: "Visible lead-stage records not marked as Chicago referrals.",
+  chicagoLeads: "Visible lead-stage records marked as Chicago referrals.",
+  regularReferrals: "Visible referral-stage records not marked as Chicago referrals.",
+  chicagoReferrals: "Visible referral-stage records marked as Chicago referrals.",
+  authorizations: "Visible authorized referrals, including Care Starts, excluding Transfer and Not Start outcomes.",
   careStarts: "Visible authorized referrals with care_status = Care Start.",
   confirmationRate: "Referrals divided by total visible leads.",
   conversionRate: "Care Starts divided by visible referrals.",
@@ -14,6 +18,8 @@ export const DASHBOARD_METRIC_DEFINITIONS = {
 const count = (value) => Number(value || 0);
 const isTrue = (value) => Number(value) === 1;
 const hasText = (value) => String(value || "").trim().length > 0;
+const isChicago = (row) => isTrue(row.is_chicago_referral);
+const isTransfer = (row) => row.source === "Transfer" || row.care_status === "Transfer Received";
 const sourceAliases = new Map([
   ["hhn", "Home Health Notify"]
 ]);
@@ -76,22 +82,29 @@ export function buildDashboardMetrics(rows, { totalUsers = 0, generatedAt = new 
   const allReferrals = hydratedRows.filter((row) => isTrue(row.active_client));
   const referralStage = allReferrals.filter((row) => !isTrue(row.authorization_received));
   const allAuthorizations = allReferrals.filter((row) => isTrue(row.authorization_received));
+  const reportableAuthorizations = allAuthorizations.filter((row) => !isTransfer(row) && row.care_status !== "Not Start");
   const careStart = allAuthorizations.filter((row) => row.care_status === "Care Start");
   const authorizationStage = allAuthorizations.filter((row) => row.care_status !== "Care Start");
   const notStart = allAuthorizations.filter((row) => row.care_status === "Not Start");
   const pendingCare = authorizationStage.filter((row) => row.care_status !== "Not Start");
+  const regularLeads = leadStage.filter((row) => !isChicago(row));
+  const chicagoLeads = leadStage.filter(isChicago);
+  const regularReferrals = referralStage.filter((row) => !isChicago(row));
+  const chicagoReferrals = referralStage.filter(isChicago);
 
   const charts = {
     staff: group("staff_name", leadStage),
-    source: group("source_label", leadStage),
+    source: group("source_label", regularLeads),
+    chicagoSource: group("source_label", chicagoLeads),
     status: group("last_contact_status", leadStage),
     month: group("month", leadStage).sort((left, right) => String(left.name).localeCompare(String(right.name))),
     event: group("event_name", leadStage.filter((row) => row.source === "Event")),
     wordOfMouth: group("word_of_mouth_type", leadStage.filter((row) => row.source === "Word of Mouth")),
     priority: group("priority", leadStage),
-    auth: group("auth_label", authorizationStage),
-    ccuSent: group("ccu_name", referralStage),
-    ccuConfirmed: group("ccu_name", authorizationStage),
+    auth: group("care_status", reportableAuthorizations),
+    ccuSent: group("ccu_name", regularReferrals),
+    chicagoReferrals: group("ccu_name", chicagoReferrals),
+    ccuConfirmed: group("ccu_name", reportableAuthorizations),
     pipelineStages: [
       { name: "Leads", count: leadStage.length, rowIds: leadStage.map((row) => row.id) },
       { name: "Referrals", count: referralStage.length, rowIds: referralStage.map((row) => row.id) },
@@ -122,7 +135,10 @@ export function buildDashboardMetrics(rows, { totalUsers = 0, generatedAt = new 
 
   const sum = (items) => items.reduce((total, item) => total + count(item.count), 0);
   const integrityChecks = [
-    check("source_total", "Source groups reconcile to lead-stage total", sum(charts.source), leadStage.length),
+    check("regular_source_total", "Regular source groups reconcile to regular lead total", sum(charts.source), regularLeads.length),
+    check("chicago_source_total", "Chicago source groups reconcile to Chicago lead total", sum(charts.chicagoSource), chicagoLeads.length),
+    check("lead_segment_total", "Regular and Chicago leads reconcile to lead-stage total", regularLeads.length + chicagoLeads.length, leadStage.length),
+    check("referral_segment_total", "Regular and Chicago referrals reconcile to referral-stage total", regularReferrals.length + chicagoReferrals.length, referralStage.length),
     check("status_total", "Status groups reconcile to lead-stage total", sum(charts.status), leadStage.length),
     check("month_total", "Monthly groups reconcile to lead-stage total", sum(charts.month), leadStage.length),
     check("pipeline_total", "Pipeline stages reconcile to all records", sum(charts.pipelineStages), hydratedRows.length),
@@ -140,7 +156,13 @@ export function buildDashboardMetrics(rows, { totalUsers = 0, generatedAt = new 
       total_leads: leadStage.length,
       total_users: count(totalUsers),
       active_clients: referralStage.length,
-      authorizations: authorizationStage.length,
+      regular_leads: regularLeads.length,
+      chicago_leads: chicagoLeads.length,
+      regular_referrals: regularReferrals.length,
+      chicago_referrals: chicagoReferrals.length,
+      authorizations: reportableAuthorizations.length,
+      transfers: allAuthorizations.filter(isTransfer).length,
+      not_starts: allAuthorizations.filter((row) => row.care_status === "Not Start").length,
       care_starts: careStart.length
     },
     charts,
