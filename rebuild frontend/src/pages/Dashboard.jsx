@@ -7,6 +7,8 @@ import SmartSearch from "../components/SmartSearch";
 import { DashboardSkeleton, SkeletonTable } from "../components/Skeleton";
 import { isAdminRole } from "../utils/roles";
 import { activeStatuses } from "../utils/constants";
+import { formatPercentage } from "../utils/chartPercent";
+import { formatMonthLabel } from "../utils/monthLabel";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -80,12 +82,13 @@ function HorizontalRankChart({ chartKey, title, data = [], filename, onDrill, dr
 
 function DonutChartBox({ chartKey, title, data = [], filename, onDrill, drill, resolveRows, limit = 6 }) {
   const cleanData = compactTop(data, limit);
+  const total = cleanData.reduce((sum, item) => sum + Number(item.count || 0), 0);
   return <ChartShell chartKey={chartKey} title={title} data={cleanData} filename={filename} resolveRows={resolveRows} drill={drill}>{(clean) => (
     <div className="donut-layout">
       <div className="donut-chart-frame">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
-            <Tooltip formatter={(value) => [value, "Count"]} />
+            <Tooltip formatter={(value, _name, item) => [`${value} (${formatPercentage(value, total)})`, item?.payload?.name || "Count"]} />
             <Pie data={clean} dataKey="count" nameKey="name" innerRadius={62} outerRadius={98} paddingAngle={2} onClick={(entry) => onDrill(chartKey, title, entry)}>
               {clean.map((entry, index) => <Cell key={entry.name} fill={chartColors[index % chartColors.length]} />)}
             </Pie>
@@ -93,7 +96,7 @@ function DonutChartBox({ chartKey, title, data = [], filename, onDrill, drill, r
         </ResponsiveContainer>
       </div>
       <div className="donut-legend">
-        {clean.map((entry, index) => <button key={entry.name} onClick={() => onDrill(chartKey, title, entry)}><span style={{ "--legend-color": chartColors[index % chartColors.length] }} /> <b>{shortName(entry.name, 24)}</b><em>{entry.count}</em></button>)}
+        {clean.map((entry, index) => <button key={entry.name} onClick={() => onDrill(chartKey, title, entry)}><span style={{ "--legend-color": chartColors[index % chartColors.length] }} /> <b>{shortName(entry.name, 24)}</b><em><strong>{entry.count}</strong><small>{formatPercentage(entry.count, total)}</small></em></button>)}
       </div>
     </div>
   )}</ChartShell>;
@@ -105,9 +108,9 @@ function LineChartBox({ chartKey, title, data = [], filename, onDrill, drill, re
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={chartData} margin={{ top: 16, right: 24, bottom: 8, left: 0 }} onClick={(e) => e?.activePayload?.[0]?.payload && onDrill(chartKey, title, e.activePayload[0].payload)}>
         <CartesianGrid stroke="#e4edf3" vertical={false} />
-        <XAxis dataKey="name" tickLine={false} axisLine={false} />
+        <XAxis dataKey="name" tickFormatter={formatMonthLabel} tickLine={false} axisLine={false} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-        <Tooltip formatter={(value) => [value, "Leads"]} />
+        <Tooltip formatter={(value) => [value, "Leads"]} labelFormatter={formatMonthLabel} />
         <Line type="monotone" dataKey="count" stroke="#3CA5AA" strokeWidth={4} dot={{ r: 4, fill: "#00506b" }} activeDot={{ r: 7 }} />
       </LineChart>
     </ResponsiveContainer>
