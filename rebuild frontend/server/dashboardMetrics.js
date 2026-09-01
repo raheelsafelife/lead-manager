@@ -7,7 +7,7 @@ export const DASHBOARD_METRIC_DEFINITIONS = {
   chicagoLeads: "Visible lead-stage records marked as Chicago referrals.",
   regularReferrals: "Visible referral-stage records not marked as Chicago referrals.",
   chicagoReferrals: "Visible referral-stage records marked as Chicago referrals.",
-  authorizations: "Visible authorized referrals, including Care Starts, excluding Transfer and Not Start outcomes.",
+  authorizations: "Visible authorized referrals, including Care Starts and Transfers, excluding Not Start outcomes.",
   careStarts: "Visible authorized referrals with care_status = Care Start.",
   confirmationRate: "Referrals divided by total visible leads.",
   conversionRate: "Care Starts divided by visible referrals.",
@@ -82,7 +82,7 @@ export function buildDashboardMetrics(rows, { totalUsers = 0, generatedAt = new 
   const allReferrals = hydratedRows.filter((row) => isTrue(row.active_client));
   const referralStage = allReferrals.filter((row) => !isTrue(row.authorization_received));
   const allAuthorizations = allReferrals.filter((row) => isTrue(row.authorization_received));
-  const reportableAuthorizations = allAuthorizations.filter((row) => !isTransfer(row) && row.care_status !== "Not Start");
+  const reportableAuthorizations = allAuthorizations.filter((row) => row.care_status !== "Not Start");
   const careStart = allAuthorizations.filter((row) => row.care_status === "Care Start");
   const authorizationStage = allAuthorizations.filter((row) => row.care_status !== "Care Start");
   const notStart = allAuthorizations.filter((row) => row.care_status === "Not Start");

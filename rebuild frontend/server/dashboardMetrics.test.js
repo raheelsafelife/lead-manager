@@ -94,7 +94,7 @@ test("regular and Chicago dashboard totals are separated without overlap", () =>
   assert.equal(result.stats.regular_referrals + result.stats.chicago_referrals, result.stats.active_clients);
 });
 
-test("reported authorizations include care starts but exclude transfers and Not Start", () => {
+test("reported authorizations include care starts and transfers but exclude Not Start", () => {
   const result = buildDashboardMetrics([
     { ...base, id: 1, active_client: 1, authorization_received: 1, care_status: null },
     { ...base, id: 2, active_client: 1, authorization_received: 1, care_status: "Care Start" },
@@ -102,7 +102,7 @@ test("reported authorizations include care starts but exclude transfers and Not 
     { ...base, id: 4, active_client: 1, authorization_received: 1, care_status: "Not Start" }
   ]);
 
-  assert.equal(result.stats.authorizations, 2);
+  assert.equal(result.stats.authorizations, 3);
   assert.equal(result.stats.care_starts, 1);
   assert.equal(result.stats.transfers, 1);
   assert.equal(result.stats.not_starts, 1);
