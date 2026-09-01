@@ -13,6 +13,8 @@ import { fileURLToPath } from "url";
 import { createDatabase } from "./db.js";
 import { searchSuggestionRelevance } from "./suggestionRank.js";
 import { buildDashboardMetrics, validateLeadMetricState } from "./dashboardMetrics.js";
+import { filterDashboardRowsByScope } from "./dashboardScope.js";
+import { cacheKey, cached, clearDataCaches } from "./dataCache.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..", "..");
@@ -88,23 +90,6 @@ const publicUser = (u, options = {}) => u && ({
   ...(options.profile ? { profile_pic: u.profile_pic } : {})
 });
 const normalizePhone = (value = "") => String(value || "").replace(/\D/g, "");
-
-const cache = new Map();
-function cacheKey(name, parts = []) {
-  return [name, ...parts.map((part) => String(part ?? ""))].join(":");
-}
-
-async function cached(key, ttlMs, loader) {
-  const hit = cache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.value;
-  const value = await loader();
-  cache.set(key, { value, expires: Date.now() + ttlMs });
-  return value;
-}
-
-function clearDataCaches() {
-  cache.clear();
-}
 
 async function ensureLeadSources() {
   if (db.mode === "sqlite") {
@@ -1028,29 +1013,6 @@ function normalizeDashboardDataScope(value) {
   return dashboardDataScopes.has(value) ? value : "Active";
 }
 
-function isActiveDashboardRow(row) {
-  const isReferral = Number(row.active_client) === 1;
-  const isAuthorization = isReferral && Number(row.authorization_received) === 1;
-  const contactStatus = String(row.last_contact_status || "").trim();
-  const careStatus = String(row.care_status || "").trim();
-
-  if (!isReferral) {
-    const status = careStatus || contactStatus;
-    return ["Initial Call", "No Response"].includes(status);
-  }
-
-  if (!isAuthorization) {
-    return ["Initial Referral Sent", "Assessment Scheduled", "Assessment Done"].includes(contactStatus);
-  }
-
-  return !["Hold", "Terminated", "Deceased"].includes(careStatus);
-}
-
-function filterDashboardRowsByScope(rows, dataScope) {
-  if (dataScope === "All") return rows;
-  return rows.filter((row) => isActiveDashboardRow(row) === (dataScope === "Active"));
-}
-
 function leadDateExpressionForFilter(q = {}) {
   if (q.type === "referral") return "coalesce(leads.referral_sent_date, leads.updated_at, leads.created_at)";
   if (q.type === "authorization") return "leads.authorization_received_at";
@@ -1082,16 +1044,18 @@ function buildLeadQuery(q = {}, user) {
     if (q.transferView === "true" || q.transferView === true) {
       where.push("(leads.source = 'Transfer' or coalesce(leads.care_status,'') = 'Transfer Received')");
     }
+    if (q.reportable === "true" || q.reportable === true) {
+      where.push("coalesce(leads.care_status,'') != 'Not Start'");
+    }
   }
-  if (q.active === "Chicago") {
+  const chicagoOnly = q.chicagoOnly === "true" || q.chicagoOnly === true || q.active === "Chicago";
+  const includeChicago = q.includeChicago === "true" || q.includeChicago === true;
+  if (chicagoOnly) {
     where.push("coalesce(leads.is_chicago_referral,0) = 1");
-  } else if (q.active !== "All") {
+  } else if (q.active !== "All" && !includeChicago) {
     where.push("coalesce(leads.is_chicago_referral,0) = 0");
   }
-  if (q.active && q.active !== "All") {
-    if (q.active === "Chicago") {
-      // Chicago Referral is its own folder. Keep original workflow status untouched.
-    } else {
+  if (q.active && q.active !== "All" && q.active !== "Chicago") {
     const statusSets = {
       lead: {
         column: "last_contact_status",
@@ -1115,11 +1079,10 @@ function buildLeadQuery(q = {}, user) {
           : "leads.last_contact_status";
 
       if (q.type === "authorization") {
-        const inactiveList = ["Hold", "Terminated", "Deceased", "Transfer Received"];
+        const inactiveList = ["Hold", "Terminated", "Deceased"];
         const inactiveSql = inactiveList.map((_, i) => `@inactive${i}`).join(",");
         if (q.active === "Active") {
           where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${inactiveSql}))`);
-          where.push("coalesce(leads.source,'') != 'Transfer'");
         } else {
           where.push(`${columnSql} in (${inactiveSql})`);
         }
@@ -1130,7 +1093,6 @@ function buildLeadQuery(q = {}, user) {
         else where.push(`(${columnSql} is null or trim(${columnSql}) = '' or ${columnSql} not in (${list.map((_, i) => `@active${i}`).join(",")}))`);
         list.forEach((v, i) => { params[`active${i}`] = v; });
       }
-    }
   }
   if (q.status && q.status !== "All") {
     if (q.type === "authorization" && q.status === "Terminated") {
@@ -3264,7 +3226,7 @@ async function dashboardPayload(user, query = {}) {
   const dataScope = normalizeDashboardDataScope(query.dataScope);
   const isCumulative = isAdminRole(user.role) || query.mode === "cumulative";
   const cacheScope = isCumulative ? "all" : `user-${user.user_id}-${user.username}`;
-  return cached(cacheKey("dashboard", [cacheScope, dataScope, includeUsers ? "users" : "base"]), includeUsers ? 60_000 : 120_000, async () => {
+  return cached(cacheKey("dashboard", [cacheScope, dataScope, includeUsers ? "users" : "base"]), 30_000, async () => {
   const leadRows = await db.all(`${leadSelect} where leads.deleted_at is null`, );
   const scopedRows = filterDashboardRowsByScope(leadRows, dataScope);
   const visible = isCumulative ? scopedRows : scopedRows.filter((l) => l.staff_name === user.username || l.owner_id === user.user_id);

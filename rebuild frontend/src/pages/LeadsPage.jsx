@@ -33,7 +33,7 @@ function startForDateFilter(filter) {
 
 function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") {
   return {
-    active: type === "authorization" ? (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active") : initialOptions.active || (initialOptions.transferView || initialOptions.globalSearch ? "All" : "Active"),
+    active: initialOptions.active || (initialOptions.globalSearch ? "All" : "Active"),
     status: "All",
     callStatus: "All",
     tagColor: "All",
@@ -54,7 +54,10 @@ function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") 
     attachmentDateRange: "All Time",
     attachmentStartDate: "",
     attachmentEndDate: "",
-    transferView: Boolean(initialOptions.transferView)
+    transferView: Boolean(initialOptions.transferView),
+    chicagoOnly: Boolean(initialOptions.chicagoOnly),
+    reportable: Boolean(initialOptions.reportable),
+    includeChicago: type === "authorization" || Boolean(initialOptions.includeChicago)
   };
 }
 
@@ -66,7 +69,10 @@ function readUrlFilters(search) {
       transferView: searchParams.get("transferView") === "true",
       includeDeleted: searchParams.get("includeDeleted") === "true",
       globalSearch: searchParams.get("globalSearch") === "true",
-      active: searchParams.get("active") || ""
+      active: searchParams.get("active") || "",
+      chicagoOnly: searchParams.get("chicagoOnly") === "true",
+      reportable: searchParams.get("reportable") === "true",
+      includeChicago: searchParams.get("includeChicago") === "true"
     }
   };
 }
@@ -228,6 +234,11 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setPage(0);
   }
 
+  function setChicagoFolder() {
+    setFilters((current) => ({ ...current, chicagoOnly: true, status: "All" }));
+    setPage(0);
+  }
+
   function resetFilters() {
     if (location.search) navigate(location.pathname, { replace: true });
     setFilters(getDefaultFilters(user, "", {}, type));
@@ -242,7 +253,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
     setFilters((current) => ({
       ...current,
       transferView,
-      active: transferView ? "All" : "Active",
+      active: current.active || "Active",
       status: "All"
     }));
     setPage(0);
@@ -423,14 +434,14 @@ export default function LeadsPage({ title, type, discovery = false }) {
               <b>Archive Folder</b>
               <span>Closed and inactive</span>
             </button>
-            <button className={filters.active === "Chicago" ? "active chicago" : "chicago"} onClick={() => setFolder("Chicago")} type="button">
+            <button className={filters.chicagoOnly ? "active chicago" : "chicago"} onClick={setChicagoFolder} type="button">
               <b>Chicago Referral</b>
-              <span>Chicago-only records</span>
+              <span>{filters.active} Chicago records</span>
             </button>
-            {initialOptions.globalSearch && (
+            {(initialOptions.globalSearch || filters.chicagoOnly) && (
               <button className={filters.active === "All" ? "active all" : "all"} onClick={() => setFolder("All")} type="button">
                 <b>All Records</b>
-                <span>Global search result</span>
+                <span>{filters.chicagoOnly ? "All Chicago records" : "Global search result"}</span>
               </button>
             )}
           </div>
@@ -455,8 +466,13 @@ export default function LeadsPage({ title, type, discovery = false }) {
                 setAuthorizationMode(true);
                 patch("status", "All");
               }}>
-                Transfer Cases
+                {filters.active} Transfers
               </Button>
+              {filters.transferView && ["Active", "Inactive", "All"].map((scope) => (
+                <Button key={`transfer-${scope}`} active={filters.active === scope} onClick={() => setFolder(scope)}>
+                  {scope}
+                </Button>
+              ))}
             </>
           )}
           <Button variant="primary" onClick={load}>

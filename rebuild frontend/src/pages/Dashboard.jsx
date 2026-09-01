@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PageHeader, Button } from "../components/Controls";
 import { api } from "../services/api";
@@ -117,12 +118,13 @@ function LineChartBox({ chartKey, title, data = [], filename, onDrill, drill, re
   )}</ChartShell>;
 }
 
-function StatCard({ value, label }) {
-  return <div className="dashboard-stat-card"><b>{value}</b><span>{label}</span></div>;
+function StatCard({ value, label, onClick }) {
+  return <button type="button" className="dashboard-stat-card" onClick={onClick}><b>{value}</b><span>{label}</span></button>;
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const canAdmin = isAdminRole(user.role);
   const [mode, setMode] = useState(canAdmin ? "cumulative" : "individual");
   const [data, setData] = useState(null);
@@ -132,26 +134,39 @@ export default function Dashboard() {
   const [loadError, setLoadError] = useState("");
   const resolveRows = buildRowResolver(data);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadDashboard = useCallback(async () => {
     setLoadError("");
-    api.get("/dashboard", { params: { mode, dataScope } })
-      .then((res) => {
-        if (!mounted) return;
+    try {
+      const res = await api.get("/dashboard", { params: { mode, dataScope, _: Date.now() } });
         if (!res.data?.stats || !res.data?.charts) {
           setLoadError("Dashboard data came back in an unexpected format.");
-          return;
+          return null;
         }
         setData(res.data);
-      })
-      .catch((error) => {
-        if (!mounted) return;
-        setLoadError(error?.response?.data?.error || error.message || "Failed to load dashboard.");
-      });
-    return () => {
-      mounted = false;
-    };
+        return res.data;
+    } catch (error) {
+      setLoadError(error?.response?.data?.error || error.message || "Failed to load dashboard.");
+      return null;
+    }
   }, [mode, dataScope]);
+
+  useEffect(() => {
+    loadDashboard();
+    const refresh = () => { if (document.visibilityState === "visible") loadDashboard(); };
+    const timer = window.setInterval(refresh, 45_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [loadDashboard]);
+
+  function openFolder(path, extra = {}) {
+    const params = new URLSearchParams({ active: dataScope, ...extra });
+    navigate(`${path}?${params.toString()}`);
+  }
   function onDrill(chartKey, title, payload) {
     const nextTitle = `${title}: ${payload.name}`;
     if (drill?.chartKey === chartKey && drill?.title === nextTitle) {
@@ -182,13 +197,14 @@ export default function Dashboard() {
         {!canAdmin && <div className="segmented dashboard-mode-toggle"><Button active={mode === "individual"} onClick={() => setMode("individual")}>Individual</Button><Button active={mode === "cumulative"} onClick={() => setMode("cumulative")}>Cumulative</Button></div>}
         {canAdmin && <Button variant="primary" onClick={showAllUserDashboards}>View All User Dashboards</Button>}
       </div>
+      <small className="dashboard-last-updated">Last updated: {new Date(data.trust?.generatedAt || Date.now()).toLocaleTimeString()}</small>
     </section>
     <div className="stats dashboard-stats">
-      <StatCard value={data.stats.regular_leads} label="Regular Leads" />
-      <StatCard value={data.stats.chicago_leads} label="Chicago Leads" />
-      <StatCard value={data.stats.regular_referrals} label="Regular Referrals" />
-      <StatCard value={data.stats.chicago_referrals} label="Chicago Referrals" />
-      <StatCard value={data.stats.authorizations} label="Authorizations" />
+      <StatCard value={data.stats.regular_leads} label="Regular Leads" onClick={() => openFolder("/view-leads")} />
+      <StatCard value={data.stats.chicago_leads} label="Chicago Leads" onClick={() => openFolder("/view-leads", { chicagoOnly: "true" })} />
+      <StatCard value={data.stats.regular_referrals} label="Regular Referrals" onClick={() => openFolder("/referrals")} />
+      <StatCard value={data.stats.chicago_referrals} label="Chicago Referrals" onClick={() => openFolder("/referrals", { chicagoOnly: "true" })} />
+      <StatCard value={data.stats.authorizations} label="Authorizations" onClick={() => openFolder("/authorizations", { reportable: "true", includeChicago: "true" })} />
     </div>
     <div className="chart-grid dashboard-primary-grid">
       {mode === "cumulative"
