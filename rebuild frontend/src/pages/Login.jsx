@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { CirclePlus, Eye, EyeOff, Lock, ShieldCheck, UserPlus, UserRound, UsersRound, Headset } from "lucide-react";
+import { BarChart3, Check, Eye, EyeOff, Lock, Mail, ShieldCheck, UserPlus, UserRound, UsersRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { Button, Field } from "../components/Controls";
 import { api } from "../services/api";
+import logoMark from "../../favicon.svg";
 import sidebarLogo from "../../sidebar_logo.png";
 
 export default function Login() {
@@ -17,10 +17,14 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const isLogin = mode === "login";
+  const isSignup = mode === "signup";
+  const isForgot = mode === "forgot";
+
   async function submit(e) {
     e.preventDefault();
     setError("");
-    if (mode === "signup") {
+    if (isSignup) {
       if (password !== confirmPassword) { setError("Passwords do not match"); return; }
       try {
         await api.post("/auth/signup", { user_id: userId, username, email, password });
@@ -31,7 +35,7 @@ export default function Login() {
       }
       return;
     }
-    if (mode === "forgot") {
+    if (isForgot) {
       try {
         await api.post("/auth/forgot", { username });
         setError("Password reset requested. An admin will review and reset your password.");
@@ -45,59 +49,96 @@ export default function Login() {
     catch (err) { setError(err.response?.data?.error || "Login failed"); }
   }
 
-  return (
-    <div className="auth-page">
-      <div className="auth-ornament auth-ornament-plus plus-top-left"><CirclePlus size={28} /></div>
-      <div className="auth-ornament auth-ornament-plus plus-bottom-right"><CirclePlus size={28} /></div>
-      <div className="auth-ornament auth-dots auth-dots-left" aria-hidden="true" />
-      <div className="auth-ornament auth-dots auth-dots-right" aria-hidden="true" />
-      <div className="auth-wave" aria-hidden="true" />
-      <div className="auth-shell">
-        <div className="auth-brand">
-          <img src={sidebarLogo} alt="SafeLife" />
-          <div className="auth-divider">
-            <span />
-            <div className="auth-divider-badge"><ShieldCheck size={20} /></div>
-            <span />
-          </div>
-          <h1>Lead Manager</h1>
-          <p className="auth-subtitle">
-            {mode === "login" && "Sign in to access the Lead Manager dashboard"}
-            {mode === "signup" && "Create your account to access Lead Manager"}
-            {mode === "forgot" && "Request a Lead Manager password reset"}
-          </p>
-        </div>
+  const heading = isLogin ? "Welcome Back" : isSignup ? "Create Account" : "Reset Password";
+  const subheading = isLogin
+    ? "Sign in to access your SafeLife dashboard"
+    : isSignup
+      ? "Create your account for SafeLife secure access"
+      : "Enter your username to request password help";
 
+  return (
+    <main className="auth-page">
+      <section className="auth-marketing" aria-label="SafeLife overview">
+        <div className="auth-marketing-inner">
+          <img className="auth-brand-logo" src={sidebarLogo} alt="SafeLife" />
+          <div className="auth-kicker">Care operations, thoughtfully connected</div>
+          <h1>Empowering<br />Better Care.<br /><span>Every Day.</span></h1>
+          <p>
+            SafeLife helps Home Health, Home Care, and Hospice organizations streamline referrals,
+            authorizations, caregiver management, compliance, and patient care.
+          </p>
+          <div className="auth-feature-grid">
+            {[
+              ["Patient & Caregiver Management", UsersRound],
+              ["Referral & Authorization Tracking", UserPlus],
+              ["Secure Platform", ShieldCheck],
+              ["Real-Time Analytics", BarChart3]
+            ].map(([label, Icon]) => (
+              <div className="auth-feature-pill" key={label}>
+                <span><Icon size={20} /></span>
+                <b>{label}</b>
+                <Check size={16} />
+              </div>
+            ))}
+          </div>
+          <div className="auth-trust-card">
+            <span><Lock size={22} /></span>
+            <div>
+              <b>Secure</b>
+              <small>Your data is protected with enterprise-grade security.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="auth-panel" aria-label="SafeLife sign in">
+        <div className="auth-orb auth-orb-top" />
+        <div className="auth-orb auth-orb-bottom" />
         <form className="auth-card auth-card-rich" onSubmit={submit}>
-          {mode === "signup" && (
-            <Field label="User ID" required>
+          <div className="auth-card-head">
+            <span className="auth-logo-mark"><img src={logoMark} alt="SafeLife" /></span>
+            <small>Secure Portal</small>
+            <strong className="auth-product-title">Lead Manager</strong>
+            <h2>{heading}</h2>
+            <p>{subheading}</p>
+          </div>
+
+          {isSignup && (
+            <label className="auth-field">
+              <span>User ID</span>
               <div className="input-shell">
-                <span className="input-icon"><UserPlus size={22} /></span>
+                <UserPlus size={20} />
                 <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="Enter your employee ID" />
               </div>
-            </Field>
+            </label>
           )}
 
-          <Field label="Username" required>
+          <label className="auth-field">
+            <span>{isForgot ? "Username" : "Username or Email"}</span>
             <div className="input-shell">
-              <span className="input-icon"><UserRound size={22} /></span>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" />
+              <UserRound size={20} />
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={isForgot ? "Enter your username" : "Enter your username or email"} />
             </div>
-          </Field>
+          </label>
 
-          {mode === "signup" && (
-            <Field label="Email" required>
+          {isSignup && (
+            <label className="auth-field">
+              <span>Email</span>
               <div className="input-shell">
-                <span className="input-icon"><UsersRound size={22} /></span>
+                <Mail size={20} />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" />
               </div>
-            </Field>
+            </label>
           )}
 
-          {mode !== "forgot" && (
-            <Field label="Password" required>
+          {!isForgot && (
+            <label className="auth-field">
+              <span className="auth-field-row">
+                Password
+                {isLogin && <button type="button" onClick={() => setMode("forgot")}>Forgot password?</button>}
+              </span>
               <div className="input-shell">
-                <span className="input-icon"><Lock size={22} /></span>
+                <Lock size={20} />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -105,16 +146,17 @@ export default function Login() {
                   placeholder="Enter your password"
                 />
                 <button className="input-toggle" type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </Field>
+            </label>
           )}
 
-          {mode === "signup" && (
-            <Field label="Confirm Password" required>
+          {isSignup && (
+            <label className="auth-field">
+              <span>Confirm Password</span>
               <div className="input-shell">
-                <span className="input-icon"><Lock size={22} /></span>
+                <Lock size={20} />
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
@@ -122,57 +164,39 @@ export default function Login() {
                   placeholder="Confirm your password"
                 />
                 <button className="input-toggle" type="button" onClick={() => setShowConfirmPassword((value) => !value)} aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}>
-                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </Field>
+            </label>
+          )}
+
+          {isLogin && (
+            <label className="auth-remember">
+              <input type="checkbox" />
+              <span>Remember me</span>
+            </label>
           )}
 
           {error && <div className="error">{error}</div>}
 
-          <Button variant="primary" type="submit">
-            <Lock size={19} />
-            {mode === "login" ? "Login" : mode === "signup" ? "Sign Up" : "Request Reset"}
-          </Button>
+          <button className="auth-submit" type="submit">
+            <Lock size={18} />
+            {isLogin ? "Sign In" : isSignup ? "Create Account" : "Request Reset"}
+          </button>
+
+          <div className="auth-switch">
+            {isSignup || isForgot ? (
+              <button type="button" onClick={() => setMode("login")}>Back to login</button>
+            ) : (
+              <>
+                <span>New to SafeLife?</span>
+                <button type="button" onClick={() => setMode("signup")}>Create an account</button>
+              </>
+            )}
+          </div>
         </form>
-
-        <div className="auth-links auth-links-rich">
-          <Button variant="primary" onClick={() => setMode(mode === "signup" ? "login" : "signup")}>
-            <UserPlus size={19} />
-            {mode === "signup" ? "Back to Login" : "Sign Up"}
-          </Button>
-          <Button onClick={() => setMode(mode === "forgot" ? "login" : "forgot")}>
-            <Lock size={19} />
-            {mode === "forgot" ? "Back to Login" : "Forgot Password?"}
-          </Button>
-        </div>
-
-        <div className="auth-footer-panels">
-          <article>
-            <span><ShieldCheck size={26} /></span>
-            <div>
-              <b>Secure & Protected</b>
-              <small>Your data is safe with enterprise-grade security</small>
-            </div>
-          </article>
-          <article>
-            <span><UsersRound size={26} /></span>
-            <div>
-              <b>All in One Place</b>
-              <small>Manage and track all your leads efficiently</small>
-            </div>
-          </article>
-          <article>
-            <span><Headset size={26} /></span>
-            <div>
-              <b>Always Here</b>
-              <small>Support when you need it, where you need it</small>
-            </div>
-          </article>
-        </div>
-
-        <p className="auth-copyright">© 2024 SafeLife. All rights reserved.</p>
-      </div>
-    </div>
+        <p className="auth-secure-note"><ShieldCheck size={15} /> SafeLife secure access portal</p>
+      </section>
+    </main>
   );
 }

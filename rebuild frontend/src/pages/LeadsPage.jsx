@@ -6,6 +6,7 @@ import {
   Hash,
   PhoneCall,
   Search,
+  SlidersHorizontal,
   Tag,
   UserRound,
   Users,
@@ -104,12 +105,27 @@ export default function LeadsPage({ title, type, discovery = false }) {
   const [loadError, setLoadError] = useState("");
   const [page, setPage] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [customDateOpen, setCustomDateOpen] = useState(false);
   const [customDateDraft, setCustomDateDraft] = useState({ start: "", end: "" });
   const [attachmentDateOpen, setAttachmentDateOpen] = useState(false);
   const [attachmentDateDraft, setAttachmentDateDraft] = useState({ range: "All Time", start: "", end: "" });
   const ccuFilterOptions = ["All", ...lookups.ccus.map((entry) => entry.name)];
+
+  useEffect(() => {
+    if (!mobileFiltersOpen || typeof window === "undefined") return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileFiltersOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileFiltersOpen]);
 
   const params = useMemo(() => ({
     ...filters,
@@ -324,7 +340,19 @@ export default function LeadsPage({ title, type, discovery = false }) {
 
   return (
     <div className="leads-page">
-      <section className="leads-filter-card">
+      <div className="mobile-leads-controls">
+        <button type="button" className="mobile-filter-button" onClick={() => setMobileFiltersOpen(true)}>
+          <SlidersHorizontal size={19} />
+          Filters
+        </button>
+        <span>{data.total} {summaryLabel}</span>
+      </div>
+      {mobileFiltersOpen && <button type="button" className="mobile-filter-backdrop" aria-label="Close filters" onClick={() => setMobileFiltersOpen(false)} />}
+      <section className={`leads-filter-card ${mobileFiltersOpen ? "mobile-filters-open" : ""}`}>
+        <div className="mobile-filter-heading">
+          <div><b>Filter {summaryLabel}</b><span>Narrow your results</span></div>
+          <button type="button" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters"><XCircle size={24} /></button>
+        </div>
         <div className="leads-filter-grid">
           <label className="leads-filter">
             <span><Search size={18} />Search by Name</span>
@@ -447,6 +475,11 @@ export default function LeadsPage({ title, type, discovery = false }) {
           </div>
         )}
 
+        <div className="mobile-filter-actions">
+          <Button onClick={resetFilters}>Clear</Button>
+          <Button variant="primary" onClick={() => { load(); setMobileFiltersOpen(false); }}>Show Results</Button>
+        </div>
+
       </section>
 
       <div className="leads-toolbar-modern">
@@ -475,11 +508,11 @@ export default function LeadsPage({ title, type, discovery = false }) {
               ))}
             </>
           )}
-          <Button variant="primary" onClick={load}>
+          <Button className="desktop-filter-action" variant="primary" onClick={load}>
             <Search size={16} />
             Search
           </Button>
-          <Button onClick={resetFilters}>
+          <Button className="desktop-filter-action" onClick={resetFilters}>
             <XCircle size={16} />
             Clear Filters
           </Button>

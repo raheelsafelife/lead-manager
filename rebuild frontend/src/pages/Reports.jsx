@@ -14,6 +14,7 @@ import {
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import MobileDataCards from "../components/mobile/MobileDataCards";
 import { Download, FileSpreadsheet, FileText, ShieldCheck, HeartHandshake, Layers3, Sparkles } from "lucide-react";
 import { Button, Select } from "../components/Controls";
 import { api } from "../services/api";
@@ -425,7 +426,7 @@ export default function Reports() {
               <p>Leaderboard ranked by {scopedData.config.groupLabel.toLowerCase()} volume.</p>
             </div>
           </div>
-          <div className="reports-leaderboard-wrap">
+          <div className="reports-leaderboard-wrap m-desktop-only">
             <table className="reports-leaderboard-table">
               <thead>
                 <tr>
@@ -447,6 +448,18 @@ export default function Reports() {
               </tbody>
             </table>
             {!scopedData.leaderboard.length && <div className="info">No data available for this report selection.</div>}
+          </div>
+          <div className="m-only">
+            <MobileDataCards
+              rows={scopedData.leaderboard}
+              getKey={(entry) => entry.name}
+              columns={[
+                { label: scopedData.config.groupLabel, render: (entry) => `#${entry.rank} · ${entry.name}` },
+                { label: "Volume", key: "count" },
+                { label: "Share", render: (entry) => `${entry.share}%` }
+              ]}
+              emptyTitle="No leaderboard data"
+            />
           </div>
         </article>
 
@@ -499,7 +512,7 @@ export default function Reports() {
             <p>Operational detail rows included in the generated export.</p>
           </div>
         </div>
-        <div className="table-wrap reports-table-wrap">
+        <div className="table-wrap reports-table-wrap m-desktop-only">
           <table className="reports-detail-table">
             <thead>
               <tr>
@@ -514,6 +527,14 @@ export default function Reports() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="m-only">
+          <MobileDataCards
+            rows={scopedData.exportRows.slice(0, 25)}
+            getKey={(row, index) => `${row.ID || row.Timestamp || "row"}-${index}`}
+            columns={scopedData.detailColumns.slice(0, 5).map((column) => ({ label: column, key: column }))}
+            emptyTitle="No report records"
+          />
         </div>
       </section>
     </div>

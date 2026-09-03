@@ -10,6 +10,7 @@ import { emitToast } from "../utils/appEvents";
 import { changedFields, commentFromActivity, friendlyActionTitle, friendlyActivitySummary } from "../utils/activityFormat";
 import { isAdminRole } from "../utils/roles";
 import { formatCalendarDate } from "../utils/dateFormat";
+import MobileLeadCard from "./mobile/MobileLeadCard";
 
 const fmt = (v) => v ? new Date(v).toLocaleString() : "N/A";
 const dateOnly = (v) => v ? new Date(v).toLocaleDateString() : "N/A";
@@ -425,7 +426,8 @@ export default function LeadCard({ lead, type, onChanged }) {
   ];
   return (
     <div className={`lead-row lead-card-shell ${open ? "expanded" : ""}`}>
-      <button className="lead-summary" onClick={() => setOpen(!open)}>
+      <MobileLeadCard lead={lead} fullName={fullName} status={mainStatus} priority={priority} priorityClass={priorityClass} callStatusOptions={callStatusOptions} open={open} onToggle={() => setOpen(!open)} onCallStatus={(nextPriority) => askUpdateLead({ title: "Update Call Status?", message: `Do you want to set call status to ${nextPriority}?`, data: { priority: nextPriority, call_status_updated_by: user.username, call_status_updated_at: new Date().toISOString() } })} />
+      <button className="lead-summary m-desktop-only" onClick={() => setOpen(!open)}>
         <span className="lead-caret">{open ? "⌄" : "›"}</span>
         {lead.tag_color && <span className={`tag-dot ${lead.tag_color || ""}`}></span>}
         <span className="lead-title-block">
@@ -434,7 +436,7 @@ export default function LeadCard({ lead, type, onChanged }) {
         </span>
         {lead.caregiver_type && lead.caregiver_type !== "None" && <em>{lead.caregiver_type}</em>}
       </button>
-      <div className="inline-status">
+      <div className="inline-status m-desktop-only">
         <Select value={lead.priority || "Not Called"} options={callStatusOptions} onChange={(value) => askUpdateLead({ title: "Update Call Status?", message: `Do you want to set call status to ${value}?`, data: { priority: value, call_status_updated_by: user.username, call_status_updated_at: new Date().toISOString() } })} />
         <div className={`header-status-card ${priorityClass}`}>
           <div><StatusPill value={priority} /></div>

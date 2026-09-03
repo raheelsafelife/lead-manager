@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Activity, BarChart3, Bell, Check, ChevronDown, FileClock, FilePlus2, FileText, Home, LogIn, LogOut, MessageCircleMore, PanelLeftClose, PanelLeftOpen, Pencil, Search, Settings, ShieldCheck, Volume2, VolumeX, UserCog, Users, X } from "lucide-react";
+import { Activity, BarChart3, Bell, Check, ChevronDown, FileClock, FilePlus2, FileText, Home, LogIn, LogOut, Menu, MessageCircleMore, PanelLeftClose, PanelLeftOpen, Pencil, Search, Settings, ShieldCheck, Volume2, VolumeX, UserCog, Users, X } from "lucide-react";
 import logoMark from "../../favicon.svg";
 import sidebarLogo from "../../sidebar_logo.png";
 import { useEffect, useRef, useState } from "react";
@@ -48,6 +48,7 @@ export default function Layout({ children }) {
     return window.localStorage.getItem("notificationSoundEnabled") !== "false";
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [historianRows, setHistorianRows] = useState([]);
   const [userDirectory, setUserDirectory] = useState({});
   const soundUnlockedRef = useRef(false);
@@ -60,6 +61,24 @@ export default function Layout({ children }) {
   const showTopbarSmartSearch = location.pathname !== "/dashboard";
   const regionLocale = typeof navigator !== "undefined" ? navigator.languages?.[0] || navigator.language || "en-US" : "en-US";
   const regionTimeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen || typeof window === "undefined") return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileMenuOpen]);
 
   function buildNotificationToneUrl() {
     const sampleRate = 44100;
@@ -385,11 +404,20 @@ export default function Layout({ children }) {
   const avatar = user.profile_pic ? <img src={user.profile_pic} alt={user.username} /> : <span>{user.username.slice(0, 1).toUpperCase()}</span>;
 
   return (
-    <div className={`app-shell ${sidebarOpen ? "" : "sidebar-closed"}`}>
-      <aside className="sidebar">
+    <div className={`app-shell ${sidebarOpen ? "" : "sidebar-closed"} ${mobileMenuOpen ? "mobile-menu-open" : ""}`}>
+      <button
+        type="button"
+        className="mobile-nav-backdrop"
+        aria-label="Close navigation menu"
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside className="sidebar" id="primary-navigation">
         <div className="sidebar-head">
           <img className="sidebar-logo sidebar-logo-full" src={sidebarLogo} alt="SafeLife" />
           <img className="sidebar-logo sidebar-logo-mark" src={logoMark} alt="SafeLife" />
+          <button type="button" className="mobile-drawer-close" onClick={() => setMobileMenuOpen(false)} aria-label="Close navigation menu">
+            <X size={22} />
+          </button>
           <button
             className="sidebar-toggle"
             onClick={() => setSidebarOpen((open) => !open)}
@@ -452,11 +480,26 @@ export default function Layout({ children }) {
             </div>
           </div>
         </section>
+        <div className="mobile-drawer-account">
+          <span className="mobile-drawer-avatar">{avatar}</span>
+          <span><b>{user.username}</b><small>{user.role}</small></span>
+          <button type="button" onClick={logout} aria-label="Log out"><LogOut size={19} /></button>
+        </div>
         <div className="api-ok">API Healthy</div>
       </aside>
       <main className="main">
         <header className="topbar">
           <div className="topbar-left">
+            <button
+              type="button"
+              className="mobile-menu-button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
+              aria-controls="primary-navigation"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu size={24} />
+            </button>
             <div>
               <div className="breadcrumb">HOME / {title.toUpperCase()}</div>
               <h1>{title}</h1>

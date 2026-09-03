@@ -308,14 +308,14 @@ export default function AddLead() {
       <div className="form-grid">
         {canAdmin ? <Field label="Staff Name" required><Select value={form.staff_name} onChange={(v) => patch("staff_name", v)} options={["", ...lookups.approvedUsers.map((u) => u.username)]} /></Field> : <div className="info">Lead will be created by: <b>{user.username}</b></div>}
         <Field label="User ID" required><input value={form.custom_user_id || ""} onChange={(e) => patch("custom_user_id", e.target.value)} disabled={!!form.owner_id} /></Field>
-        <Field label="First Name" required><input value={form.first_name} onChange={(e) => patch("first_name", e.target.value)} /></Field>
-        <Field label="Last Name" required><input value={form.last_name} onChange={(e) => patch("last_name", e.target.value)} /></Field>
+        <Field label="First Name" required><input autoComplete="given-name" value={form.first_name} onChange={(e) => patch("first_name", e.target.value)} /></Field>
+        <Field label="Last Name" required><input autoComplete="family-name" value={form.last_name} onChange={(e) => patch("last_name", e.target.value)} /></Field>
         <Field label="Date of Birth"><input type="date" value={form.dob || ""} onChange={(e) => patch("dob", e.target.value)} /></Field>
         <Field label="Age / Year"><input type="number" value={form.age || ""} onChange={(e) => patch("age", Number(e.target.value) || null)} disabled={!!form.dob} /></Field>
         <Field label="Gender"><div className="segmented gender-buttons">{genderOptions.map((option) => <Button key={option} active={form.gender === option} onClick={() => patch("gender", form.gender === option ? "" : option)}>{option}</Button>)}</div></Field>
         <div />
-        <Field label="Email"><input value={form.email || ""} onChange={(e) => patch("email", e.target.value)} /></Field>
-        <Field label="Phone" required><input value={form.phone} onChange={(e) => patch("phone", e.target.value)} /></Field>
+        <Field label="Email"><input type="email" inputMode="email" autoComplete="email" value={form.email || ""} onChange={(e) => patch("email", e.target.value)} /></Field>
+        <Field label="Phone" required><input type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={(e) => patch("phone", e.target.value)} /></Field>
         <Field label="SSN"><input value={form.ssn || ""} onChange={(e) => patch("ssn", e.target.value)} /></Field>
         <Field label="Medicaid Number"><input value={form.medicaid_no || ""} onChange={(e) => patch("medicaid_no", e.target.value)} /></Field>
         <Field label="Contact Status" required><Select value={form.last_contact_status} onChange={(v) => patch("last_contact_status", v)} options={isReferralSource ? referralStatuses.filter((x) => x !== "All") : leadStatuses} /></Field>
@@ -323,10 +323,10 @@ export default function AddLead() {
         <Field label="Street"><input value={form.street || ""} onChange={(e) => patch("street", e.target.value)} /></Field>
         <Field label="City"><input value={form.city || ""} onChange={(e) => patch("city", e.target.value)} /></Field>
         <Field label="State"><input maxLength={2} value={form.state || ""} onChange={(e) => patch("state", e.target.value)} /></Field>
-        <Field label="Zip Code"><input value={form.zip_code || ""} onChange={(e) => patch("zip_code", e.target.value)} /></Field>
+        <Field label="Zip Code"><input inputMode="numeric" autoComplete="postal-code" value={form.zip_code || ""} onChange={(e) => patch("zip_code", e.target.value)} /></Field>
         <Field label="Emergency Contact Name"><input value={form.e_contact_name || ""} onChange={(e) => patch("e_contact_name", e.target.value)} /></Field>
         <Field label="Relation"><input value={form.e_contact_relation || ""} onChange={(e) => patch("e_contact_relation", e.target.value)} /></Field>
-        <Field label="Emergency Contact Phone"><input value={form.e_contact_phone || ""} onChange={(e) => patch("e_contact_phone", e.target.value)} /></Field>
+        <Field label="Emergency Contact Phone"><input type="tel" inputMode="tel" value={form.e_contact_phone || ""} onChange={(e) => patch("e_contact_phone", e.target.value)} /></Field>
         <Field label="Comments"><textarea value={form.comments || ""} onChange={(e) => patch("comments", e.target.value)} /></Field>
         <label className="check"><input type="checkbox" checked={form.send_reminders !== false} onChange={(e) => patch("send_reminders", e.target.checked)} />Send Auto Email Reminders for this Lead</label>
       </div>

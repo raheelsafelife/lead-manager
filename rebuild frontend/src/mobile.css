@@ -1,0 +1,117 @@
+:root {
+  --m-space-1: 4px;
+  --m-space-2: 8px;
+  --m-space-3: 12px;
+  --m-space-4: 16px;
+  --m-space-5: 20px;
+  --m-radius-sm: 10px;
+  --m-radius-md: 14px;
+  --m-radius-lg: 20px;
+  --m-control: 48px;
+  --m-shadow: 0 8px 24px rgba(15, 23, 42, .07);
+}
+
+.m-only { display: none; }
+
+@media (max-width: 767px) {
+  .m-only { display: block; }
+  .m-desktop-only { display: none !important; }
+
+  .m-data-list {
+    display: grid;
+    gap: var(--m-space-3);
+  }
+
+  .m-data-card {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--m-space-3);
+    padding: var(--m-space-4);
+    border: 1px solid #dce7ed;
+    border-radius: var(--m-radius-md);
+    background: #fff;
+    box-shadow: var(--m-shadow);
+  }
+
+  .m-data-primary {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 2px;
+    padding-bottom: var(--m-space-3);
+    border-bottom: 1px solid #edf2f5;
+  }
+
+  .m-data-primary span,
+  .m-data-field span {
+    color: #667085;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+
+  .m-data-primary b {
+    color: #122231;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+  }
+
+  .m-data-field {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .m-data-field b {
+    color: #344054;
+    font-size: .88rem;
+    overflow-wrap: anywhere;
+  }
+
+  .m-empty {
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: var(--m-space-2);
+    padding: var(--m-space-5);
+    border: 1px dashed #cddde5;
+    border-radius: var(--m-radius-md);
+    background: #f9fcfd;
+    text-align: center;
+  }
+
+  .m-empty > span {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: #e6f3f6;
+    color: #0b6f87;
+    font-size: 1.4rem;
+  }
+
+  .m-empty b { color: #1d3557; }
+  .m-empty p { margin: 0; color: #667085; font-size: .86rem; }
+
+  .m-lead-summary { padding: var(--m-space-4); background: #fff; }
+  .m-lead-main { width: 100%; min-height: 48px; display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; padding: 0; border: 0; background: transparent; text-align: left; }
+  .m-lead-heading { display: grid; gap: 3px; min-width: 0; }
+  .m-lead-heading strong { overflow-wrap: anywhere; color: #122231; font-size: 1.08rem; }
+  .m-lead-heading small { color: #667085; font-size: .78rem; font-weight: 800; }
+  .m-lead-chevron { width: 40px; height: 40px; display: grid; place-items: center; justify-self: end; border-radius: 50%; background: #f1f6f8; color: #1d6077; }
+  .m-lead-badges { display: flex; flex-wrap: wrap; gap: var(--m-space-2); margin-top: var(--m-space-3); }
+  .m-status-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: 999px; background: #e8f5f7; color: #075b72; font-size: .75rem; font-weight: 900; }
+  .m-call-badge { display: inline-flex; align-items: center; }
+  .m-lead-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; margin-top: var(--m-space-3); color: #667085; font-size: .78rem; font-weight: 750; }
+  .m-lead-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .m-lead-meta span:first-child { display: inline-flex; align-items: center; gap: 5px; }
+  .m-lead-actions { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: var(--m-space-2); align-items: end; margin-top: var(--m-space-4); padding-top: var(--m-space-3); border-top: 1px solid #edf2f5; }
+  .m-lead-actions > a, .m-lead-actions > button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #b9d3dc; border-radius: var(--m-radius-sm); background: #fff; color: #075b72; font-size: .78rem; font-weight: 900; }
+  .m-lead-actions > a { width: 48px; }
+  .m-lead-actions > button { padding: 0 12px; background: #075b72; color: #fff; border-color: #075b72; }
+  .m-lead-actions label { display: grid; gap: 4px; color: #667085; font-size: .68rem; font-weight: 800; }
+  .m-lead-actions select { min-height: 44px; padding-left: 10px; font-size: .78rem; }
+}

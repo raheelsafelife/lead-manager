@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button, PageHeader, Select } from "../components/Controls";
 import { api } from "../services/api";
+import MobileDataCards from "../components/mobile/MobileDataCards";
 import { DiscoverySkeleton } from "../components/Skeleton";
 
 const featureMap = {
@@ -121,6 +122,6 @@ export default function LeadDiscovery() {
       </ResponsiveContainer>
       <Button onClick={() => downloadCsv(chart.scopedRows)}>Download CSV</Button>
     </div>
-    {drill && <div className="drilldown"><h3>{drill.title} ({drill.rows.length})</h3><div className="table-wrap"><table><thead><tr>{tableCols.map((col) => <th key={col}>{col.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{drill.rows.map((row) => <tr key={row.id}>{tableCols.map((col) => <td key={col}>{row[col] || "N/A"}</td>)}</tr>)}</tbody></table></div></div>}
+    {drill && <div className="drilldown"><h3>{drill.title} ({drill.rows.length})</h3><div className="table-wrap m-desktop-only"><table><thead><tr>{tableCols.map((col) => <th key={col}>{col.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{drill.rows.map((row) => <tr key={row.id}>{tableCols.map((col) => <td key={col}>{row[col] || "N/A"}</td>)}</tr>)}</tbody></table></div><div className="m-only"><MobileDataCards rows={drill.rows} getKey={(row) => row.id} columns={[{ label: "Lead", render: (row) => `${row.full_name || "Unknown"} · #${row.id}` }, { label: "Phone", key: "phone" }, { label: "Status", key: "last_contact_status" }, { label: "Staff", key: "staff_name" }, { label: "Source", key: "source" }]} /></div></div>}
   </>;
 }

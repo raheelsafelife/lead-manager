@@ -10,6 +10,7 @@ import { isAdminRole } from "../utils/roles";
 import { activeStatuses } from "../utils/constants";
 import { formatPercentage } from "../utils/chartPercent";
 import { formatMonthLabel } from "../utils/monthLabel";
+import MobileDataCards from "../components/mobile/MobileDataCards";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -39,7 +40,8 @@ function buildRowResolver(data) {
 
 function DrillDown({ drill }) {
   if (!drill) return null;
-  return <div className="drilldown"><h3>Drill Down: {drill.title} ({drill.rows.length})</h3><div className="table-wrap"><table><thead><tr>{tableCols.map((col) => <th key={col}>{col.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{drill.rows.slice(0, 100).map((row) => <tr key={row.id}>{tableCols.map((col) => <td key={col}>{row[col] || "N/A"}</td>)}</tr>)}</tbody></table></div></div>;
+  const rows = drill.rows.slice(0, 100);
+  return <div className="drilldown"><h3>Drill Down: {drill.title} ({drill.rows.length})</h3><div className="table-wrap m-desktop-only"><table><thead><tr>{tableCols.map((col) => <th key={col}>{col.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{rows.map((row) => <tr key={row.id}>{tableCols.map((col) => <td key={col}>{row[col] || "N/A"}</td>)}</tr>)}</tbody></table></div><div className="m-only"><MobileDataCards rows={rows} getKey={(row) => row.id} columns={[{ label: "Lead", render: (row) => `${row.full_name || "Unknown"} · #${row.id}` }, { label: "Status", key: "last_contact_status" }, { label: "Staff", key: "staff_name" }, { label: "Source", key: "source" }]} /></div></div>;
 }
 
 function shortName(value = "", max = 28) {
@@ -131,6 +133,7 @@ export default function Dashboard() {
   const [dataScope, setDataScope] = useState("Active");
   const [drill, setDrill] = useState(null);
   const [showUsers, setShowUsers] = useState(false);
+  const [mobileInsightsOpen, setMobileInsightsOpen] = useState(false);
   const [loadError, setLoadError] = useState("");
   const resolveRows = buildRowResolver(data);
 
@@ -212,6 +215,11 @@ export default function Dashboard() {
         : <LineChartBox chartKey="primary-staff-or-month" title="Your Monthly Lead Flow" data={data.charts.month} filename="your_monthly_leads.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />}
       <DonutChartBox chartKey="primary-source" title={mode === "cumulative" ? "Regular Leads by Source" : "Your Regular Lead Sources"} data={data.charts.source} filename={mode === "cumulative" ? "regular_source_leads_all.csv" : "your_regular_source_breakdown.csv"} onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
+    <div className="mobile-insights-heading">
+      <div><h2>Detailed insights</h2><span>Referral, authorization, and pipeline analytics</span></div>
+      <Button onClick={() => setMobileInsightsOpen((open) => !open)}>{mobileInsightsOpen ? "Show less" : "View insights"}</Button>
+    </div>
+    <div className={`dashboard-secondary-insights ${mobileInsightsOpen ? "mobile-open" : ""}`}>
     <h2 className="section-title">Referral and Authorization Breakdown</h2>
     <div className="chart-grid">
       <HorizontalRankChart chartKey="ccu-sent" title="Top CCUs by Referrals Sent" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={10} accent="#3CA5AA" tall />
@@ -231,5 +239,6 @@ export default function Dashboard() {
       <DonutChartBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <div className="rate-cards"><div><b>{data.rates.confirmation.toFixed(1)}%</b><span>{mode === "cumulative" ? "Confirmation Rate" : "Your Confirmation Rate"}</span></div><div><b>{data.rates.conversion.toFixed(1)}%</b><span>{mode === "cumulative" ? "Conversion Rate" : "Your Conversion Rate"}</span></div></div>
+    </div>
   </div>;
 }
