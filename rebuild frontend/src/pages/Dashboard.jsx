@@ -11,6 +11,7 @@ import { activeStatuses } from "../utils/constants";
 import { formatPercentage } from "../utils/chartPercent";
 import { formatMonthLabel } from "../utils/monthLabel";
 import MobileDataCards from "../components/mobile/MobileDataCards";
+import { useMobileViewport } from "../hooks/useMobileViewport";
 
 const chartColors = ["#00506b", "#3CA5AA", "#7C91B0", "#54B56B", "#E39D17", "#D95F59", "#8B5CF6"];
 const tableCols = ["id", "full_name", "phone", "source", "last_contact_status", "staff_name", "created_at", "ccu_name"];
@@ -127,6 +128,7 @@ function StatCard({ value, label, onClick }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useMobileViewport();
   const canAdmin = isAdminRole(user.role);
   const [mode, setMode] = useState(canAdmin ? "cumulative" : "individual");
   const [data, setData] = useState(null);
@@ -220,6 +222,7 @@ export default function Dashboard() {
       <Button onClick={() => setMobileInsightsOpen((open) => !open)}>{mobileInsightsOpen ? "Show less" : "View insights"}</Button>
     </div>
     <div className={`dashboard-secondary-insights ${mobileInsightsOpen ? "mobile-open" : ""}`}>
+    {(!isMobile || mobileInsightsOpen) && <>
     <h2 className="section-title">Referral and Authorization Breakdown</h2>
     <div className="chart-grid">
       <HorizontalRankChart chartKey="ccu-sent" title="Top CCUs by Referrals Sent" data={data.charts.ccuSent} filename="referrals_sent_detailed.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} limit={10} accent="#3CA5AA" tall />
@@ -239,6 +242,7 @@ export default function Dashboard() {
       <DonutChartBox chartKey="lead-conversion" title="Lead Conversion" data={data.charts.leadConversion} filename="lead_conversion_data.csv" onDrill={onDrill} drill={drill} resolveRows={resolveRows} />
     </div>
     <div className="rate-cards"><div><b>{data.rates.confirmation.toFixed(1)}%</b><span>{mode === "cumulative" ? "Confirmation Rate" : "Your Confirmation Rate"}</span></div><div><b>{data.rates.conversion.toFixed(1)}%</b><span>{mode === "cumulative" ? "Conversion Rate" : "Your Conversion Rate"}</span></div></div>
+    </>}
     </div>
   </div>;
 }
