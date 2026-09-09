@@ -8,6 +8,7 @@ import ToastHost from "./components/ToastHost.jsx";
 import { ConfirmProvider } from "./components/ConfirmProvider.jsx";
 import "./styles.css";
 import "./mobile.css";
+import "./login-legacy.css";
 
 const rootNode = document.getElementById("root");
 if (!rootNode) throw new Error("Root element #root was not found");
