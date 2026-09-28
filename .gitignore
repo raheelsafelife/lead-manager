@@ -20,3 +20,4 @@ webapp/frontend/dist/
 webapp/server/node_modules/
 *.md
 *.txt
+!rebuild frontend/public/robots.txt

@@ -32,7 +32,32 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
 
+      # This marker selects the reviewed deployment that does not run DB maintenance.
+      - name: Deploy search privacy only
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[search-privacy-only]')
+        env:
+          APP_DIR: ${{ secrets.APP_DIR }}
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" \
+            "cd '$APP_DIR' && \
+             test -z \"\$(git diff --name-only HEAD)\" && \
+             git fetch origin main && \
+             test \"\$(git rev-parse origin/main)\" = '$EXPECTED_SHA' && \
+             git merge --ff-only '$EXPECTED_SHA' && \
+             python3 'rebuild frontend/deploy/apply-search-privacy.py'"
+
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[search-privacy-only]')
+      - name: Verify production search privacy
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[search-privacy-only]')
+        run: python3 'rebuild frontend/deploy/verify-search-privacy.py'
+
       - name: Deploy rebuilt frontend and API
+        if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[search-privacy-only]')
         env:
           APP_DIR: ${{ secrets.APP_DIR }}
           AWS_HOST: ${{ secrets.AWS_HOST }}

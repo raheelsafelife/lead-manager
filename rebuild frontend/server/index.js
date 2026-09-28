@@ -1,4 +1,5 @@
 import express from "express";
+import { searchPrivacy } from "./searchPrivacy.js";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
@@ -65,6 +66,7 @@ if (db.mode === "sqlite") {
 }
 
 const app = express();
+app.use(searchPrivacy);
 const upload = multer({ dest: uploadsDir });
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "10mb" }));

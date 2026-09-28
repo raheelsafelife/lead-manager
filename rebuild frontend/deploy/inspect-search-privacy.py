@@ -11,6 +11,8 @@ if result.returncode:
     raise SystemExit(result.returncode)
 for part in result.stdout.split('# configuration file ')[1:]:
     name, _, content = part.partition(':\n')
+    for header in re.findall(r'^\s*add_header\s+(\S+)', content, re.M):
+        print('HEADER_DIRECTIVE:', name, header)
     if 'ccpleads.safelifehomehealth.com' not in content:
         continue
     print('CONFIG:', name)
