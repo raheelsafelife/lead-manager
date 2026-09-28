@@ -1,0 +1,32 @@
+name: Lead Manager search privacy
+on:
+  push:
+    branches: [fix/private-search-indexing]
+    paths:
+      - .github/workflows/search-privacy.yml
+      - 'rebuild frontend/deploy/inspect-search-privacy.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-rebuilt-lead-manager
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect production search privacy configuration
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          install -m 700 -d ~/.ssh
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          printf '%s\n' "$AWS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" "cd '$APP_DIR' && python3 -" < 'rebuild frontend/deploy/inspect-search-privacy.py'
