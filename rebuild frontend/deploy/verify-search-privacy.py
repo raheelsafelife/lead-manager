@@ -21,7 +21,7 @@ class RobotsMeta(HTMLParser):
 def check(path, status, method='GET', html=False, base=BASE):
     args = ['curl', '--silent', '--show-error', '--max-time', '25', '--dump-header', '-']
     if method == 'HEAD':
-        args += ['--head']
+        args += ['--head', '--output', '/dev/null']
     elif method == 'OPTIONS':
         args += ['--request', 'OPTIONS', '--header', f'Origin: {BASE}',
                  '--header', 'Access-Control-Request-Method: GET',
