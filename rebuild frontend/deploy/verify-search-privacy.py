@@ -51,6 +51,8 @@ for route in ['/', '/login', '/dashboard', '/view-leads', '/reports']:
     body = check(route, 200, html=True)
     if route == '/':
         root = body
+assert '<meta name="google-site-verification" content="7TTtsiF4A3zU8tDJLmJaS1dtCwoqOZ5WwzqWt5-zL9U" />' in root, 'Search Console verification tag missing'
+print('PASS Google Search Console verification tag')
 check('/robots.txt', 200)
 for route in ['/api/auth/me', '/api/leads', '/api/dashboard', '/api/lookups',
               '/api/reports/export', '/api/attachments/0/download',

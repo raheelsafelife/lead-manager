@@ -69,6 +69,12 @@ if existing_meta and existing_meta != [META]:
 if '</head>' not in html:
     raise RuntimeError('Unexpected frontend HTML')
 updated_html = html if existing_meta else html.replace('</head>', f'    {META}\n  </head>', 1)
+# Copy the public Search Console verification tag from the tracked frontend source.
+source_html = (ROOT / 'rebuild frontend/index.html').read_text()
+verification_tags = re.findall(r'<meta\b[^>]*name="google-site-verification"[^>]*>', source_html)
+for tag in verification_tags:
+    if tag not in updated_html:
+        updated_html = updated_html.replace('</head>', f'    {tag}\n  </head>', 1)
 robots_path = DIST / 'robots.txt'
 robots = (ROOT / 'rebuild frontend/public/robots.txt').read_text()
 assert robots == 'User-agent: *\nDisallow: /\n'
