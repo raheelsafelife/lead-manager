@@ -1,0 +1,124 @@
+diff --git a/rebuild frontend/migrations/aws/postgres-schema.sql b/rebuild frontend/migrations/aws/postgres-schema.sql
+index 7052c580..6500587e 100644
+--- a/rebuild frontend/migrations/aws/postgres-schema.sql	
++++ b/rebuild frontend/migrations/aws/postgres-schema.sql	
+@@ -343,3 +343,7 @@ alter table leads alter column authorization_received set default 0;
+ alter table leads alter column send_reminders set default 1;
+ alter table magic_link_tokens alter column is_used set default 0;
+ alter table notifications alter column is_read set default 0;
++
++alter table leads add column if not exists payer_id text;
++alter table leads add column if not exists hours double precision;
++alter table leads add column if not exists monthly_hours double precision;
+diff --git a/rebuild frontend/src/components/LeadCard.jsx b/rebuild frontend/src/components/LeadCard.jsx
+index 2d678b80..b004fee2 100644
+--- a/rebuild frontend/src/components/LeadCard.jsx	
++++ b/rebuild frontend/src/components/LeadCard.jsx	
+@@ -1,3 +1,4 @@
++import { validateAuthorizationHours } from "../utils/authorization";
+ import { Building2, CalendarDays, Copy, Download, Eye, History, Mail, MessageSquare, Paperclip, Phone, Trash2, UserRound } from "lucide-react";
+ import { useEffect, useRef, useState } from "react";
+ import { useLocation, useNavigate } from "react-router-dom";
+@@ -162,6 +163,8 @@ export default function LeadCard({ lead, type, onChanged }) {
+   }
+ 
+   async function saveEdit() {
++    const error = validateAuthorizationHours(form);
++    if (error) { emitToast({ type: "error", message: error }); return; }
+     const {
+       active_client,
+       authorization_received,
+@@ -193,6 +196,8 @@ export default function LeadCard({ lead, type, onChanged }) {
+   }
+ 
+   function askSaveEdit() {
++    const error = validateAuthorizationHours(form);
++    if (error) { emitToast({ type: "error", message: error }); return; }
+     confirmAction({
+       title: "Save Lead Changes?",
+       message: `Do you want to update lead ${fullName}?`,
+@@ -475,6 +480,11 @@ export default function LeadCard({ lead, type, onChanged }) {
+           <article>
+             <b><Building2 size={17} /> Payor</b>
+             <strong>{value(lead.agency_name)}</strong>
++            {type === "authorization" && <div className="lead-context-detail">
++              <span><b>Payer ID</b>{value(lead.payer_id)}</span>
++              <span><b>Weekly Hours</b>{lead.hours ?? "N/A"}</span>
++              <span><b>Monthly Hours</b>{lead.monthly_hours ?? "N/A"}</span>
++            </div>}
+             <div className="lead-context-detail">
+               <span><b>Phone</b><CopyValue label="Payor phone" text={lead.agency_phone} copyKey={`lead-${lead.id}-agency-phone`} /></span>
+               <span><b>Fax</b>{value(lead.agency_fax)}</span>
+@@ -686,6 +696,12 @@ export default function LeadCard({ lead, type, onChanged }) {
+             <Field label="Date of Birth"><input type="date" value={form.dob ? String(form.dob).slice(0, 10) : ""} onChange={(e) => setForm({ ...form, dob: e.target.value })} /></Field>
+             <Field label="Phone"><input value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+             <Field label="Authorization Received Date"><input type="date" value={form.authorization_received_at ? String(form.authorization_received_at).slice(0, 10) : ""} onChange={(e) => setForm({ ...form, authorization_received_at: e.target.value })} /></Field>
++            {type === "authorization" && <>
++              <Field label="Payer ID"><input value={form.payer_id || ""} onChange={(e) => setForm({ ...form, payer_id: e.target.value })} /></Field>
++              <Field label="Weekly Hours"><input type="number" min="0" step="any" value={form.hours ?? ""} onChange={(e) => setForm({ ...form, hours: e.target.value })} /></Field>
++              <Field label="Monthly Hours"><input type="number" min="0" step="any" value={form.monthly_hours ?? ""} onChange={(e) => setForm({ ...form, monthly_hours: e.target.value })} /></Field>
++              {validateAuthorizationHours(form) && <p role="alert">{validateAuthorizationHours(form)}</p>}
++            </>}
+             <Field label="Age / Year"><input type="number" value={form.age || ""} onChange={(e) => setForm({ ...form, age: e.target.value })} /></Field>
+             <Field label="Gender"><div className="segmented gender-buttons">{genderOptions.map((option) => <Button key={option} active={form.gender === option} onClick={() => setForm({ ...form, gender: form.gender === option ? "" : option })}>{option}</Button>)}</div></Field>
+             <div />
+diff --git a/rebuild frontend/server/index.js b/rebuild frontend/server/index.js
+index 86858eae..4b887010 100644
+--- a/rebuild frontend/server/index.js	
++++ b/rebuild frontend/server/index.js	
+@@ -1,3 +1,4 @@
++import { validateAuthorizationHours, normalizeHours } from "../src/utils/authorization.js";
+ import express from "express";
+ import { searchPrivacy } from "./searchPrivacy.js";
+ import cors from "cors";
+@@ -53,6 +58,9 @@ if (db.mode === "sqlite") {
+     primary key (user_id, notification_id)
+   )`);
+   const leadColumns = db.columns("leads");
++  for (const [name, type] of [["payer_id", "text"], ["hours", "real"], ["monthly_hours", "real"]]) {
++    if (leadColumns.length && !leadColumns.includes(name)) db.exec(`alter table leads add column ${name} ${type}`);
++  }
+   if (leadColumns.length && !leadColumns.includes("gender")) {
+     db.exec("alter table leads add column gender varchar(30)");
+   }
+@@ -1004,7 +1016,7 @@ const leadWriteFields = new Set([
+   "tag_color","soc_date","phone","street","city","zip_code","dob","age","gender","medicaid_no","e_contact_name",
+   "e_contact_relation","e_contact_phone","last_contact_status","comments","ssn","email","custom_user_id","state",
+   "send_reminders","caregiver_type","referral_sent_date","deleted_at","deleted_by","call_status_updated_by","call_status_updated_at",
+-  "is_chicago_referral"
++  "is_chicago_referral", "payer_id", "hours", "monthly_hours"
+ ]);
+ 
+ const dashboardDataScopes = new Set(["Active", "Inactive", "All"]);
+@@ -3074,6 +3100,8 @@ app.get("/api/search/suggestions", auth, async (req, res) => {
+ 
+ app.post("/api/leads", auth, async (req, res) => {
+   const body = req.body;
++  const hoursError = validateAuthorizationHours(body);
++  if (hoursError) return res.status(400).json({ error: hoursError });
+   const duplicate = await findDuplicateLead(body);
+   if (duplicate) {
+     const kind = duplicateKind(duplicate);
+@@ -3086,6 +3114,10 @@ app.post("/api/leads", auth, async (req, res) => {
+   const data = { ...body, created_at: timestamp, updated_at: timestamp, created_by: req.user.username, updated_by: req.user.username, priority: body.priority || "Not Called", tag_color: body.tag_color || null, active_client: bool(body.active_client), authorization_received: authorizationReceived, authorization_received_at: authorizationReceived ? timestamp : null, send_reminders: 1, referral_sent_date: body.active_client ? (body.referral_sent_date || timestamp.slice(0, 10)) : null };
+   const metricErrors = validateLeadMetricState(data);
+   if (metricErrors.length) return res.status(400).json({ error: metricErrors.join(" ") });
++  fields.push("payer_id", "hours", "monthly_hours");
++  data.payer_id = body.payer_id || null;
++  data.hours = normalizeHours(body.hours);
++  data.monthly_hours = normalizeHours(body.monthly_hours);
+   const sql = `insert into leads (${fields.join(",")}) values (${fields.map((f) => `@${f}`).join(",")})`;
+   const result = await db.run(sql, data);
+   const lead = await getLead(result.lastInsertRowid, true);
+@@ -3100,6 +3132,11 @@ app.patch("/api/leads/:id", auth, async (req, res) => {
+   if (!allowed.length) return res.json({ lead: oldLead });
+   const data = Object.fromEntries(allowed.map((key) => [key, req.body[key]]));
+   const proposedLead = { ...oldLead, ...data };
++  if (allowed.some((key) => ["hours", "monthly_hours"].includes(key))) {
++    const error = validateAuthorizationHours(proposedLead);
++    if (error) return res.status(400).json({ error });
++    for (const key of ["hours", "monthly_hours"]) if (allowed.includes(key)) data[key] = normalizeHours(data[key]);
++  }
+   const metricFieldsChanged = allowed.some((key) => ["active_client", "authorization_received", "care_status", "referral_sent_date"].includes(key));
+   if (metricFieldsChanged) {
+     const metricErrors = validateLeadMetricState(proposedLead);

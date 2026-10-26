@@ -1,0 +1,41 @@
+name: Deploy authorization payer and hours
+on:
+  push:
+    branches: [main]
+    paths: ['releases/authorization-hours/**', '.github/workflows/deploy-authorization-hours.yml']
+  workflow_dispatch:
+concurrency:
+  group: deploy-rebuilt-lead-manager
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$AWS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
+      - name: Apply focused release with backups and rollback
+        env:
+          APP_DIR: ${{ secrets.APP_DIR }}
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+        run: |
+          REMOTE_DIR="/tmp/authorization-release-$GITHUB_SHA"
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" "mkdir -m 700 -p '$REMOTE_DIR'"
+          scp -P "$AWS_PORT" -i ~/.ssh/deploy_key releases/authorization-hours/* "$AWS_USER@$AWS_HOST:$REMOTE_DIR/"
+          ssh -p "$AWS_PORT" -i ~/.ssh/deploy_key "$AWS_USER@$AWS_HOST" "python3 '$REMOTE_DIR/deploy.py' '$APP_DIR'"
+      - name: Verify public site
+        run: |
+          curl --fail --silent --output /dev/null https://ccpleads.safelifehomehealth.com/
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' https://ccpleads.safelifehomehealth.com/api/leads)" = 401
