@@ -37,8 +37,17 @@ try:
     shutil.copy2(release/'authorization.test.js', frontend/'server/authorization.test.js')
     run(['node', '--check', 'server/index.js'], frontend)
     run(['node', '--test', 'server/authorization.test.js'], frontend)
+    if not (frontend/'node_modules/leaflet/package.json').exists():
+        run(['npm', 'install', '--no-save', '--package-lock=false', '--ignore-scripts', 'leaflet@1.9.4'], frontend)
     if (frontend/'dist').exists(): shutil.move(str(frontend/'dist'), str(old_dist))
     run(['npm', 'run', 'build'], frontend)
+    # Preserve existing static resources that were deployed outside the source tree.
+    if old_dist.exists():
+        for source in old_dist.rglob('*'):
+            target = frontend/'dist'/source.relative_to(old_dist)
+            if source.is_file() and not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
     run(['pm2', 'restart', 'lead-manager-react'], frontend)
     time.sleep(4)
     run(['curl', '--fail', '--silent', '--output', '/dev/null', 'http://127.0.0.1:3001/'])
