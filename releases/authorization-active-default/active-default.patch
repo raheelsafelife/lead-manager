@@ -1,0 +1,36 @@
+--- a/rebuild frontend/server/index.js
++++ b/rebuild frontend/server/index.js
+@@ -1,4 +1,4 @@
+-import { getLeadListSummary } from "./leadListSummary.js";
++import { defaultAuthorizationScope, getLeadListSummary } from "./leadListSummary.js";
+ import { validateAuthorizationHours, normalizeHours } from "../src/utils/authorization.js";
+ import express from "express";
+ import { searchPrivacy } from "./searchPrivacy.js";
+@@ -1203,6 +1203,7 @@
+ }
+ 
+ async function listLeads(q, user) {
++  q = defaultAuthorizationScope(q);
+   const { where, params } = buildLeadQuery(q, user);
+   const hasAttachmentDateFilter = q.type === "authorization" && (q.attachmentStartDate || q.attachmentEndDate);
+   const sort = hasAttachmentDateFilter
+--- a/rebuild frontend/src/pages/LeadsPage.jsx
++++ b/rebuild frontend/src/pages/LeadsPage.jsx
+@@ -34,7 +34,7 @@
+ 
+ function getDefaultFilters(user, initialId, initialOptions = {}, type = "lead") {
+   return {
+-    active: initialOptions.active || (initialOptions.globalSearch ? "All" : "Active"),
++    active: initialOptions.active || (initialOptions.globalSearch && type !== "authorization" ? "All" : "Active"),
+     status: "All",
+     callStatus: "All",
+     tagColor: "All",
+@@ -129,7 +129,7 @@
+ 
+   const params = useMemo(() => ({
+     ...filters,
+-    type: discovery || initialOptions.globalSearch ? undefined : type,
++    type: discovery || (initialOptions.globalSearch && type !== "authorization") ? undefined : type,
+     pageSearch: discovery ? undefined : true,
+     includeAuthorizationHours: type === "authorization",
+     startDate: filters.dateRange === "Custom" ? filters.customStartDate : startForDateFilter(filters.dateRange),
