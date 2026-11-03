@@ -1,0 +1,81 @@
+diff --git a/rebuild frontend/src/pages/LeadsPage.jsx b/rebuild frontend/src/pages/LeadsPage.jsx
+index c75efce7..1bcad5ee 100644
+--- a/rebuild frontend/src/pages/LeadsPage.jsx	
++++ b/rebuild frontend/src/pages/LeadsPage.jsx	
+@@ -131,6 +131,7 @@ export default function LeadsPage({ title, type, discovery = false }) {
+     ...filters,
+     type: discovery || initialOptions.globalSearch ? undefined : type,
+     pageSearch: discovery ? undefined : true,
++    includeAuthorizationHours: type === "authorization",
+     startDate: filters.dateRange === "Custom" ? filters.customStartDate : startForDateFilter(filters.dateRange),
+     endDate: filters.dateRange === "Custom" ? filters.customEndDate : undefined,
+     attachmentStartDate: filters.attachmentDateRange === "Custom" ? filters.attachmentStartDate : startForDateFilter(filters.attachmentDateRange),
+@@ -532,6 +533,23 @@ export default function LeadsPage({ title, type, discovery = false }) {
+         </div>
+       </div>
+ 
++      {type === "authorization" && (
++        <section className="authorization-hours-summary" aria-label="Grand total authorization hours" aria-live="polite" aria-busy={loadingRows}>
++          <div className="authorization-hours-heading">
++            <b>Grand Total Hours</b>
++            <span>All clients matching the selected filters, across all pages</span>
++          </div>
++          <div className="authorization-hours-total">
++            <span>Total Weekly Hours</span>
++            <strong>{loadingRows ? "Loading…" : loadError ? "Unavailable" : Number(data.authorizationHours?.weekly ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
++          </div>
++          <div className="authorization-hours-total">
++            <span>Total Monthly Hours</span>
++            <strong>{loadingRows ? "Loading…" : loadError ? "Unavailable" : Number(data.authorizationHours?.monthly ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
++          </div>
++        </section>
++      )}
++
+       <p className="leads-summary-line">
+         <b>Showing {data.rows.length} {filters.transferView ? "transfer cases" : summaryLabel} in {currentFolder.summary} of {data.total} total</b>
+         <span>{type === "authorization" ? "Authorization Records" : `Folder: ${currentFolder.title}`} | Status: {filters.status} | Call Status: {filters.callStatus} | Tag: {filters.tagColor === "All Tags" ? "All" : filters.tagColor}{type === "authorization" ? ` | Attachment Updated: ${filters.attachmentDateRange}` : ""}</span>
+diff --git a/rebuild frontend/src/styles.css b/rebuild frontend/src/styles.css
+index 3c328a88..45b8d1fe 100644
+--- a/rebuild frontend/src/styles.css	
++++ b/rebuild frontend/src/styles.css	
+@@ -4053,3 +4053,21 @@ th { background: #f8fafc; color: var(--deep-blue); }
+     border-radius: 22px;
+   }
+ }
++
++.authorization-hours-summary {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 20px 36px;
++  padding: 20px 24px;
++  border: 1px solid #cde7ec;
++  border-radius: 16px;
++  background: linear-gradient(120deg, #edf9fa, #fff);
++  color: #164354;
++}
++.authorization-hours-heading { flex: 1 1 250px; }
++.authorization-hours-heading b { display: block; font-size: 1.1rem; margin-bottom: 6px; }
++.authorization-hours-heading span { color: #526b78; font-size: .85rem; }
++.authorization-hours-total { flex: 1 1 160px; display: grid; gap: 6px; }
++.authorization-hours-total span { font-size: .85rem; font-weight: 700; }
++.authorization-hours-total strong { color: #00637b; font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+--- a/rebuild frontend/server/index.js
++++ b/rebuild frontend/server/index.js
+@@ -1,3 +1,4 @@
++import { getLeadListSummary } from "./leadListSummary.js";
+ import { validateAuthorizationHours, normalizeHours } from "../src/utils/authorization.js";
+ import express from "express";
+ import { searchPrivacy } from "./searchPrivacy.js";
+@@ -1210,8 +1211,9 @@
+   const limit = Math.min(Number(q.limit || 10), 2000);
+   const offset = Math.max(Number(q.offset || 0), 0);
+   const rows = await db.all(`${leadSelect} ${where} order by ${sort} limit @limit offset @offset`, { ...params, limit, offset });
+-  const total = (await db.get(`select count(*) as count from leads left join agencies on agencies.id = leads.agency_id left join ccus on ccus.id = leads.ccu_id ${where}`, params)).count;
+-  return { rows, total };
++  const includeHours = q.type === "authorization" || q.includeAuthorizationHours === "true" || q.includeAuthorizationHours === true;
++  const summary = await getLeadListSummary(db, where, params, includeHours);
++  return { rows, ...summary };
+ }
+ 
+ function compactLead(lead) {
