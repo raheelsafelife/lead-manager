@@ -1,0 +1,31 @@
+name: One-time client hours report
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read AWS client hours and encrypt report
+        env:
+          AWS_HOST: ${{ secrets.AWS_HOST }}
+          AWS_PORT: ${{ secrets.AWS_PORT }}
+          AWS_USER: ${{ secrets.AWS_USER }}
+          AWS_SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          umask 077
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$AWS_SSH_KEY" > ~/.ssh/report_key
+          trap 'rm -f "$RUNNER_TEMP/client-hours.csv" ~/.ssh/report_key' EXIT
+          ssh-keyscan -p "$AWS_PORT" -H "$AWS_HOST" >> ~/.ssh/known_hosts
+          ssh -p "$AWS_PORT" -i ~/.ssh/report_key "$AWS_USER@$AWS_HOST" "cd '$APP_DIR/rebuild frontend' && node --input-type=module" < releases/one-time-hours-report/export.mjs > "$RUNNER_TEMP/client-hours.csv"
+          test -s "$RUNNER_TEMP/client-hours.csv"
+          openssl cms -encrypt -binary -aes256 -in "$RUNNER_TEMP/client-hours.csv" -out "$RUNNER_TEMP/client-hours.enc" -outform DER releases/one-time-hours-report/certificate.pem
+      - uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-client-hours
+          path: ${{ runner.temp }}/client-hours.enc
+          retention-days: 1
